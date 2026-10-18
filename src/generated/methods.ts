@@ -120,7 +120,7 @@ export abstract class Operations extends Transport {
   /**
    * List scheduling publishers
    *
-   * Returns the SMART Scheduling Links publishers (sources) the platform ingests. Requires a valid API key.
+   * Returns the SMART Scheduling Links publishers (sources) the platform ingests. Requires a valid API key. (Edited for a test of the regeneration workflow.)
    *
    * `GET /v1/scheduling/publishers`
    */

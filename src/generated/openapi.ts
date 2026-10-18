@@ -52,7 +52,7 @@ export interface paths {
         };
         /**
          * List scheduling publishers
-         * @description Returns the SMART Scheduling Links publishers (sources) the platform ingests. Requires a valid API key.
+         * @description Returns the SMART Scheduling Links publishers (sources) the platform ingests. Requires a valid API key. (Edited for a test of the regeneration workflow.)
          */
         get: operations["listPublishers"];
         put?: never;
