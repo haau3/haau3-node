@@ -1,7 +1,6 @@
-# Dependabot keeps the toolchain current, on the haau3 monorepo's cadence: one grouped npm PR every
-# Monday, each major alone, grouped security fixes, one GitHub Actions PR a month, all waiting
-# three days after a release (pnpm's minimumReleaseAge is the same three days). The owner merges
-# every PR.
+# Dependabot keeps the toolchain current: one grouped npm PR every Monday, each major alone, grouped
+# security fixes, one GitHub Actions PR a month, all waiting three days after a release (pnpm's
+# minimumReleaseAge is the same three days). A maintainer merges every PR.
 version: 2
 updates:
   - package-ecosystem: npm
