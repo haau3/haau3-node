@@ -48,13 +48,15 @@ jobs:
           token: ${{ steps.token.outputs.token }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
+      # The PR arrives as JSON text and is read in the script: GitHub evaluates a step's env before
+      # its `if`, so fromJSON on the empty output of a run that opened no PR fails the job.
       - name: Request a review of the release PR
         if: steps.release.outputs.pr && vars.HAAU3_BOT_REVIEWER
         env:
           GH_TOKEN: ${{ steps.token.outputs.token }}
-          NUMBER: ${{ fromJSON(steps.release.outputs.pr).number }}
+          PR: ${{ steps.release.outputs.pr }}
           REVIEWER: ${{ vars.HAAU3_BOT_REVIEWER }}
-        run: gh pr edit "$NUMBER" --repo "$GITHUB_REPOSITORY" --add-reviewer "$REVIEWER"
+        run: gh pr edit "$(jq -r .number <<< "$PR")" --repo "$GITHUB_REPOSITORY" --add-reviewer "$REVIEWER"
 
   stage:
     name: Stage the release on npm

@@ -102,6 +102,17 @@ describe("every workflow", () => {
     expect(files.sort()).toEqual(["ci.yml", "public-text.yml", "regenerate.yml", "release.yml"]);
   });
 
+  it("calls fromJSON in no step's env, which GitHub evaluates even when the step's if is false", () => {
+    for (const name of files) {
+      const jobs = Object.values(workflow(name).jobs) as { steps: { name?: string; env?: Record<string, string> }[] }[];
+      for (const step of jobs.flatMap((job) => job.steps)) {
+        for (const value of Object.values(step.env ?? {})) {
+          expect(String(value), `${name}: ${step.name}`).not.toMatch(/fromJSON\(/i);
+        }
+      }
+    }
+  });
+
   it("pins every action it uses by commit", () => {
     for (const name of files) {
       const jobs = Object.values(workflow(name).jobs) as { steps: { uses?: string }[] }[];
