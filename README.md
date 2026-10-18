@@ -29,20 +29,39 @@ const haau3 = new Haau3(); // reads HAAU3_API_KEY
 
 ```ts
 const plan = await haau3.readInsurancePlan("H2406-013-000");
-console.log(plan.name);
-
-const { providerLocations } = await haau3.searchProviderLocations({ state: "MA", limit: 10 });
+console.log(plan.name); // "AARP Medicare Advantage from UHC FL-0021 (PPO)"
 ```
 
-Every operation in the [API reference](https://docs.haau3.com) is a method named by its
-operationId, with its parameters and its answer typed from the published spec. FHIR answers are
-[@types/fhir](https://www.npmjs.com/package/@types/fhir)'s R4 types, also exported as `fhir4`:
+FHIR answers are [@types/fhir](https://www.npmjs.com/package/@types/fhir)'s R4 types, also
+exported as `fhir4` (`import type { fhir4 } from "@haau3/sdk"`).
+
+## One call per service
 
 ```ts
-import type { fhir4 } from "@haau3/sdk";
+// Scheduling: open appointment slots, here in Boston.
+const { slots, total } = await haau3.searchSlots({ city: "Boston", state: "MA", limit: 10 });
 
-const bundle: fhir4.Bundle = await haau3.searchPractitioner({ identifier: "http://hl7.org/fhir/sid/us-npi|1518929058" });
+// Provider directory: a practitioner by NPI, from CMS's National Provider Directory.
+const practitioners = await haau3.searchPractitioner({ identifier: "1093209884" });
+
+// Terminology: a LOINC code's display and properties.
+const glucose = await haau3.codeSystemLookup({ system: "http://loinc.org", code: "2345-7" });
+
+// Questionnaires: a form by its id, such as the PHQ-9.
+const phq9 = await haau3.readQuestionnaire("44249-1");
+
+// Plan Benefits: a Medicare Advantage or ACA Marketplace plan, and which providers are in its network.
+const plan = await haau3.readInsurancePlan("H2406-013-000");
+const network = await haau3.checkInsurancePlanNetwork("H3359-038-000", { npi: ["1518929058"] });
+
+// MedList: one reconciled medication list from one patient's FHIR medication records. It receives
+// patient data, so send it only under an executed agreement.
+const list = await haau3.reconcileMedications(records);
 ```
+
+Every method, grouped by service, with its request and a link to its page on docs.haau3.com, is in
+[api.md](https://github.com/haau3/haau3-node/blob/main/api.md). Each is named by its operationId,
+with its parameters and its answer typed from the published spec.
 
 ## Options
 

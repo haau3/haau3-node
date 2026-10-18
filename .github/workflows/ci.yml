@@ -47,7 +47,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: The generated code matches the pinned spec
-        run: pnpm generate && git diff --exit-code -- src/generated
+        run: pnpm generate && git diff --exit-code -- src/generated api.md
       - run: pnpm typecheck
       - run: pnpm lint
       - run: pnpm build
