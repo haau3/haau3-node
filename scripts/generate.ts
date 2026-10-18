@@ -38,7 +38,7 @@ function fhirType(schema: Json | undefined): string | undefined {
 // --- openapi.ts ---------------------------------------------------------------------------------
 
 const ast = await openapiTS(spec as never, {
-  // The FHIR marker (SDK-2): only the component itself becomes `fhir4.<Type>`. The hook is also
+  // The FHIR marker: only the component itself becomes `fhir4.<Type>`. The hook is also
   // called for each of its properties with the parent's path, so the path alone is not enough.
   transform(schema, options) {
     const type = fhirType(schema as Json);
@@ -70,7 +70,7 @@ interface Operation {
 }
 
 /**
- * The slug docs.haau3.com gives a page: Mintlify's, from the tag and the summary, lower-cased, with
+ * The slug docs.haau3.com gives a page, from the tag and the summary: lower-cased, with
  * apostrophes and other punctuation dropped and spaces as hyphens. A second page with the same
  * slug gets `-1` (the POST twin of a terminology operation, which follows its GET in the spec).
  */
