@@ -1,0 +1,74 @@
+{
+  "name": "@haau3/sdk",
+  "version": "0.1.0",
+  "description": "TypeScript SDK for the haau3 platform API: scheduling, provider directory, terminology, questionnaires, plan benefits and medication lists, as typed calls.",
+  "license": "MIT",
+  "homepage": "https://docs.haau3.com",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/haau3/haau3-node.git"
+  },
+  "bugs": {
+    "url": "https://github.com/haau3/haau3-node/issues"
+  },
+  "keywords": [
+    "haau3",
+    "fhir",
+    "fhir-r4",
+    "healthcare",
+    "scheduling",
+    "provider-directory",
+    "terminology",
+    "sdk"
+  ],
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "sideEffects": false,
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.cts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.mts",
+        "default": "./dist/index.mjs"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "packageManager": "pnpm@12.12.1",
+  "scripts": {
+    "fetch-spec": "tsx scripts/fetch-spec.ts",
+    "generate": "tsx scripts/generate.ts",
+    "build": "tsdown",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "lint": "eslint .",
+    "check:package": "publint --strict && attw --pack ."
+  },
+  "dependencies": {
+    "@types/fhir": "~0.0.44"
+  },
+  "devDependencies": {
+    "@arethetypeswrong/cli": "^0.18.5",
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^22.20.5",
+    "eslint": "^10.12.0",
+    "openapi-typescript": "7.13.0",
+    "publint": "^0.3.25",
+    "tsdown": "0.23.1",
+    "tsx": "^4.23.15",
+    "typescript": "6.0.3",
+    "typescript-eslint": "^8.71.2",
+    "vitest": "^5.0.5"
+  }
+}

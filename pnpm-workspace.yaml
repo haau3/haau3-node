@@ -1,0 +1,23 @@
+# Supply-chain settings carried from the haau3 monorepo (its pnpm-workspace.yaml says why each one
+# is there). pnpm installs no version, direct or transitive, until it has been published for three
+# days; the setting is in minutes. A security fix inside the window is listed under
+# minimumReleaseAgeExclude by name and version, never a bare name, and removed once it is three days
+# old.
+minimumReleaseAge: 4320
+
+# Keeps pnpm-lock.yaml one YAML document, which GitHub's dependency graph needs to see the tree
+# (dependabot-core#15904).
+pmOnFail: ignore
+
+# esbuild is the one dependency here that runs an install script (it fetches its platform binary);
+# pnpm blocks every other.
+allowBuilds:
+  esbuild: true
+
+# openapi-typescript 7.13.0 declares typescript ^5.x as its peer. This repository builds with 6.0.3,
+# the newest TypeScript the generator can run on (TypeScript 7 ships no compiler API, which it calls;
+# openapi-ts/openapi-typescript#2841). Its output was measured identical under 5.9.3 and 6.0.3 before
+# 0.1.0 (see CONTRIBUTING.md).
+peerDependencyRules:
+  allowedVersions:
+    openapi-typescript>typescript: "6"

@@ -1,0 +1,116 @@
+import type { OperationOutcome } from "fhir/r4.js";
+import type { Problem } from "./generated/types.js";
+
+/**
+ * Why a request got no answer:
+ *
+ * - `timeout`: an attempt ran past its timeout, or the API answered 504.
+ * - `network`: the request never reached the API, or the connection failed.
+ * - `rate-limited`: the API answered 429. `retryAfter` says when to try again.
+ * - `unavailable`: the API, or a source it reads, could not answer (502, 503).
+ * - `server-error`: the API failed (500).
+ * - `unreadable`: the API answered with something that is not an answer, such as a body that is
+ *   not JSON.
+ */
+export type NoAnswerReason = "timeout" | "network" | "rate-limited" | "unavailable" | "server-error" | "unreadable";
+
+/** What every error this package throws has. */
+export class Haau3Error extends Error {
+  override name = "Haau3Error";
+  /** The `X-Request-Id` the API sent, when it answered. Quote it when you ask for help. */
+  readonly requestId: string | undefined;
+
+  constructor(message: string, requestId?: string, options?: ErrorOptions) {
+    super(message, options);
+    this.requestId = requestId;
+  }
+}
+
+/**
+ * Attaches the body the API answered with, readable by code but never printed: the property is
+ * not enumerable, so `console.log(error)`, `util.inspect` and `JSON.stringify` leave it out. A body
+ * can repeat what the request carried, and for some operations that is a patient's data.
+ */
+function attachBody(error: Haau3Error, body: AnswerBody | undefined): void {
+  if (!body) return;
+  const key = body.kind === "outcome" ? "outcome" : "problem";
+  Object.defineProperty(error, key, { value: body.value, enumerable: false, writable: false, configurable: false });
+}
+
+/** An error body as the SDK read it: an OperationOutcome under the FHIR base, a Problem elsewhere. */
+export type AnswerBody = { kind: "outcome"; value: OperationOutcome } | { kind: "problem"; value: Problem };
+
+/** The API refused the key: none was sent, it is not one the API knows, or it was revoked (401, 403). */
+export class AuthError extends Haau3Error {
+  override name = "AuthError";
+  readonly status: number;
+  /** The OperationOutcome the FHIR base answered with. Not enumerable, so it is never printed. */
+  declare readonly outcome?: OperationOutcome;
+  /** The problem the other services answered with. Not enumerable, so it is never printed. */
+  declare readonly problem?: Problem;
+
+  constructor(message: string, status: number, requestId?: string, body?: AnswerBody) {
+    super(message, requestId);
+    this.status = status;
+    attachBody(this, body);
+  }
+}
+
+/**
+ * The API answered and refused the request: a parameter it does not take, a record that does not
+ * exist (404), a page that no longer exists (410), a body that is too large (413). `status` says
+ * which, and the body says why.
+ */
+export class RefusedError extends Haau3Error {
+  override name = "RefusedError";
+  readonly status: number;
+  /** The OperationOutcome the FHIR base answered with. Not enumerable, so it is never printed. */
+  declare readonly outcome?: OperationOutcome;
+  /** The problem the other services answered with. Not enumerable, so it is never printed. */
+  declare readonly problem?: Problem;
+
+  constructor(message: string, status: number, requestId?: string, body?: AnswerBody) {
+    super(message, requestId);
+    this.status = status;
+    attachBody(this, body);
+  }
+}
+
+/**
+ * The request got no answer, after every attempt the client was allowed. This never means "no
+ * results": an empty search answers with an empty Bundle or list, not with this error.
+ */
+export class NoAnswerError extends Haau3Error {
+  override name = "NoAnswerError";
+  readonly reason: NoAnswerReason;
+  /** The last status the API answered with, when it answered at all. */
+  readonly status: number | undefined;
+  /** Seconds to wait before trying again, when the API said. */
+  readonly retryAfter: number | undefined;
+  /** How many attempts were made. */
+  readonly attempts: number;
+  /** The OperationOutcome the FHIR base answered with. Not enumerable, so it is never printed. */
+  declare readonly outcome?: OperationOutcome;
+  /** The problem the other services answered with. Not enumerable, so it is never printed. */
+  declare readonly problem?: Problem;
+
+  constructor(
+    message: string,
+    details: {
+      reason: NoAnswerReason;
+      attempts: number;
+      status?: number;
+      retryAfter?: number;
+      requestId?: string;
+      body?: AnswerBody;
+      cause?: unknown;
+    },
+  ) {
+    super(message, details.requestId, details.cause === undefined ? undefined : { cause: details.cause });
+    this.reason = details.reason;
+    this.status = details.status;
+    this.retryAfter = details.retryAfter;
+    this.attempts = details.attempts;
+    attachBody(this, details.body);
+  }
+}
