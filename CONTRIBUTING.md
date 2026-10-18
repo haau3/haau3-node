@@ -17,8 +17,8 @@ Node 24 and pnpm 12. pnpm installs no version of anything published in the last 
 
 ## Generated code
 
-`src/generated/` is written by `scripts/generate.ts` from `openapi/openapi.json`, the pinned copy of
-`https://api.haau3.com/openapi.json`. Never edit either by hand. To take a new spec:
+`src/generated/` and `api.md` are written by `scripts/generate.ts` from `openapi/openapi.json`, the
+pinned copy of `https://api.haau3.com/openapi.json`. Never edit them by hand. To take a new spec:
 
 ```sh
 pnpm fetch-spec
