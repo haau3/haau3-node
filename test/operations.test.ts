@@ -44,9 +44,16 @@ for (const [path, item] of Object.entries(spec.paths)) {
 }
 
 describe("the operations", () => {
-  it("are the spec's 36, each a method on Haau3 named by its operationId", () => {
-    expect(spec.info.version).toBe("1.0.0-preview.3");
-    expect(cases).toHaveLength(36);
+  // Nothing here names a version or a count, so a regeneration PR (regenerate.yml) passes on its own
+  // unless the new spec needs a change by hand.
+  it("are every operation in the spec, each a method on Haau3 named by its operationId", () => {
+    expect(spec.info.version).toMatch(/^1\.0\.0(-preview\.\d+)?$/);
+    expect(cases.length).toBeGreaterThan(0);
+    expect(new Set(cases.map((c) => c.operationId)).size).toBe(cases.length);
+    // The generator writes GET and POST methods only, so an operation under any other method is
+    // work by hand.
+    const methods = Object.values(spec.paths).flatMap((item) => Object.keys(item).filter((key) => key !== "parameters"));
+    expect([...new Set(methods)].sort()).toEqual(["get", "post"]);
     for (const { operationId } of cases) {
       expect(typeof (Haau3.prototype as unknown as Record<string, unknown>)[operationId], operationId).toBe("function");
     }
