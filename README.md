@@ -146,7 +146,8 @@ const { status, body, requestId } = await haau3.request({ method: "GET", path: "
 ## Versions
 
 The SDK is `0.y.z` while the API is in preview: a minor release may change what a method takes or
-answers, and a patch release never does.
+answers, and a patch release never does. [CHANGELOG.md](CHANGELOG.md) lists every release, and a
+release that takes a new version of the API's spec names that version.
 
 ## License
 
