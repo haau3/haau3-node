@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.2](https://github.com/haau3/haau3-node/compare/v0.1.1...v0.1.2) (2026-10-18)
+
+
+### Bug Fixes
+
+* request the release PR's review only when there is one ([#4](https://github.com/haau3/haau3-node/issues/4)) ([929692e](https://github.com/haau3/haau3-node/commit/929692e4bd6d5e8878264896d50a66506d3fa3e9))
+
 ## [0.1.1](https://github.com/haau3/haau3-node/compare/v0.1.0...v0.1.1) (2026-10-18)
 
 ### Documentation
