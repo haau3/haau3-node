@@ -53,7 +53,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "lint": "eslint .",
-    "check:package": "publint --strict && attw --pack ."
+    "check:package": "publint --strict && attw --pack .",
+    "check:public-text": "tsx scripts/check-public-text.ts"
   },
   "dependencies": {
     "@types/fhir": "~0.0.44"
