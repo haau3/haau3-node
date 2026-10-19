@@ -112,7 +112,7 @@ export interface paths {
         };
         /**
          * Capability statement
-         * @description FHIR `[base]/metadata`. Returns the `CapabilityStatement` for this service, or a `TerminologyCapabilities` when called with `?mode=terminology` — which lists the code systems served, and names those that are recognised but not served. `mode` is the only parameter it takes.
+         * @description FHIR `[base]/metadata`. Returns the `CapabilityStatement` for this service, or a `TerminologyCapabilities` when called with `?mode=terminology`, which lists the code systems served and names those that are recognised but not served. `mode` is the only parameter it takes.
          */
         get: operations["fhirMetadata"];
         put?: never;
@@ -176,13 +176,13 @@ export interface paths {
         };
         /**
          * Validate a code in a code system
-         * @description FHIR `CodeSystem/$validate-code`. Asks whether a code exists in a code system — distinct from the ValueSet operation of the same name, which asks about membership of a particular set. On POST, a `coding` or `codeableConcept` parameter may stand in for `url` + `code`; a codeableConcept validates if any of its codings does.
+         * @description FHIR `CodeSystem/$validate-code`. Asks whether a code exists in a code system. The ValueSet operation of the same name asks about membership of a particular set instead. On POST, a `coding` or `codeableConcept` parameter may stand in for `url` + `code`; a codeableConcept validates if any of its codings does.
          */
         get: operations["codeSystemValidateCode"];
         put?: never;
         /**
          * Validate a code in a code system
-         * @description FHIR `CodeSystem/$validate-code`. Asks whether a code exists in a code system — distinct from the ValueSet operation of the same name, which asks about membership of a particular set. On POST, a `coding` or `codeableConcept` parameter may stand in for `url` + `code`; a codeableConcept validates if any of its codings does.
+         * @description FHIR `CodeSystem/$validate-code`. Asks whether a code exists in a code system. The ValueSet operation of the same name asks about membership of a particular set instead. On POST, a `coding` or `codeableConcept` parameter may stand in for `url` + `code`; a codeableConcept validates if any of its codings does.
          */
         post: operations["codeSystemValidateCodePost"];
         delete?: never;
@@ -224,13 +224,13 @@ export interface paths {
         };
         /**
          * Validate a code against a value set
-         * @description FHIR `ValueSet/$validate-code`. A code that is not in the set is a successful `200` with `result: false`, not an error. On POST, a `coding` or `codeableConcept` parameter may stand in for `system` + `code`; a codeableConcept validates if any of its codings is in the set — useful when an element carries a vendor-local coding alongside a standard one.
+         * @description FHIR `ValueSet/$validate-code`. A code that is not in the set is a successful `200` with `result: false`, not an error. On POST, a `coding` or `codeableConcept` parameter may stand in for `system` + `code`; a codeableConcept validates if any of its codings is in the set, which helps when an element carries a vendor-local coding alongside a standard one.
          */
         get: operations["valueSetValidateCode"];
         put?: never;
         /**
          * Validate a code against a value set
-         * @description FHIR `ValueSet/$validate-code`. A code that is not in the set is a successful `200` with `result: false`, not an error. On POST, a `coding` or `codeableConcept` parameter may stand in for `system` + `code`; a codeableConcept validates if any of its codings is in the set — useful when an element carries a vendor-local coding alongside a standard one.
+         * @description FHIR `ValueSet/$validate-code`. A code that is not in the set is a successful `200` with `result: false`, not an error. On POST, a `coding` or `codeableConcept` parameter may stand in for `system` + `code`; a codeableConcept validates if any of its codings is in the set, which helps when an element carries a vendor-local coding alongside a standard one.
          */
         post: operations["valueSetValidateCodePost"];
         delete?: never;
@@ -1092,7 +1092,7 @@ export interface operations {
                 /** @description Slot availability state to return. Defaults to `free`. */
                 status?: "free" | "busy" | "busy-unavailable" | "busy-tentative";
                 /**
-                 * @description Filter to a single publisher (source) by slug — e.g. `zocdoc`, `defacto`. See `GET /v1/scheduling/publishers` for the available slugs.
+                 * @description Filter to a single publisher (source) by slug, such as `zocdoc` or `defacto`. See `GET /v1/scheduling/publishers` for the available slugs.
                  * @example haau3
                  */
                 publisher?: string;
@@ -1119,7 +1119,7 @@ export interface operations {
                 /** @description Include slots that started before now. Defaults to `false`: with no `startAfter`, results start from now. An explicit `startAfter` applies as given either way. */
                 includePast?: boolean;
                 /**
-                 * @description Page size: the number of provider locations (1–100). Defaults to 25.
+                 * @description Page size: the number of provider locations, from 1 to 100. Defaults to 25.
                  * @example 1
                  */
                 limit?: number;
@@ -1182,7 +1182,7 @@ export interface operations {
                 /** @description Slot availability state to return. Defaults to `free`. */
                 status?: "free" | "busy" | "busy-unavailable" | "busy-tentative";
                 /**
-                 * @description Filter to a single publisher (source) by slug — e.g. `zocdoc`, `defacto`. See `GET /v1/scheduling/publishers` for the available slugs.
+                 * @description Filter to a single publisher (source) by slug, such as `zocdoc` or `defacto`. See `GET /v1/scheduling/publishers` for the available slugs.
                  * @example haau3
                  */
                 publisher?: string;
@@ -1211,7 +1211,7 @@ export interface operations {
                 /** @description Opaque key of one provider location from `GET /v1/scheduling/provider-locations`. When set, returns exactly that provider location's slots. Treat the value as opaque; do not parse it. */
                 providerLocationKey?: string;
                 /**
-                 * @description Page size (1–100). Defaults to 25.
+                 * @description Page size, from 1 to 100. Defaults to 25.
                  * @example 1
                  */
                 limit?: number;
@@ -1571,7 +1571,7 @@ export interface operations {
                  * @example SHORTNAME
                  */
                 property?: string | string[];
-                /** @description Language for the returned display and designations. Defaults to `en-US`, which also keeps responses small — the upstream otherwise returns ~30 translations per code. */
+                /** @description Language for the returned display and designations. Defaults to `en-US`, which also keeps answers small, since a code can have about 30 translations. */
                 displayLanguage?: string;
                 /** @description The date for which the lookup should be valid. */
                 date?: string;
@@ -1608,7 +1608,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["FhirUnauthorized"];
-            /** @description The code system is not served here, or the code was not found. The `OperationOutcome` says which, and why — an unrecognised system, a system we are not licensed to serve, and a genuinely missing code are different answers. */
+            /** @description The code system is not served here, or the code was not found. The `OperationOutcome` says which, and why: an unrecognised system, a system we are not licensed to serve, and a genuinely missing code are different answers. */
             404: {
                 headers: {
                     "X-Request-Id": components["headers"]["XRequestId"];
@@ -1709,7 +1709,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["FhirUnauthorized"];
-            /** @description The code system is not served here, or the code was not found. The `OperationOutcome` says which, and why — an unrecognised system, a system we are not licensed to serve, and a genuinely missing code are different answers. */
+            /** @description The code system is not served here, or the code was not found. The `OperationOutcome` says which, and why: an unrecognised system, a system we are not licensed to serve, and a genuinely missing code are different answers. */
             404: {
                 headers: {
                     "X-Request-Id": components["headers"]["XRequestId"];
@@ -1798,7 +1798,7 @@ export interface operations {
                 code: string;
                 /** @description Optional code system version. */
                 version?: string;
-                /** @description Optional display to check against the code's own display. A mismatch returns `result: false` with the expected display alongside — which means the code is valid and only the label differs. Do not read that as an invalid code. */
+                /** @description Optional display to check against the code's own display. A mismatch returns `result: false` with the expected display alongside, which means the code is valid and only the label differs. Do not read that as an invalid code. */
                 display?: string;
                 /** @description Language to use when checking the display. */
                 displayLanguage?: string;
@@ -1837,7 +1837,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["FhirUnauthorized"];
-            /** @description The code system is not served here, or the code was not found. The `OperationOutcome` says which, and why — an unrecognised system, a system we are not licensed to serve, and a genuinely missing code are different answers. */
+            /** @description The code system is not served here, or the code was not found. The `OperationOutcome` says which, and why: an unrecognised system, a system we are not licensed to serve, and a genuinely missing code are different answers. */
             404: {
                 headers: {
                     "X-Request-Id": components["headers"]["XRequestId"];
@@ -1938,7 +1938,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["FhirUnauthorized"];
-            /** @description The code system is not served here, or the code was not found. The `OperationOutcome` says which, and why — an unrecognised system, a system we are not licensed to serve, and a genuinely missing code are different answers. */
+            /** @description The code system is not served here, or the code was not found. The `OperationOutcome` says which, and why: an unrecognised system, a system we are not licensed to serve, and a genuinely missing code are different answers. */
             404: {
                 headers: {
                     "X-Request-Id": components["headers"]["XRequestId"];
@@ -2065,7 +2065,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["FhirUnauthorized"];
-            /** @description The code system is not served here, or the code was not found. The `OperationOutcome` says which, and why — an unrecognised system, a system we are not licensed to serve, and a genuinely missing code are different answers. */
+            /** @description The code system is not served here, or the code was not found. The `OperationOutcome` says which, and why: an unrecognised system, a system we are not licensed to serve, and a genuinely missing code are different answers. */
             404: {
                 headers: {
                     "X-Request-Id": components["headers"]["XRequestId"];
@@ -2166,7 +2166,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["FhirUnauthorized"];
-            /** @description The code system is not served here, or the code was not found. The `OperationOutcome` says which, and why — an unrecognised system, a system we are not licensed to serve, and a genuinely missing code are different answers. */
+            /** @description The code system is not served here, or the code was not found. The `OperationOutcome` says which, and why: an unrecognised system, a system we are not licensed to serve, and a genuinely missing code are different answers. */
             404: {
                 headers: {
                     "X-Request-Id": components["headers"]["XRequestId"];
@@ -2258,7 +2258,7 @@ export interface operations {
                  * @example http://loinc.org
                  */
                 system?: string;
-                /** @description Optional display to check against the code's own display. A mismatch returns `result: false` with the expected display alongside — which means the code is valid and only the label differs. Do not read that as an invalid code. */
+                /** @description Optional display to check against the code's own display. A mismatch returns `result: false` with the expected display alongside, which means the code is valid and only the label differs. Do not read that as an invalid code. */
                 display?: string;
                 /** @description Language to use when checking the display. */
                 displayLanguage?: string;
@@ -2297,7 +2297,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["FhirUnauthorized"];
-            /** @description The code system is not served here, or the code was not found. The `OperationOutcome` says which, and why — an unrecognised system, a system we are not licensed to serve, and a genuinely missing code are different answers. */
+            /** @description The code system is not served here, or the code was not found. The `OperationOutcome` says which, and why: an unrecognised system, a system we are not licensed to serve, and a genuinely missing code are different answers. */
             404: {
                 headers: {
                     "X-Request-Id": components["headers"]["XRequestId"];
@@ -2398,7 +2398,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["FhirUnauthorized"];
-            /** @description The code system is not served here, or the code was not found. The `OperationOutcome` says which, and why — an unrecognised system, a system we are not licensed to serve, and a genuinely missing code are different answers. */
+            /** @description The code system is not served here, or the code was not found. The `OperationOutcome` says which, and why: an unrecognised system, a system we are not licensed to serve, and a genuinely missing code are different answers. */
             404: {
                 headers: {
                     "X-Request-Id": components["headers"]["XRequestId"];
@@ -2523,7 +2523,7 @@ export interface operations {
                     "application/fhir+json": components["schemas"]["Bundle"];
                 };
             };
-            /** @description The request named a parameter, identifier system or value this service does not serve. Every unsupported parameter is refused by name — none is silently ignored — so a search that returns results applied every filter you sent. */
+            /** @description The request named a parameter, identifier system or value this service does not serve. Every unsupported parameter is refused by name, and none is silently ignored, so a search that returns results applied every filter you sent. */
             400: {
                 headers: {
                     "X-Request-Id": components["headers"]["XRequestId"];
@@ -2736,7 +2736,7 @@ export interface operations {
                     "application/fhir+json": components["schemas"]["Bundle"];
                 };
             };
-            /** @description The request named a parameter, identifier system or value this service does not serve. Every unsupported parameter is refused by name — none is silently ignored — so a search that returns results applied every filter you sent. */
+            /** @description The request named a parameter, identifier system or value this service does not serve. Every unsupported parameter is refused by name, and none is silently ignored, so a search that returns results applied every filter you sent. */
             400: {
                 headers: {
                     "X-Request-Id": components["headers"]["XRequestId"];
@@ -2949,7 +2949,7 @@ export interface operations {
                     "application/fhir+json": components["schemas"]["Bundle"];
                 };
             };
-            /** @description The request named a parameter, identifier system or value this service does not serve. Every unsupported parameter is refused by name — none is silently ignored — so a search that returns results applied every filter you sent. */
+            /** @description The request named a parameter, identifier system or value this service does not serve. Every unsupported parameter is refused by name, and none is silently ignored, so a search that returns results applied every filter you sent. */
             400: {
                 headers: {
                     "X-Request-Id": components["headers"]["XRequestId"];
@@ -3152,7 +3152,7 @@ export interface operations {
                     "application/fhir+json": components["schemas"]["Bundle"];
                 };
             };
-            /** @description The request named a parameter, identifier system or value this service does not serve. Every unsupported parameter is refused by name — none is silently ignored — so a search that returns results applied every filter you sent. */
+            /** @description The request named a parameter, identifier system or value this service does not serve. Every unsupported parameter is refused by name, and none is silently ignored, so a search that returns results applied every filter you sent. */
             400: {
                 headers: {
                     "X-Request-Id": components["headers"]["XRequestId"];
@@ -3351,7 +3351,7 @@ export interface operations {
                     "application/fhir+json": components["schemas"]["Bundle"];
                 };
             };
-            /** @description The request named a parameter, identifier system or value this service does not serve. Every unsupported parameter is refused by name — none is silently ignored — so a search that returns results applied every filter you sent. */
+            /** @description The request named a parameter, identifier system or value this service does not serve. Every unsupported parameter is refused by name, and none is silently ignored, so a search that returns results applied every filter you sent. */
             400: {
                 headers: {
                     "X-Request-Id": components["headers"]["XRequestId"];
@@ -3560,7 +3560,7 @@ export interface operations {
                     "application/fhir+json": components["schemas"]["Bundle"];
                 };
             };
-            /** @description The request named a parameter, identifier system or value this service does not serve. Every unsupported parameter is refused by name — none is silently ignored — so a search that returns results applied every filter you sent. */
+            /** @description The request named a parameter, identifier system or value this service does not serve. Every unsupported parameter is refused by name, and none is silently ignored, so a search that returns results applied every filter you sent. */
             400: {
                 headers: {
                     "X-Request-Id": components["headers"]["XRequestId"];
@@ -3763,7 +3763,7 @@ export interface operations {
                     "application/fhir+json": components["schemas"]["Bundle"];
                 };
             };
-            /** @description The request named a parameter, identifier system or value this service does not serve. Every unsupported parameter is refused by name — none is silently ignored — so a search that returns results applied every filter you sent. */
+            /** @description The request named a parameter, identifier system or value this service does not serve. Every unsupported parameter is refused by name, and none is silently ignored, so a search that returns results applied every filter you sent. */
             400: {
                 headers: {
                     "X-Request-Id": components["headers"]["XRequestId"];
