@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.4](https://github.com/haau3/haau3-node/compare/v0.2.3...v0.2.4) (2026-10-19)
+
+
+### Features
+
+* resources() yields every resource a FHIR search found, across its pages ([#16](https://github.com/haau3/haau3-node/issues/16)) ([d8b2c69](https://github.com/haau3/haau3-node/commit/d8b2c693ce9b87f212c4711ae5a933183ee89ae7))
+
 ## [0.2.3](https://github.com/haau3/haau3-node/compare/v0.2.2...v0.2.3) (2026-10-19)
 
 
