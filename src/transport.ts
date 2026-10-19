@@ -5,9 +5,9 @@ import type { Problem } from "./generated/types.js";
 import { VERSION } from "./version.js";
 
 /**
- * Options passed on to `fetch` with every request, such as `cache` or a framework's own (Next.js's
- * `next`, which Next.js adds to `RequestInit`). The SDK's own method, headers, body, signal and
- * redirect always win. `cache` is declared here because Node's own `RequestInit` type leaves it out,
+ * Options passed on to `fetch` with every request: anything the runtime's `RequestInit` takes, such
+ * as `cache`, undici's `dispatcher`, Cloudflare's `cf` or Next.js's `next`. The SDK's own method,
+ * headers, body, signal and redirect always win. `cache` is declared here because Node's own `RequestInit` type leaves it out,
  * though Node's fetch takes it.
  */
 export type FetchOptions = Omit<RequestInit, "method" | "headers" | "body" | "signal" | "redirect" | "cache"> & {
@@ -27,10 +27,11 @@ export interface ClientOptions {
   /** The fetch to send requests with. Defaults to the global `fetch`. */
   fetch?: typeof fetch;
   /**
-   * Passed on to `fetch` with every request. Unless it sets `cache` (or Next.js's `next`), every
-   * request is sent with `cache: "no-store"`: an API answer is live data for one key, never one a
-   * framework's fetch cache should keep, and Next.js sends a fetch with no `cache` even while it
-   * prerenders a page at build time. Pass `{ cache: undefined }` to send no `cache` at all.
+   * Passed on to `fetch` with every request: anything the runtime's fetch takes, such as undici's
+   * `dispatcher` for a proxy in Node, Cloudflare's `cf` or Next.js's `next`. Unless it sets `cache`
+   * (or Next.js's `next`), every request is sent with `cache: "no-store"` where the runtime takes
+   * the field: an API answer is live data for one key, never one a fetch cache should keep. Pass
+   * `{ cache: undefined }` to send no `cache` at all.
    */
   fetchOptions?: FetchOptions;
 }
@@ -106,6 +107,19 @@ function inBrowser(): boolean {
   );
 }
 
+/**
+ * Whether this runtime's fetch takes a `cache` field. Node's does. Some edge runtimes have refused
+ * the field outright, so the no-store default is sent only where it is taken.
+ */
+function cacheFieldTaken(): boolean {
+  try {
+    new Request("https://api.haau3.com/", { cache: "no-store" });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function envKey(): string | undefined {
   const g = globalThis as { process?: { env?: Record<string, string | undefined> } };
   return g.process?.env?.HAAU3_API_KEY || undefined;
@@ -177,6 +191,7 @@ export abstract class Transport {
   readonly #apiKey: string;
   readonly #fetch: typeof fetch;
   readonly #fetchOptions: FetchOptions;
+  readonly #noStoreTaken: boolean;
   /** Where requests go. */
   readonly baseURL: string;
   /** Milliseconds one attempt may take. */
@@ -197,6 +212,7 @@ export abstract class Transport {
     this.#apiKey = apiKey;
     this.#fetch = fetchImpl;
     this.#fetchOptions = options.fetchOptions ?? {};
+    this.#noStoreTaken = cacheFieldTaken();
     this.baseURL = (options.baseURL ?? DEFAULT_BASE_URL).replace(/\/+$/, "");
     this.timeout = options.timeout ?? DEFAULT_TIMEOUT;
     this.maxRetries = options.maxRetries ?? DEFAULT_MAX_RETRIES;
@@ -361,8 +377,8 @@ export abstract class Transport {
     const timeout = options.timeout ?? this.timeout;
     const maxRetries = options.maxRetries ?? this.maxRetries;
     const fetchOptions: FetchOptions = { ...this.#fetchOptions, ...options.fetchOptions };
-    // No-store unless the caller chose: an API answer is live data for one key (see ClientOptions).
-    if (!("cache" in fetchOptions) && !("next" in fetchOptions)) fetchOptions.cache = "no-store";
+    // No-store unless the caller chose, where the runtime takes the field (see ClientOptions).
+    if (this.#noStoreTaken && !("cache" in fetchOptions) && !("next" in fetchOptions)) fetchOptions.cache = "no-store";
     const started = Date.now();
     let attempt = 0;
     for (;;) {

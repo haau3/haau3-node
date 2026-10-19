@@ -72,7 +72,7 @@ with its parameters and its answer typed from the published spec.
 | `timeout` | `65000` | Milliseconds one attempt may take. |
 | `maxRetries` | `1` | Retries after a timeout, a network failure, a 429 or a 5xx. |
 | `fetch` | the global `fetch` | The fetch to send requests with. |
-| `fetchOptions` | `{ cache: "no-store" }` | Passed on to `fetch` with every request. |
+| `fetchOptions` | `{ cache: "no-store" }` | Passed on to `fetch` with every request, for any runtime. |
 
 Each call takes `{ timeout, maxRetries, signal, headers, fetchOptions }` as its last argument, for
 that call only:
@@ -81,11 +81,22 @@ that call only:
 await haau3.searchSlots({ state: "MA" }, { timeout: 10_000, maxRetries: 0 });
 ```
 
-Every request is sent with `cache: "no-store"`: an answer is live data for your key, not something
-a framework's fetch cache should keep. In Next.js this also keeps `next build` from sending a
-request while it prerenders a page. Set `fetchOptions` to change that, on the client or on one call:
-`{ next: { revalidate: 60 } }` in Next.js, or `{ cache: undefined }` to send no `cache` at all, for a
-runtime that refuses the field. The SDK's own method, headers, body, signal and redirect always win.
+`fetchOptions` passes anything your runtime's `fetch` takes, on the client or on one call: a proxy
+`dispatcher` from undici in Node, Cloudflare's `cf`, Next.js's `next`, `keepalive`. The SDK's own
+method, headers, body, signal and redirect always win.
+
+```ts
+import { ProxyAgent } from "undici";
+
+const haau3 = new Haau3({ fetchOptions: { dispatcher: new ProxyAgent("http://proxy.internal:8080") } });
+```
+
+Unless `fetchOptions` sets `cache`, every request is sent with `cache: "no-store"` where the
+runtime's fetch takes the field (Node's does; on a runtime that refuses it, the SDK sends none). An
+answer is live data for your key, not something a fetch cache should keep. Frameworks that cache
+`fetch` follow it: in Next.js it also keeps `next build` from sending a request while it prerenders
+a page, and `{ next: { revalidate: 60 } }` caches an answer there instead. `{ cache: undefined }`
+sends no `cache` at all.
 
 A retry waits a short, growing interval, or what the API's `Retry-After` header says when that is
 60 seconds or less. A longer `Retry-After` fails at once, carrying it.
