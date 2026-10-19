@@ -1,7 +1,15 @@
 # @haau3/sdk
 
-The TypeScript SDK for the [haau3 platform API](https://docs.haau3.com): scheduling, the provider
-directory, terminology, questionnaires, plan benefits and MedList, as typed calls.
+The TypeScript SDK for the [haau3 platform API](https://docs.haau3.com), as typed calls:
+
+- **Scheduling:** open appointment slots from many SMART Scheduling Links publishers, in one search.
+- **Plan Benefits:** Medicare Advantage and ACA Marketplace plans as FHIR `InsurancePlan`,
+  searchable by state or county, and which providers are in a plan's network.
+- **MedList:** one reconciled medication list from one patient's FHIR medication records.
+
+On the same key and FHIR base: RxNorm and LOINC lookups, value sets and code validation
+(Terminology), practitioners and organizations from CMS's National Provider Directory (Provider
+directory), and standard FHIR Questionnaires such as the PHQ-9.
 
 The haau3 platform API is in preview: it may change as we build, usually to add features or improve performance.
 
@@ -62,6 +70,14 @@ const list = await haau3.reconcileMedications(records);
 Every method, grouped by service, with its request and a link to its page on docs.haau3.com, is in
 [api.md](https://github.com/haau3/haau3-node/blob/main/api.md). Each is named by its operationId,
 with its parameters and its answer typed from the published spec.
+
+## With an AI coding agent
+
+An agent can read the docs directly:
+
+- [docs.haau3.com/llms.txt](https://docs.haau3.com/llms.txt) lists every docs page as Markdown.
+- `https://docs.haau3.com/mcp` is an MCP server that searches the docs. In Claude Code:
+  `claude mcp add --transport http haau3 https://docs.haau3.com/mcp`.
 
 ## Options
 
