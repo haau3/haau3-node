@@ -39,6 +39,15 @@ describe.skipIf(!live)("the production API", () => {
     expect(pages).toBe(2);
   });
 
+  it("sends a batch, each entry with its own answer or error", async () => {
+    const [lookup, missing] = await haau3.batch((b) => [
+      b.codeSystemLookup({ system: "http://loinc.org", code: "2345-7" }),
+      b.readInsurancePlan("H0000-000-000"),
+    ]);
+    expect(lookup.ok && lookup.data.resourceType).toBe("Parameters");
+    expect(missing.ok ? undefined : missing.error).toBeInstanceOf(RefusedError);
+  });
+
   it("refuses a record that does not exist", async () => {
     await expect(haau3.readInsurancePlan("H0000-000-000")).rejects.toBeInstanceOf(RefusedError);
   });
