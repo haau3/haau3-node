@@ -1,6 +1,6 @@
 // What a typed call gives besides its answer, the answer types it checks, and what it passes on to
 // fetch: `.withResponse()`, timing on every error, `expects`, and `fetchOptions` over a no-store default.
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { APIPromise, AuthError, Haau3, NoAnswerError, RefusedError } from "../src/index.js";
 import { KEY, answer, fakeFetch, fhirAnswer } from "./helpers.js";
 
@@ -145,6 +145,33 @@ describe("fetchOptions", () => {
     expect(inits[0]!.cache).toBeUndefined();
     expect((inits[0] as { next?: unknown }).next).toEqual({ revalidate: 60 });
     expect(inits[1]!.cache).toBeUndefined();
+  });
+
+  it("passes on whatever else the runtime's fetch takes, such as a dispatcher", async () => {
+    const { fetch, inits } = initRecorder();
+    const dispatcher = { name: "a proxy agent" };
+    await new Haau3({ apiKey: KEY, fetch, fetchOptions: { dispatcher } as RequestInit }).readInsurancePlan("x");
+    expect((inits[0] as { dispatcher?: unknown }).dispatcher).toBe(dispatcher);
+  });
+
+  it("sends no cache on a runtime whose fetch refuses the field", async () => {
+    const Real = globalThis.Request;
+    vi.stubGlobal(
+      "Request",
+      class extends Real {
+        constructor(input: RequestInfo | URL, init?: RequestInit) {
+          if (init && "cache" in init) throw new TypeError("The 'cache' field is not implemented.");
+          super(input, init);
+        }
+      },
+    );
+    try {
+      const { fetch, inits } = initRecorder();
+      await new Haau3({ apiKey: KEY, fetch }).readInsurancePlan("x");
+      expect("cache" in inits[0]!).toBe(false);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it("never lets fetchOptions replace the method, headers, body, signal or redirect", async () => {
