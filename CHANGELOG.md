@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.2](https://github.com/haau3/haau3-node/compare/v0.2.1...v0.2.2) (2026-10-19)
+
+
+### Features
+
+* batch() sends several calls in one request, correlationId sends your own request id, and errors give toJSON() ([#12](https://github.com/haau3/haau3-node/issues/12)) ([d5ae704](https://github.com/haau3/haau3-node/commit/d5ae70460c5be637b9c5c2219257fa97f0cff169))
+
 ## [0.2.1](https://github.com/haau3/haau3-node/compare/v0.2.0...v0.2.1) (2026-10-19)
 
 
