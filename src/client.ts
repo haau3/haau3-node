@@ -1,6 +1,7 @@
 import type { Bundle } from "fhir/r4.js";
 import { APIPromise, type WithResponse } from "./api-promise.js";
 import { batchBundle, readBatch, type BatchEntry, type BatchResults } from "./batch.js";
+import { NoAnswerError } from "./errors.js";
 import { BatchBuilder } from "./generated/batch.js";
 import { Operations } from "./generated/methods.js";
 import type { ClientOptions, RequestOptions } from "./transport.js";
@@ -40,11 +41,20 @@ export class Haau3 extends Operations {
    */
   async *pages(first: Bundle, options: RequestOptions = {}): AsyncGenerator<Bundle, void, undefined> {
     let page: Bundle | undefined = first;
+    const followed = new Set<string>();
     while (page) {
       yield page;
       const next = page.link?.find((link) => link.relation === "next")?.url;
       if (!next) return;
       const url = this.url(next);
+      // A link back to a page already read would page forever.
+      if (followed.has(url.href)) {
+        throw new NoAnswerError(`GET ${url.pathname} answered with a next link to a page already read, so paging stopped.`, {
+          reason: "unreadable",
+          attempts: 0,
+        });
+      }
+      followed.add(url.href);
       page = await this.answer<Bundle>("GET", url, undefined, options, url.pathname, ["Bundle"]);
     }
   }

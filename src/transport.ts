@@ -79,6 +79,8 @@ export interface RawRequest extends RequestOptions {
 
 /** What the API answered, whatever its status. */
 export interface RawResponse extends ResponseMeta {
+  /** The status's text: the answer's own (`"Not Found"`), or the standard one when it sent none. */
+  statusText: string;
   /** The body, parsed when it is JSON, else its text. */
   body: unknown;
 }
@@ -107,6 +109,64 @@ const DEFAULT_MAX_RETRIES = 1;
 /** The longest `Retry-After` the client waits out. A longer one fails at once and says when. */
 const LONGEST_WAIT_SECONDS = 60;
 const FHIR_JSON = "application/fhir+json";
+
+/**
+ * The runtime the SDK runs on, as the User-Agent names it: `node 24`, `bun 1.3.2`, `deno 2.5.6`.
+ * With the language in the product name, it tells the API's own logs which SDK, and where, a
+ * request came from.
+ */
+function runtime(): string {
+  const g = globalThis as {
+    process?: { versions?: Record<string, string | undefined> };
+    Deno?: { version?: { deno?: string } };
+  };
+  const versions = g.process?.versions;
+  if (versions?.bun) return `bun ${versions.bun}`;
+  if (g.Deno?.version?.deno) return `deno ${g.Deno.version.deno}`;
+  if (versions?.node) return `node ${versions.node.split(".")[0]}`;
+  return "unknown runtime";
+}
+
+const USER_AGENT = `haau3-node/${VERSION} (${runtime()})`;
+
+/** The standard text of each status (RFC 9110), for an answer that came with none, as HTTP/2 answers do. */
+const STATUS_TEXT: Record<number, string> = {
+  100: "Continue", 101: "Switching Protocols", 200: "OK", 201: "Created", 202: "Accepted",
+  203: "Non-Authoritative Information", 204: "No Content", 205: "Reset Content", 206: "Partial Content",
+  300: "Multiple Choices", 301: "Moved Permanently", 302: "Found", 303: "See Other", 304: "Not Modified",
+  307: "Temporary Redirect", 308: "Permanent Redirect", 400: "Bad Request", 401: "Unauthorized",
+  402: "Payment Required", 403: "Forbidden", 404: "Not Found", 405: "Method Not Allowed", 406: "Not Acceptable",
+  407: "Proxy Authentication Required", 408: "Request Timeout", 409: "Conflict", 410: "Gone",
+  411: "Length Required", 412: "Precondition Failed", 413: "Content Too Large", 414: "URI Too Long",
+  415: "Unsupported Media Type", 416: "Range Not Satisfiable", 417: "Expectation Failed",
+  421: "Misdirected Request", 422: "Unprocessable Content", 426: "Upgrade Required",
+  428: "Precondition Required", 429: "Too Many Requests", 431: "Request Header Fields Too Large",
+  451: "Unavailable For Legal Reasons", 500: "Internal Server Error", 501: "Not Implemented",
+  502: "Bad Gateway", 503: "Service Unavailable", 504: "Gateway Timeout", 505: "HTTP Version Not Supported",
+};
+
+/**
+ * What failed, safe to log: the system's code for it (`ECONNREFUSED`, `ENOTFOUND`, `UND_ERR_SOCKET`,
+ * `CERT_HAS_EXPIRED`) when the error or anything under it has one, else the deepest error's name
+ * (`TimeoutError`). Never a message: Node's, for one, names the address. A refused connection to a
+ * host with two addresses is an AggregateError whose own code is the answer.
+ */
+export function failureDetail(error: unknown): string {
+  const seen = new Set<unknown>();
+  const queue: unknown[] = [error];
+  let deepest = "Error";
+  while (queue.length > 0 && seen.size < 32) {
+    const current = queue.shift();
+    if (current === null || typeof current !== "object" || seen.has(current)) continue;
+    seen.add(current);
+    const { code, name } = current as { code?: unknown; name?: unknown };
+    if (typeof code === "string" && /^[A-Z][A-Z0-9_]{1,63}$/.test(code)) return code;
+    if (typeof name === "string" && /^[A-Za-z]{1,64}$/.test(name)) deepest = name;
+    if (current instanceof AggregateError) queue.push(...(current.errors as unknown[]));
+    queue.push((current as { cause?: unknown }).cause);
+  }
+  return deepest;
+}
 
 /**
  * True in a browser. A key in a browser is public, and the API answers no browser anyway (it sends
@@ -200,11 +260,17 @@ function noAnswerReason(status: number): NoAnswerReason {
   return "server-error";
 }
 
-/** Appends a query to a URL's parameters: a list sends the parameter once per value, `undefined` sends none. */
+/**
+ * Appends a query to a URL's parameters: a list sends the parameter once per value, and `undefined`
+ * or `null` sends none (code that is not typed can pass a `null`, which would otherwise go out as the
+ * text "null").
+ */
 export function appendQuery(params: URLSearchParams, query: Record<string, QueryValue> | undefined): void {
-  for (const [name, value] of Object.entries(query ?? {})) {
-    if (value === undefined) continue;
-    for (const item of Array.isArray(value) ? value : [value]) params.append(name, String(item));
+  for (const [name, value] of Object.entries(query ?? {}) as [string, unknown][]) {
+    if (value === undefined || value === null) continue;
+    for (const item of Array.isArray(value) ? (value as unknown[]) : [value]) {
+      if (item !== undefined && item !== null) params.append(name, String(item));
+    }
   }
 }
 
@@ -333,6 +399,7 @@ export abstract class Transport {
     const sent = await this.#send(request.method, url, request.body, request, url.pathname);
     return {
       status: sent.response.status,
+      statusText: sent.response.statusText || STATUS_TEXT[sent.response.status] || "",
       headers: sent.response.headers,
       body: parseBody(sent.text, sent.response.headers.get("content-type")) ?? sent.text,
       requestId: sent.response.headers.get("x-request-id") ?? undefined,
@@ -429,11 +496,14 @@ export abstract class Transport {
     options: RequestOptions,
     label: string,
   ): Promise<Sent> {
-    const fhir = url.pathname.startsWith("/v1/fhir/") || url.pathname === "/v1/fhir";
+    // The path after the base's own, so a baseURL with a path of its own still asks for FHIR JSON.
+    const basePath = new URL(this.baseURL).pathname.replace(/\/$/, "");
+    const path = basePath && url.pathname.startsWith(basePath) ? url.pathname.slice(basePath.length) : url.pathname;
+    const fhir = path.startsWith("/v1/fhir/") || path === "/v1/fhir";
     const headers: Record<string, string> = {
       accept: fhir ? FHIR_JSON : "application/json",
       authorization: `Bearer ${this.#apiKey}`,
-      "user-agent": `haau3-sdk/${VERSION}`,
+      "user-agent": USER_AGENT,
     };
     let payload: string | undefined;
     if (body !== undefined) {
@@ -478,6 +548,7 @@ export abstract class Transport {
           reason,
           attempts: attempt,
           durationMs: Date.now() - started,
+          detail: failureDetail(error),
           cause: error,
         });
       }
