@@ -14,6 +14,13 @@ export async function tour(): Promise<void> {
     const ids: (string | undefined)[] = (page.entry ?? []).map((entry) => entry.resource?.id);
     void ids;
   }
+  // resources() narrows by resourceType, with no cast.
+  for await (const resource of haau3.resources(plans)) {
+    if (resource.resourceType === "InsurancePlan") {
+      const name: string | undefined = resource.name;
+      void name;
+    }
+  }
   const slots = await haau3.searchSlots({ state: "MA", limit: 25 });
   const slot: SchedulingSlot | undefined = slots.slots[0];
   const locations = await haau3.searchProviderLocations({ publisher: "haau3" });

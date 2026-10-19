@@ -1,4 +1,4 @@
-import type { Bundle } from "fhir/r4.js";
+import type { Bundle, FhirResource } from "fhir/r4.js";
 import { APIPromise, type WithResponse } from "./api-promise.js";
 import { batchBundle, readBatch, type BatchEntry, type BatchResults } from "./batch.js";
 import { NoAnswerError } from "./errors.js";
@@ -56,6 +56,31 @@ export class Haau3 extends Operations {
       }
       followed.add(url.href);
       page = await this.answer<Bundle>("GET", url, undefined, options, url.pathname, ["Bundle"]);
+    }
+  }
+
+  /**
+   * Every resource a FHIR search found, across every page, in order: each entry whose search mode
+   * is `match`, or says none. A resource an `_include` or `_revinclude` brought, and a search's own
+   * OperationOutcome, are not among them; {@link pages} gives every entry.
+   *
+   * Each is typed as FHIR R4's union of resources, so checking `resourceType` narrows it. Each page
+   * is checked to be a Bundle; the resources in it are not checked one by one.
+   *
+   * ```ts
+   * const first = await haau3.searchInsurancePlan({ "coverage-area-state": "VT" });
+   * for await (const resource of haau3.resources(first)) {
+   *   if (resource.resourceType === "InsurancePlan") console.log(resource.name);
+   * }
+   * ```
+   */
+  async *resources(first: Bundle, options: RequestOptions = {}): AsyncGenerator<FhirResource, void, undefined> {
+    for await (const page of this.pages(first, options)) {
+      for (const entry of page.entry ?? []) {
+        const mode = entry.search?.mode;
+        // @types/fhir types a Bundle's entries as the base Resource; a search's are FHIR resources.
+        if (entry.resource && (mode === undefined || mode === "match")) yield entry.resource as FhirResource;
+      }
     }
   }
 

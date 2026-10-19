@@ -60,7 +60,7 @@ describe("the operations", () => {
   });
 
   it("has no method the spec does not name, besides the client's own", () => {
-    const own = new Set(["constructor", "pages", "batch", "request", "answer", "respond", "operation", "url"]);
+    const own = new Set(["constructor", "pages", "resources", "batch", "request", "answer", "respond", "operation", "url"]);
     const names = new Set<string>();
     for (let proto = Haau3.prototype; proto !== Object.prototype; proto = Object.getPrototypeOf(proto)) {
       for (const name of Object.getOwnPropertyNames(proto)) if (!own.has(name)) names.add(name);

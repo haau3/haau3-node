@@ -2,7 +2,7 @@
 import { readFileSync } from "node:fs";
 import { inspect } from "node:util";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { Haau3, Haau3Error, VERSION } from "../src/index.js";
+import { Haau3, Haau3Error, RefusedError, VERSION } from "../src/index.js";
 import { KEY, answer, fakeFetch, fhirAnswer } from "./helpers.js";
 
 afterEach(() => {
@@ -94,6 +94,50 @@ describe("pages()", () => {
     await expect(pages.next()).resolves.toMatchObject({ done: false });
     await expect(pages.next()).rejects.toThrow(/Refusing to send the API key to https:\/\/directory\.example\.org/);
     expect(received).toHaveLength(0);
+  });
+});
+
+describe("resources()", () => {
+  const entry = (resourceType: string, id: string, mode?: string) => ({
+    resource: { resourceType, id },
+    ...(mode ? { search: { mode } } : {}),
+  });
+  const bundle = (next: string | undefined, ...entries: object[]) => ({
+    resourceType: "Bundle",
+    type: "searchset",
+    link: next ? [{ relation: "next", url: next }] : [],
+    entry: entries,
+  });
+
+  it("yields the matches of every page, and no included resource or outcome", async () => {
+    const second = bundle(
+      undefined,
+      entry("InsurancePlan", "C", "match"),
+      entry("Organization", "included", "include"),
+      entry("OperationOutcome", "outcome", "outcome"),
+      entry("InsurancePlan", "D"),
+      { search: { mode: "match" } },
+    );
+    const { fetch, received } = fakeFetch(() => fhirAnswer(second));
+    const haau3 = new Haau3({ apiKey: KEY, fetch });
+    const first = bundle("https://api.haau3.com/v1/fhir/r4/InsurancePlan?page=2", entry("InsurancePlan", "A", "match"), entry("InsurancePlan", "B"));
+    const ids: string[] = [];
+    for await (const resource of haau3.resources(first as never)) ids.push(`${resource.resourceType}/${resource.id}`);
+    expect(ids).toEqual(["InsurancePlan/A", "InsurancePlan/B", "InsurancePlan/C", "InsurancePlan/D"]);
+    expect(received).toHaveLength(1);
+  });
+
+  it("ends with the error a page ended with", async () => {
+    const { fetch } = fakeFetch(() => fhirAnswer({ resourceType: "OperationOutcome", issue: [] }, 404));
+    const haau3 = new Haau3({ apiKey: KEY, fetch });
+    const first = bundle("https://api.haau3.com/v1/fhir/r4/InsurancePlan?page=2", entry("InsurancePlan", "A"));
+    const ids: string[] = [];
+    await expect(
+      (async () => {
+        for await (const resource of haau3.resources(first as never)) ids.push(resource.id!);
+      })(),
+    ).rejects.toThrow(RefusedError);
+    expect(ids).toEqual(["A"]);
   });
 });
 
