@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.2.0](https://github.com/haau3/haau3-node/compare/v0.1.2...v0.2.0) (2026-10-19)
+
+
+### ⚠ BREAKING CHANGES
+
+* request ids and timing on every call, checked FHIR answer types, no-store by default ([#7](https://github.com/haau3/haau3-node/issues/7))
+
+### Features
+
+* request ids and timing on every call, checked FHIR answer types, no-store by default ([#7](https://github.com/haau3/haau3-node/issues/7)) ([6cb6291](https://github.com/haau3/haau3-node/commit/6cb62916a3f1ffd40db12b6dcf4c15e470e4303d))
+
 ## [0.1.2](https://github.com/haau3/haau3-node/compare/v0.1.1...v0.1.2) (2026-10-18)
 
 
