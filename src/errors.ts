@@ -9,8 +9,8 @@ import type { Problem } from "./generated/types.js";
  * - `rate-limited`: the API answered 429. `retryAfter` says when to try again.
  * - `unavailable`: the API, or a source it reads, could not answer (502, 503).
  * - `server-error`: the API failed (500).
- * - `unreadable`: the API answered with something that is not an answer, such as a body that is
- *   not JSON.
+ * - `unreadable`: the API answered with something that is not an answer: a body that is not JSON,
+ *   or a FHIR resource of another type than the operation answers with.
  */
 export type NoAnswerReason = "timeout" | "network" | "rate-limited" | "unavailable" | "server-error" | "unreadable";
 
@@ -40,18 +40,30 @@ function attachBody(error: Haau3Error, body: AnswerBody | undefined): void {
 /** An error body as the SDK read it: an OperationOutcome under the FHIR base, a Problem elsewhere. */
 export type AnswerBody = { kind: "outcome"; value: OperationOutcome } | { kind: "problem"; value: Problem };
 
+/** How long an answered request took, and in how many attempts. */
+export interface Timing {
+  attempts: number;
+  durationMs: number;
+}
+
 /** The API refused the key: none was sent, it is not one the API knows, or it was revoked (401, 403). */
 export class AuthError extends Haau3Error {
   override name = "AuthError";
   readonly status: number;
+  /** How many attempts were made. */
+  readonly attempts: number;
+  /** Milliseconds from the first attempt to the answer. */
+  readonly durationMs: number | undefined;
   /** The OperationOutcome the FHIR base answered with. Not enumerable, so it is never printed. */
   declare readonly outcome?: OperationOutcome;
   /** The problem the other services answered with. Not enumerable, so it is never printed. */
   declare readonly problem?: Problem;
 
-  constructor(message: string, status: number, requestId?: string, body?: AnswerBody) {
+  constructor(message: string, status: number, requestId?: string, body?: AnswerBody, timing?: Timing) {
     super(message, requestId);
     this.status = status;
+    this.attempts = timing?.attempts ?? 1;
+    this.durationMs = timing?.durationMs;
     attachBody(this, body);
   }
 }
@@ -64,14 +76,20 @@ export class AuthError extends Haau3Error {
 export class RefusedError extends Haau3Error {
   override name = "RefusedError";
   readonly status: number;
+  /** How many attempts were made. */
+  readonly attempts: number;
+  /** Milliseconds from the first attempt to the answer. */
+  readonly durationMs: number | undefined;
   /** The OperationOutcome the FHIR base answered with. Not enumerable, so it is never printed. */
   declare readonly outcome?: OperationOutcome;
   /** The problem the other services answered with. Not enumerable, so it is never printed. */
   declare readonly problem?: Problem;
 
-  constructor(message: string, status: number, requestId?: string, body?: AnswerBody) {
+  constructor(message: string, status: number, requestId?: string, body?: AnswerBody, timing?: Timing) {
     super(message, requestId);
     this.status = status;
+    this.attempts = timing?.attempts ?? 1;
+    this.durationMs = timing?.durationMs;
     attachBody(this, body);
   }
 }
@@ -89,6 +107,8 @@ export class NoAnswerError extends Haau3Error {
   readonly retryAfter: number | undefined;
   /** How many attempts were made. */
   readonly attempts: number;
+  /** Milliseconds from the first attempt to the last failure, waits between attempts included. */
+  readonly durationMs: number | undefined;
   /** The OperationOutcome the FHIR base answered with. Not enumerable, so it is never printed. */
   declare readonly outcome?: OperationOutcome;
   /** The problem the other services answered with. Not enumerable, so it is never printed. */
@@ -99,6 +119,7 @@ export class NoAnswerError extends Haau3Error {
     details: {
       reason: NoAnswerReason;
       attempts: number;
+      durationMs?: number;
       status?: number;
       retryAfter?: number;
       requestId?: string;
@@ -111,6 +132,7 @@ export class NoAnswerError extends Haau3Error {
     this.status = details.status;
     this.retryAfter = details.retryAfter;
     this.attempts = details.attempts;
+    this.durationMs = details.durationMs;
     attachBody(this, details.body);
   }
 }

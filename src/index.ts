@@ -1,6 +1,7 @@
 export { Haau3 } from "./client.js";
+export { APIPromise, type ResponseMeta, type WithResponse } from "./api-promise.js";
 export { AuthError, Haau3Error, NoAnswerError, RefusedError, type NoAnswerReason } from "./errors.js";
-export type { ClientOptions, QueryValue, RawRequest, RawResponse, RequestOptions } from "./transport.js";
+export type { ClientOptions, FetchOptions, QueryValue, RawRequest, RawResponse, RequestOptions } from "./transport.js";
 export type { OperationId } from "./operations.js";
 export type * from "./generated/types.js";
 export { VERSION } from "./version.js";
