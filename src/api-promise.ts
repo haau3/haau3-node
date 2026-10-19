@@ -2,6 +2,11 @@
 export interface ResponseMeta {
   /** The `X-Request-Id` the API sent. Quote it when you ask for help. */
   requestId: string | undefined;
+  /**
+   * The `correlationId` you sent, as the API returned it in `X-Correlation-Id`: proof it was kept
+   * with the API's record of the request. Unset when you sent none.
+   */
+  correlationId: string | undefined;
   /** Milliseconds from the first attempt to the answer, waits between attempts included. */
   durationMs: number;
   /** How many attempts were made. */

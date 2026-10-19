@@ -14,15 +14,54 @@ import type { Problem } from "./generated/types.js";
  */
 export type NoAnswerReason = "timeout" | "network" | "rate-limited" | "unavailable" | "server-error" | "unreadable";
 
+/**
+ * What {@link Haau3Error.toJSON} gives: the fields that are safe to log. Never a body the API
+ * answered with, never the error's `cause`. A message names the request by its method and the
+ * operation's path, never by a value you sent.
+ */
+export interface Haau3ErrorJSON {
+  name: string;
+  message: string;
+  status?: number;
+  reason?: NoAnswerReason;
+  retryAfter?: number;
+  attempts?: number;
+  durationMs?: number;
+  requestId?: string;
+  correlationId?: string;
+}
+
+/** The fields {@link Haau3Error.toJSON} copies when they are set, in this order. */
+const LOGGED = ["status", "reason", "retryAfter", "attempts", "durationMs", "requestId", "correlationId"] as const;
+
 /** What every error this package throws has. */
 export class Haau3Error extends Error {
   override name = "Haau3Error";
   /** The `X-Request-Id` the API sent, when it answered. Quote it when you ask for help. */
   readonly requestId: string | undefined;
+  /** The `correlationId` you sent, as the API returned it in `X-Correlation-Id`, when it answered. */
+  readonly correlationId: string | undefined;
 
-  constructor(message: string, requestId?: string, options?: ErrorOptions) {
-    super(message, options);
+  constructor(message: string, requestId?: string, options?: ErrorOptions & { correlationId?: string | undefined }) {
+    super(message, options?.cause === undefined ? undefined : { cause: options.cause });
     this.requestId = requestId;
+    this.correlationId = options?.correlationId;
+  }
+
+  /**
+   * The error as a plain object that is safe to log: its name, its message and every field that is
+   * set, and never the body the API answered with (`outcome`, `problem`) or the `cause`.
+   * `JSON.stringify(error)` and loggers that call `toJSON` print this.
+   *
+   * ```ts
+   * logger.warn({ error: error.toJSON() }, "the plan read failed");
+   * ```
+   */
+  toJSON(): Haau3ErrorJSON {
+    const json: Record<string, unknown> = { name: this.name, message: this.message };
+    const fields = this as unknown as Record<string, unknown>;
+    for (const key of LOGGED) if (fields[key] !== undefined) json[key] = fields[key];
+    return json as unknown as Haau3ErrorJSON;
   }
 }
 
@@ -40,10 +79,11 @@ function attachBody(error: Haau3Error, body: AnswerBody | undefined): void {
 /** An error body as the SDK read it: an OperationOutcome under the FHIR base, a Problem elsewhere. */
 export type AnswerBody = { kind: "outcome"; value: OperationOutcome } | { kind: "problem"; value: Problem };
 
-/** How long an answered request took, and in how many attempts. */
+/** How long an answered request took, in how many attempts, and the correlation id it came back with. */
 export interface Timing {
   attempts: number;
   durationMs: number;
+  correlationId?: string | undefined;
 }
 
 /** The API refused the key: none was sent, it is not one the API knows, or it was revoked (401, 403). */
@@ -60,7 +100,7 @@ export class AuthError extends Haau3Error {
   declare readonly problem?: Problem;
 
   constructor(message: string, status: number, requestId?: string, body?: AnswerBody, timing?: Timing) {
-    super(message, requestId);
+    super(message, requestId, { correlationId: timing?.correlationId });
     this.status = status;
     this.attempts = timing?.attempts ?? 1;
     this.durationMs = timing?.durationMs;
@@ -86,7 +126,7 @@ export class RefusedError extends Haau3Error {
   declare readonly problem?: Problem;
 
   constructor(message: string, status: number, requestId?: string, body?: AnswerBody, timing?: Timing) {
-    super(message, requestId);
+    super(message, requestId, { correlationId: timing?.correlationId });
     this.status = status;
     this.attempts = timing?.attempts ?? 1;
     this.durationMs = timing?.durationMs;
@@ -123,11 +163,12 @@ export class NoAnswerError extends Haau3Error {
       status?: number;
       retryAfter?: number;
       requestId?: string;
+      correlationId?: string | undefined;
       body?: AnswerBody;
       cause?: unknown;
     },
   ) {
-    super(message, details.requestId, details.cause === undefined ? undefined : { cause: details.cause });
+    super(message, details.requestId, { cause: details.cause, correlationId: details.correlationId });
     this.reason = details.reason;
     this.status = details.status;
     this.retryAfter = details.retryAfter;

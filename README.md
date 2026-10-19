@@ -90,8 +90,8 @@ An agent can read the docs directly:
 | `fetch` | the global `fetch` | The fetch to send requests with. |
 | `fetchOptions` | `{ cache: "no-store" }` | Passed on to `fetch` with every request, for any runtime. |
 
-Each call takes `{ timeout, maxRetries, signal, headers, fetchOptions }` as its last argument, for
-that call only:
+Each call takes `{ timeout, maxRetries, signal, correlationId, headers, fetchOptions }` as its last
+argument, for that call only:
 
 ```ts
 await haau3.searchSlots({ state: "MA" }, { timeout: 10_000, maxRetries: 0 });
@@ -145,8 +145,13 @@ never printed when the error is logged. Every error the API answered carries `at
 `durationMs` too.
 
 A FHIR answer is checked against the resource types its operation answers with. Anything else, a
-`Bundle` where an `InsurancePlan` was asked for, say, is a `NoAnswerError` with reason `"unreadable"`,
-so what a method returns is always the type it says.
+`Bundle` where an `InsurancePlan` was asked for, say, is a `NoAnswerError` with reason
+`"unreadable"`. The check is of the resource type, not of every element inside it: those are typed
+as FHIR R4 declares them, and the SDK does not validate each one.
+
+`error.toJSON()` gives an error as a plain object that is safe to log: its name, its message and the
+fields above that are set, and never the body or the `cause`. `JSON.stringify(error)` prints the
+same.
 
 ## Request ids and timing
 
@@ -158,6 +163,15 @@ const { data: plan, requestId, durationMs, attempts } = await haau3.readInsuranc
 ```
 
 Quote the `requestId` when you ask for help: it finds the request in the API's own logs.
+
+To find a request by an id of your own, such as your job's or your trace's, pass it as
+`correlationId`. It must be a UUID, which is all the API keeps; anything else is refused before it
+is sent. The API keeps it with its record of the request, and it comes back on the answer and on
+every error the API answered:
+
+```ts
+const { data, correlationId } = await haau3.readInsurancePlan(id, { correlationId: jobId }).withResponse();
+```
 
 ## Paging
 

@@ -44,11 +44,25 @@ export interface RequestOptions {
   maxRetries?: number;
   /** Ends the call when it aborts. The abort's reason is thrown as it is. */
   signal?: AbortSignal;
-  /** Extra headers for this call, such as `X-Request-Id` with your own UUID. */
+  /**
+   * An id of your own for this call, a UUID, such as your job's or your trace's. Sent as
+   * `X-Request-Id`; the API keeps it with its record of the request and returns it in
+   * `X-Correlation-Id`, which `.withResponse()` and every error the API answered give back as
+   * `correlationId`. The API takes only a UUID and drops anything else without a word, so the SDK
+   * refuses anything else before sending.
+   */
+  correlationId?: string;
+  /** Extra headers for this call. `correlationId` is the way to send your own `X-Request-Id`. */
   headers?: Record<string, string>;
   /** Passed on to `fetch` for this call, over the client's own `fetchOptions`. */
   fetchOptions?: FetchOptions;
 }
+
+/**
+ * The form the API takes for your own request id: a UUID in its usual text form, any version, as the
+ * spec's `X-Request-Id` parameter declares (`format: uuid`).
+ */
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** A query parameter's value. A list sends the parameter once per value. */
 export type QueryValue = string | number | boolean | ReadonlyArray<string | number | boolean> | undefined;
@@ -197,6 +211,8 @@ export function appendQuery(params: URLSearchParams, query: Record<string, Query
 /** What came with an answer, for {@link judge}. */
 export interface AnswerContext {
   requestId: string | undefined;
+  /** The `X-Correlation-Id` the answer came back with. */
+  correlationId?: string | undefined;
   attempts: number;
   durationMs: number;
   /** Seconds from the answer's `Retry-After`, when it had one. */
@@ -224,7 +240,7 @@ export function judge<T>(
   context: AnswerContext,
 ): { ok: true; data: T } | { ok: false; error: AuthError | RefusedError | NoAnswerError } {
   const { requestId, attempts, durationMs, expects } = context;
-  const timing = { attempts, durationMs };
+  const timing = { attempts, durationMs, correlationId: context.correlationId };
   if (status >= 200 && status < 300) {
     if (body === undefined) {
       return {
@@ -320,6 +336,7 @@ export abstract class Transport {
       headers: sent.response.headers,
       body: parseBody(sent.text, sent.response.headers.get("content-type")) ?? sent.text,
       requestId: sent.response.headers.get("x-request-id") ?? undefined,
+      correlationId: sent.response.headers.get("x-correlation-id") ?? undefined,
       attempts: sent.attempts,
       durationMs: sent.durationMs,
     };
@@ -374,8 +391,10 @@ export abstract class Transport {
     const { response, text, attempts, durationMs } = sent;
     const status = response.status;
     const requestId = response.headers.get("x-request-id") ?? undefined;
+    const correlationId = response.headers.get("x-correlation-id") ?? undefined;
     const verdict = judge<T>(`${method} ${label}`, status, parseBody(text, response.headers.get("content-type")), {
       requestId,
+      correlationId,
       attempts,
       durationMs,
       retryAfter: retryAfterSeconds(response.headers),
@@ -383,7 +402,7 @@ export abstract class Transport {
       missing: "a body that is not JSON",
     });
     if (!verdict.ok) throw verdict.error;
-    return { data: verdict.data, requestId, durationMs, attempts, status, headers: response.headers };
+    return { data: verdict.data, requestId, correlationId, durationMs, attempts, status, headers: response.headers };
   }
 
   /** A URL on this client's base, refusing any other host so the key is never sent to one. */
@@ -422,6 +441,14 @@ export abstract class Transport {
       headers["content-type"] = fhir ? FHIR_JSON : "application/json";
     }
     for (const [name, value] of Object.entries(options.headers ?? {})) headers[name.toLowerCase()] = value;
+    if (options.correlationId !== undefined) {
+      if (!UUID.test(options.correlationId)) {
+        throw new Haau3Error(
+          `${method} ${label} was not sent: correlationId must be a UUID, which is all the API keeps (it drops anything else).`,
+        );
+      }
+      headers["x-request-id"] = options.correlationId;
+    }
 
     const timeout = options.timeout ?? this.timeout;
     const maxRetries = options.maxRetries ?? this.maxRetries;

@@ -93,8 +93,8 @@ function entryStatus(entry: BundleEntry | undefined): number | undefined {
  * paired at all and is no answer.
  */
 export function readBatch(entries: readonly BatchEntry<unknown>[], answer: Bundle, meta: ResponseMeta): BatchResult<unknown>[] {
-  const { requestId, attempts, durationMs, status } = meta;
-  const timing = { attempts, durationMs };
+  const { requestId, correlationId, attempts, durationMs, status } = meta;
+  const timing = { attempts, durationMs, correlationId };
   const answered = answer.entry ?? [];
   if (answer.type !== "batch-response") {
     throw new NoAnswerError(`POST /v1/fhir/r4 answered a Bundle that is not a batch-response.`, {
@@ -127,6 +127,7 @@ export function readBatch(entries: readonly BatchEntry<unknown>[], answer: Bundl
     const body = answeredEntry?.resource ?? (entryCode >= 400 ? answeredEntry?.response?.outcome : undefined);
     const verdict = judge(name, entryCode, body, {
       requestId,
+      correlationId,
       attempts,
       durationMs,
       expects: internal.expects,
