@@ -183,14 +183,3 @@ describe("fetchOptions", () => {
     expect(inits[0]!.signal).toBeInstanceOf(AbortSignal);
   });
 });
-
-describe("a bad baseURL", () => {
-  it("rejects the call rather than throwing at it", async () => {
-    const haau3 = new Haau3({ apiKey: KEY, fetch: initRecorder().fetch, baseURL: "not a url" });
-    let call: Promise<unknown> | undefined;
-    expect(() => {
-      call = haau3.readInsurancePlan("x");
-    }).not.toThrow();
-    await expect(call).rejects.toBeInstanceOf(TypeError);
-  });
-});

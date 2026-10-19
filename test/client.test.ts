@@ -42,6 +42,21 @@ describe("construction", () => {
     expect(new Haau3({ apiKey: KEY, baseURL: "https://other.example", fetch }).baseURL).toBe("https://other.example");
   });
 
+  it("refuses a bad base URL when the client is made, by the name it came in", () => {
+    const { fetch } = fakeFetch(() => answer({}));
+    expect(() => new Haau3({ apiKey: KEY, fetch, baseURL: "not a url" })).toThrow(
+      'baseURL takes an http or https URL with a host, such as https://api.haau3.com: "not a url" is not one.',
+    );
+    for (const bad of ["api.haau3.com", "ftp://api.haau3.com", "https://", "https://api.haau3.com/?q=1", "https://api.haau3.com/#top"]) {
+      expect(() => new Haau3({ apiKey: KEY, fetch, baseURL: bad }), bad).toThrow(Haau3Error);
+    }
+    expect(new Haau3({ apiKey: KEY, fetch, baseURL: "http://localhost:8080///" }).baseURL).toBe("http://localhost:8080");
+
+    vi.stubEnv("HAAU3_BASE_URL", "ftp://stand-in.example");
+    expect(() => new Haau3({ apiKey: KEY, fetch })).toThrow(/^HAAU3_BASE_URL takes an http or https URL with a host/);
+    expect(new Haau3({ apiKey: KEY, fetch, baseURL: "https://api.haau3.com" }).baseURL).toBe("https://api.haau3.com");
+  });
+
   it("sends the key to HAAU3_BASE_URL's host only, once it is set", async () => {
     vi.stubEnv("HAAU3_BASE_URL", "https://stand-in.example");
     const { fetch, received } = fakeFetch(() => answer({}));
