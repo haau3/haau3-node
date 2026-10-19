@@ -2,7 +2,7 @@
 // customers use (5.9, 6.0, 7.0), as ES modules. consumer.cts is the same as CommonJS.
 import { AuthError, Haau3, NoAnswerError, RefusedError, type fhir4, type NoAnswerReason } from "@haau3/sdk";
 import type { SchedulingProviderLocation, SchedulingSlot, SearchInsurancePlanParams } from "@haau3/sdk";
-import type { BatchResult, BodyOf, QueryOf, ResponseOf } from "@haau3/sdk";
+import type { BatchResult, BodyOf, Haau3ErrorJSON, QueryOf, ResponseOf } from "@haau3/sdk";
 
 const haau3 = new Haau3({ apiKey: "haau3_sk_example", timeout: 10_000, maxRetries: 0 });
 
@@ -37,6 +37,9 @@ export async function tour(): Promise<void> {
   const requestId: string | undefined = answered.requestId;
   const took: number = answered.durationMs;
   const nextClient = new Haau3({ apiKey: "haau3_sk_example", fetchOptions: { cache: undefined, keepalive: true } });
+  const correlated = await haau3.readInsurancePlan("H2406-013-000", { correlationId: "2c9d4e6f-8a1b-4c3d-9e5f-7a6b5c4d3e2f" }).withResponse();
+  const kept: string | undefined = correlated.correlationId;
+  void kept;
   void [fromWith, requestId, took, nextClient];
 
   // A batch: one typed result per entry, by position for a list written out, and as an array for
@@ -87,7 +90,9 @@ export async function tour(): Promise<void> {
       void [reason, wait, ms];
     } else if (error instanceof AuthError) {
       const id: string | undefined = error.requestId;
-      void id;
+      const mine: string | undefined = error.correlationId;
+      const logged: Haau3ErrorJSON = error.toJSON();
+      void [id, mine, logged];
     }
   }
 }
