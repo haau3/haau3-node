@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/haau3/haau3-node/compare/v0.2.0...v0.2.1) (2026-10-19)
+
+
+### Bug Fixes
+
+* the package's homepage is platform.haau3.com ([#9](https://github.com/haau3/haau3-node/issues/9)) ([f0b4b05](https://github.com/haau3/haau3-node/commit/f0b4b05a49690fab0261c58b7819f80d64521d8d))
+
 ## [0.2.0](https://github.com/haau3/haau3-node/compare/v0.1.2...v0.2.0) (2026-10-19)
 
 

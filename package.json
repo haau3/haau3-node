@@ -1,6 +1,6 @@
 {
   "name": "@haau3/sdk",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "TypeScript SDK for the haau3 platform API: scheduling, provider directory, terminology, questionnaires, plan benefits and medication lists, as typed calls.",
   "license": "MIT",
   "homepage": "https://platform.haau3.com",
