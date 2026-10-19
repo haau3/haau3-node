@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.3](https://github.com/haau3/haau3-node/compare/v0.2.2...v0.2.3) (2026-10-19)
+
+
+### Features
+
+* a failure with no answer says what failed, request() gives the status text, and the User-Agent names the runtime ([#14](https://github.com/haau3/haau3-node/issues/14)) ([5a5fd7d](https://github.com/haau3/haau3-node/commit/5a5fd7d5b52b0a9a9bd5f7814e81e56a391bf9b1))
+
 ## [0.2.2](https://github.com/haau3/haau3-node/compare/v0.2.1...v0.2.2) (2026-10-19)
 
 
