@@ -72,12 +72,20 @@ with its parameters and its answer typed from the published spec.
 | `timeout` | `65000` | Milliseconds one attempt may take. |
 | `maxRetries` | `1` | Retries after a timeout, a network failure, a 429 or a 5xx. |
 | `fetch` | the global `fetch` | The fetch to send requests with. |
+| `fetchOptions` | `{ cache: "no-store" }` | Passed on to `fetch` with every request. |
 
-Each call takes `{ timeout, maxRetries, signal, headers }` as its last argument, for that call only:
+Each call takes `{ timeout, maxRetries, signal, headers, fetchOptions }` as its last argument, for
+that call only:
 
 ```ts
 await haau3.searchSlots({ state: "MA" }, { timeout: 10_000, maxRetries: 0 });
 ```
+
+Every request is sent with `cache: "no-store"`: an answer is live data for your key, not something
+a framework's fetch cache should keep. In Next.js this also keeps `next build` from sending a
+request while it prerenders a page. Set `fetchOptions` to change that, on the client or on one call:
+`{ next: { revalidate: 60 } }` in Next.js, or `{ cache: undefined }` to send no `cache` at all, for a
+runtime that refuses the field. The SDK's own method, headers, body, signal and redirect always win.
 
 A retry waits a short, growing interval, or what the API's `Retry-After` header says when that is
 60 seconds or less. A longer `Retry-After` fails at once, carrying it.
@@ -106,7 +114,23 @@ try {
 
 No answer is never reported as an empty result, and an empty result is never an error. An error's
 message never includes the body the API answered with, and the body (`outcome` or `problem`) is
-never printed when the error is logged.
+never printed when the error is logged. Every error the API answered carries `attempts` and
+`durationMs` too.
+
+A FHIR answer is checked against the resource types its operation answers with. Anything else, a
+`Bundle` where an `InsurancePlan` was asked for, say, is a `NoAnswerError` with reason `"unreadable"`,
+so what a method returns is always the type it says.
+
+## Request ids and timing
+
+Every method's answer can be awaited as it is, or through `.withResponse()` for the request id and
+timing that came with it, in the same names `request()` uses:
+
+```ts
+const { data: plan, requestId, durationMs, attempts } = await haau3.readInsurancePlan(id).withResponse();
+```
+
+Quote the `requestId` when you ask for help: it finds the request in the API's own logs.
 
 ## Paging
 
