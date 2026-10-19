@@ -6,9 +6,13 @@ import { VERSION } from "./version.js";
 
 /**
  * Options passed on to `fetch` with every request, such as `cache` or a framework's own (Next.js's
- * `next`). The SDK's own method, headers, body, signal and redirect always win.
+ * `next`, which Next.js adds to `RequestInit`). The SDK's own method, headers, body, signal and
+ * redirect always win. `cache` is declared here because Node's own `RequestInit` type leaves it out,
+ * though Node's fetch takes it.
  */
-export type FetchOptions = Omit<RequestInit, "method" | "headers" | "body" | "signal" | "redirect">;
+export type FetchOptions = Omit<RequestInit, "method" | "headers" | "body" | "signal" | "redirect" | "cache"> & {
+  cache?: "default" | "force-cache" | "no-cache" | "no-store" | "only-if-cached" | "reload" | undefined;
+};
 
 /** How to construct the client. Every option has a default. */
 export interface ClientOptions {
@@ -356,7 +360,7 @@ export abstract class Transport {
 
     const timeout = options.timeout ?? this.timeout;
     const maxRetries = options.maxRetries ?? this.maxRetries;
-    const fetchOptions: RequestInit = { ...this.#fetchOptions, ...options.fetchOptions };
+    const fetchOptions: FetchOptions = { ...this.#fetchOptions, ...options.fetchOptions };
     // No-store unless the caller chose: an API answer is live data for one key (see ClientOptions).
     if (!("cache" in fetchOptions) && !("next" in fetchOptions)) fetchOptions.cache = "no-store";
     const started = Date.now();
