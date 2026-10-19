@@ -72,12 +72,31 @@ with its parameters and its answer typed from the published spec.
 | `timeout` | `65000` | Milliseconds one attempt may take. |
 | `maxRetries` | `1` | Retries after a timeout, a network failure, a 429 or a 5xx. |
 | `fetch` | the global `fetch` | The fetch to send requests with. |
+| `fetchOptions` | `{ cache: "no-store" }` | Passed on to `fetch` with every request, for any runtime. |
 
-Each call takes `{ timeout, maxRetries, signal, headers }` as its last argument, for that call only:
+Each call takes `{ timeout, maxRetries, signal, headers, fetchOptions }` as its last argument, for
+that call only:
 
 ```ts
 await haau3.searchSlots({ state: "MA" }, { timeout: 10_000, maxRetries: 0 });
 ```
+
+`fetchOptions` passes anything your runtime's `fetch` takes, on the client or on one call: a proxy
+`dispatcher` from undici in Node, Cloudflare's `cf`, Next.js's `next`, `keepalive`. The SDK's own
+method, headers, body, signal and redirect always win.
+
+```ts
+import { ProxyAgent } from "undici";
+
+const haau3 = new Haau3({ fetchOptions: { dispatcher: new ProxyAgent("http://proxy.internal:8080") } });
+```
+
+Unless `fetchOptions` sets `cache`, every request is sent with `cache: "no-store"` where the
+runtime's fetch takes the field (Node's does; on a runtime that refuses it, the SDK sends none). An
+answer is live data for your key, not something a fetch cache should keep. Frameworks that cache
+`fetch` follow it: in Next.js it also keeps `next build` from sending a request while it prerenders
+a page, and `{ next: { revalidate: 60 } }` caches an answer there instead. `{ cache: undefined }`
+sends no `cache` at all.
 
 A retry waits a short, growing interval, or what the API's `Retry-After` header says when that is
 60 seconds or less. A longer `Retry-After` fails at once, carrying it.
@@ -106,7 +125,23 @@ try {
 
 No answer is never reported as an empty result, and an empty result is never an error. An error's
 message never includes the body the API answered with, and the body (`outcome` or `problem`) is
-never printed when the error is logged.
+never printed when the error is logged. Every error the API answered carries `attempts` and
+`durationMs` too.
+
+A FHIR answer is checked against the resource types its operation answers with. Anything else, a
+`Bundle` where an `InsurancePlan` was asked for, say, is a `NoAnswerError` with reason `"unreadable"`,
+so what a method returns is always the type it says.
+
+## Request ids and timing
+
+Every method's answer can be awaited as it is, or through `.withResponse()` for the request id and
+timing that came with it, in the same names `request()` uses:
+
+```ts
+const { data: plan, requestId, durationMs, attempts } = await haau3.readInsurancePlan(id).withResponse();
+```
+
+Quote the `requestId` when you ask for help: it finds the request in the API's own logs.
 
 ## Paging
 

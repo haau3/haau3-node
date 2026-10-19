@@ -1,7 +1,18 @@
 import type { OperationOutcome } from "fhir/r4.js";
+import { APIPromise, type ResponseMeta, type WithResponse } from "./api-promise.js";
 import { AuthError, Haau3Error, NoAnswerError, RefusedError, type AnswerBody, type NoAnswerReason } from "./errors.js";
 import type { Problem } from "./generated/types.js";
 import { VERSION } from "./version.js";
+
+/**
+ * Options passed on to `fetch` with every request: anything the runtime's `RequestInit` takes, such
+ * as `cache`, undici's `dispatcher`, Cloudflare's `cf` or Next.js's `next`. The SDK's own method,
+ * headers, body, signal and redirect always win. `cache` is declared here because Node's own `RequestInit` type leaves it out,
+ * though Node's fetch takes it.
+ */
+export type FetchOptions = Omit<RequestInit, "method" | "headers" | "body" | "signal" | "redirect" | "cache"> & {
+  cache?: "default" | "force-cache" | "no-cache" | "no-store" | "only-if-cached" | "reload" | undefined;
+};
 
 /** How to construct the client. Every option has a default. */
 export interface ClientOptions {
@@ -15,6 +26,14 @@ export interface ClientOptions {
   maxRetries?: number;
   /** The fetch to send requests with. Defaults to the global `fetch`. */
   fetch?: typeof fetch;
+  /**
+   * Passed on to `fetch` with every request: anything the runtime's fetch takes, such as undici's
+   * `dispatcher` for a proxy in Node, Cloudflare's `cf` or Next.js's `next`. Unless it sets `cache`
+   * (or Next.js's `next`), every request is sent with `cache: "no-store"` where the runtime takes
+   * the field: an API answer is live data for one key, never one a fetch cache should keep. Pass
+   * `{ cache: undefined }` to send no `cache` at all.
+   */
+  fetchOptions?: FetchOptions;
 }
 
 /** Options for one call. Each overrides the client's own for that call only. */
@@ -27,6 +46,8 @@ export interface RequestOptions {
   signal?: AbortSignal;
   /** Extra headers for this call, such as `X-Request-Id` with your own UUID. */
   headers?: Record<string, string>;
+  /** Passed on to `fetch` for this call, over the client's own `fetchOptions`. */
+  fetchOptions?: FetchOptions;
 }
 
 /** A query parameter's value. A list sends the parameter once per value. */
@@ -43,15 +64,9 @@ export interface RawRequest extends RequestOptions {
 }
 
 /** What the API answered, whatever its status. */
-export interface RawResponse {
-  status: number;
-  headers: Headers;
+export interface RawResponse extends ResponseMeta {
   /** The body, parsed when it is JSON, else its text. */
   body: unknown;
-  /** The `X-Request-Id` the API sent. */
-  requestId: string | undefined;
-  attempts: number;
-  durationMs: number;
 }
 
 /** What a generated method passes to {@link Transport.operation}. */
@@ -61,6 +76,8 @@ interface OperationCall {
   pathParams?: Record<string, string>;
   query?: object;
   body?: unknown;
+  /** The FHIR resource types the operation answers with, from the spec. Unset for other answers. */
+  expects?: readonly string[];
 }
 
 interface Sent {
@@ -88,6 +105,19 @@ function inBrowser(): boolean {
     typeof g.document !== "undefined" &&
     !(g.navigator?.userAgent ?? "").includes("jsdom")
   );
+}
+
+/**
+ * Whether this runtime's fetch takes a `cache` field. Node's does. Some edge runtimes have refused
+ * the field outright, so the no-store default is sent only where it is taken.
+ */
+function cacheFieldTaken(): boolean {
+  try {
+    new Request("https://api.haau3.com/", { cache: "no-store" });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function envKey(): string | undefined {
@@ -140,6 +170,15 @@ function readErrorBody(body: unknown): AnswerBody | undefined {
   return undefined;
 }
 
+/** A resource type with its article: "a Bundle", "an InsurancePlan". */
+const withArticle = (type: string) => `${/^[AEIOU]/.test(type) ? "an" : "a"} ${type}`;
+
+/** How an answer is named in a message: its resource type when it has a plausible one, never a value. */
+function describeAnswer(body: unknown): string {
+  const type = body && typeof body === "object" ? (body as { resourceType?: unknown }).resourceType : undefined;
+  return typeof type === "string" && /^[A-Z][A-Za-z]{0,63}$/.test(type) ? withArticle(type) : "something that is not a FHIR resource";
+}
+
 function noAnswerReason(status: number): NoAnswerReason {
   if (status === 429) return "rate-limited";
   if (status === 502 || status === 503) return "unavailable";
@@ -151,6 +190,8 @@ function noAnswerReason(status: number): NoAnswerReason {
 export abstract class Transport {
   readonly #apiKey: string;
   readonly #fetch: typeof fetch;
+  readonly #fetchOptions: FetchOptions;
+  readonly #noStoreTaken: boolean;
   /** Where requests go. */
   readonly baseURL: string;
   /** Milliseconds one attempt may take. */
@@ -170,6 +211,8 @@ export abstract class Transport {
     if (!fetchImpl) throw new Haau3Error("No fetch: pass one as the fetch option. Node 22 and newer have one.");
     this.#apiKey = apiKey;
     this.#fetch = fetchImpl;
+    this.#fetchOptions = options.fetchOptions ?? {};
+    this.#noStoreTaken = cacheFieldTaken();
     this.baseURL = (options.baseURL ?? DEFAULT_BASE_URL).replace(/\/+$/, "");
     this.timeout = options.timeout ?? DEFAULT_TIMEOUT;
     this.maxRetries = options.maxRetries ?? DEFAULT_MAX_RETRIES;
@@ -192,67 +235,102 @@ export abstract class Transport {
     };
   }
 
-  /** Runs one operation of the spec and returns its answer, or throws one of the three errors. */
-  protected async operation<T>(call: OperationCall, options: RequestOptions = {}): Promise<T> {
+  /**
+   * Runs one operation of the spec and returns its answer, or throws one of the three errors. The
+   * answer's `.withResponse()` gives its request id and timing too.
+   */
+  protected operation<T>(call: OperationCall, options: RequestOptions = {}): APIPromise<T> {
     let path = call.path;
     for (const [name, value] of Object.entries(call.pathParams ?? {})) {
       path = path.replace(`{${name}}`, encodeURIComponent(value));
     }
-    return this.answer<T>(call.method, this.#url(path, call.query as Record<string, QueryValue>), call.body, options, call.path);
+    // A bad baseURL rejects the call rather than throwing at it. The request itself starts now,
+    // as the call is made, so an abort right after it reaches the fetch.
+    let url: URL;
+    try {
+      url = this.#url(path, call.query as Record<string, QueryValue>);
+    } catch (error) {
+      return new APIPromise<T>(Promise.reject(error));
+    }
+    return new APIPromise(this.respond<T>(call.method, url, call.body, options, call.path, call.expects));
   }
 
-  /**
-   * Sends a request and reads its answer. `label` names the request in an error message: the
-   * operation's path with its `{id}` left in, so no value a caller sent ends up in a message.
-   */
+  /** Sends a request and returns its answer only. See {@link Transport.respond}. */
   protected async answer<T>(
     method: "GET" | "POST",
     url: URL,
     body: unknown,
     options: RequestOptions,
     label: string,
+    expects?: readonly string[],
   ): Promise<T> {
+    return (await this.respond<T>(method, url, body, options, label, expects)).data;
+  }
+
+  /**
+   * Sends a request and reads its answer. `label` names the request in an error message: the
+   * operation's path with its `{id}` left in, so no value a caller sent ends up in a message.
+   * `expects`, when set, are the FHIR resource types the answer may be; any other is not an answer.
+   */
+  protected async respond<T>(
+    method: "GET" | "POST",
+    url: URL,
+    body: unknown,
+    options: RequestOptions,
+    label: string,
+    expects?: readonly string[],
+  ): Promise<WithResponse<T>> {
     const sent = await this.#send(method, url, body, options, label);
-    const { response, text, attempts } = sent;
+    const { response, text, attempts, durationMs } = sent;
     const status = response.status;
     const requestId = response.headers.get("x-request-id") ?? undefined;
     const parsed = parseBody(text, response.headers.get("content-type"));
     const name = `${method} ${label}`;
+    const timing = { attempts, durationMs };
 
     if (status >= 200 && status < 300) {
       if (parsed === undefined) {
         throw new NoAnswerError(`${name} answered ${status} with a body that is not JSON.`, {
           reason: "unreadable",
-          attempts,
           status,
           requestId,
+          ...timing,
         });
       }
-      return parsed as T;
+      if (expects && !expects.includes((parsed as { resourceType?: unknown } | null)?.resourceType as string)) {
+        const wanted = expects.map(withArticle).join(" or ");
+        throw new NoAnswerError(`${name} answered ${describeAnswer(parsed)} where ${wanted} was expected.`, {
+          reason: "unreadable",
+          status,
+          requestId,
+          ...timing,
+        });
+      }
+      return { data: parsed as T, requestId, durationMs, attempts, status, headers: response.headers };
     }
     const errorBody = readErrorBody(parsed);
     if (status === 401 || status === 403) {
-      throw new AuthError(`${name} was refused: the API key was not accepted (${status}).`, status, requestId, errorBody);
+      throw new AuthError(`${name} was refused: the API key was not accepted (${status}).`, status, requestId, errorBody, timing);
     }
     if (status === 429 || status >= 500) {
       const reason = noAnswerReason(status);
       throw new NoAnswerError(`${name} got no answer (${reason}, ${status}) after ${attempts} attempt${attempts === 1 ? "" : "s"}.`, {
         reason,
-        attempts,
         status,
         retryAfter: retryAfterSeconds(response.headers),
         requestId,
         body: errorBody,
+        ...timing,
       });
     }
     if (status >= 400) {
-      throw new RefusedError(`${name} was refused (${status}).`, status, requestId, errorBody);
+      throw new RefusedError(`${name} was refused (${status}).`, status, requestId, errorBody, timing);
     }
     throw new NoAnswerError(`${name} answered ${status}, which is not an answer.`, {
       reason: "unreadable",
-      attempts,
       status,
       requestId,
+      ...timing,
     });
   }
 
@@ -298,6 +376,9 @@ export abstract class Transport {
 
     const timeout = options.timeout ?? this.timeout;
     const maxRetries = options.maxRetries ?? this.maxRetries;
+    const fetchOptions: FetchOptions = { ...this.#fetchOptions, ...options.fetchOptions };
+    // No-store unless the caller chose, where the runtime takes the field (see ClientOptions).
+    if (this.#noStoreTaken && !("cache" in fetchOptions) && !("next" in fetchOptions)) fetchOptions.cache = "no-store";
     const started = Date.now();
     let attempt = 0;
     for (;;) {
@@ -308,7 +389,7 @@ export abstract class Transport {
       let response: Response;
       let text: string;
       try {
-        response = await this.#fetch(url, { method, headers, body: payload, signal, redirect: "manual" });
+        response = await this.#fetch(url, { ...fetchOptions, method, headers, body: payload, signal, redirect: "manual" });
         text = await response.text();
       } catch (error) {
         if (options.signal?.aborted) throw options.signal.reason;
@@ -320,6 +401,7 @@ export abstract class Transport {
         throw new NoAnswerError(`${method} ${label} got no answer (${reason}) after ${attempt} attempt${attempt === 1 ? "" : "s"}.`, {
           reason,
           attempts: attempt,
+          durationMs: Date.now() - started,
           cause: error,
         });
       }

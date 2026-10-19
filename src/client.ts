@@ -39,7 +39,7 @@ export class Haau3 extends Operations {
       const next = page.link?.find((link) => link.relation === "next")?.url;
       if (!next) return;
       const url = this.url(next);
-      page = await this.answer<Bundle>("GET", url, undefined, options, url.pathname);
+      page = await this.answer<Bundle>("GET", url, undefined, options, url.pathname, ["Bundle"]);
     }
   }
 }
