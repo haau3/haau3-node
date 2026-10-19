@@ -77,6 +77,13 @@ export async function tour(): Promise<void> {
   const query: QueryOf<"codeSystemLookup"> = { system: "http://loinc.org", code: "2345-7" };
   const answer: ResponseOf<"readInsurancePlan"> = plan;
   void [inCounties, lookups, batched.requestId, body, query, answer];
+  // MedList takes @types/fhir's Bundle or Parameters as they are, such as records read with any FHIR client.
+  const records: fhir4.Bundle = plans;
+  const asParameters: fhir4.Parameters = counties;
+  const reconciled: fhir4.Bundle = await haau3.reconcileMedications(records);
+  void [reconciled, await haau3.reconcileMedications(asParameters)];
+  // @ts-expect-error Any other resource is not a body MedList takes.
+  void haau3.reconcileMedications(plan);
 
   // @ts-expect-error `state` is required.
   await haau3.listInsurancePlanCounties({});

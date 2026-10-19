@@ -24,6 +24,34 @@ describe("construction", () => {
     expect(() => new Haau3({ fetch: fakeFetch(() => answer({})).fetch })).toThrow(/HAAU3_API_KEY/);
   });
 
+  it("sends to HAAU3_BASE_URL when no baseURL is passed, and to https://api.haau3.com when neither is set", async () => {
+    vi.stubEnv("HAAU3_BASE_URL", "https://stand-in.example/");
+    const { fetch, received } = fakeFetch(() => answer({ publishers: [] }));
+    const haau3 = new Haau3({ apiKey: KEY, fetch });
+    expect(haau3.baseURL).toBe("https://stand-in.example");
+    await haau3.listPublishers();
+    expect(received[0]!.url.href).toBe("https://stand-in.example/v1/scheduling/publishers");
+
+    vi.stubEnv("HAAU3_BASE_URL", "");
+    expect(new Haau3({ apiKey: KEY, fetch }).baseURL).toBe("https://api.haau3.com");
+  });
+
+  it("takes the baseURL option over HAAU3_BASE_URL", () => {
+    vi.stubEnv("HAAU3_BASE_URL", "https://stand-in.example");
+    const { fetch } = fakeFetch(() => answer({}));
+    expect(new Haau3({ apiKey: KEY, baseURL: "https://other.example", fetch }).baseURL).toBe("https://other.example");
+  });
+
+  it("sends the key to HAAU3_BASE_URL's host only, once it is set", async () => {
+    vi.stubEnv("HAAU3_BASE_URL", "https://stand-in.example");
+    const { fetch, received } = fakeFetch(() => answer({}));
+    const haau3 = new Haau3({ apiKey: KEY, fetch });
+    await expect(haau3.request({ method: "GET", path: "https://api.haau3.com/v1/scheduling/publishers" })).rejects.toThrow(
+      /Refusing to send the API key to https:\/\/api\.haau3\.com/,
+    );
+    expect(received).toHaveLength(0);
+  });
+
   it("refuses to start in a browser, where a key is public", () => {
     vi.stubGlobal("window", {});
     vi.stubGlobal("document", {});
