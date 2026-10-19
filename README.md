@@ -13,7 +13,8 @@ directory), and standard FHIR Questionnaires such as the PHQ-9.
 
 The haau3 platform API is in preview: it may change as we build, usually to add features or improve performance.
 
-Also for Python: [`haau3` on PyPI](https://pypi.org/project/haau3/).
+Also for Python: [`haau3` on PyPI](https://pypi.org/project/haau3/), and for Go:
+[`github.com/haau3/haau3-go`](https://pkg.go.dev/github.com/haau3/haau3-go).
 
 ## Install
 
@@ -188,7 +189,17 @@ for await (const page of haau3.pages(first)) {
 }
 ```
 
-Scheduling's searches page with `limit` and `offset`, and answer with a `total`.
+`resources()` yields every resource the search found, across every page:
+
+```ts
+for await (const resource of haau3.resources(first)) {
+  if (resource.resourceType === "InsurancePlan") console.log(resource.name);
+}
+```
+
+It yields each entry whose search mode is `match`, or says none. A resource an `_include` or
+`_revinclude` brought, and a search's own `OperationOutcome`, are not among them; `pages()` gives
+every entry. Scheduling's searches page with `limit` and `offset`, and answer with a `total`.
 
 ## Several requests in one
 
