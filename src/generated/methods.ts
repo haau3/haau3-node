@@ -66,7 +66,7 @@ export abstract class Operations extends Transport {
   /**
    * Validate a code in a code system
    *
-   * FHIR `CodeSystem/$validate-code`. Asks whether a code exists in a code system — distinct from the ValueSet operation of the same name, which asks about membership of a particular set. On POST, a `coding` or `codeableConcept` parameter may stand in for `url` + `code`; a codeableConcept validates if any of its codings does.
+   * FHIR `CodeSystem/$validate-code`. Asks whether a code exists in a code system. The ValueSet operation of the same name asks about membership of a particular set instead. On POST, a `coding` or `codeableConcept` parameter may stand in for `url` + `code`; a codeableConcept validates if any of its codings does.
    *
    * `GET /v1/fhir/r4/CodeSystem/$validate-code`
    */
@@ -77,7 +77,7 @@ export abstract class Operations extends Transport {
   /**
    * Validate a code in a code system
    *
-   * FHIR `CodeSystem/$validate-code`. Asks whether a code exists in a code system — distinct from the ValueSet operation of the same name, which asks about membership of a particular set. On POST, a `coding` or `codeableConcept` parameter may stand in for `url` + `code`; a codeableConcept validates if any of its codings does.
+   * FHIR `CodeSystem/$validate-code`. Asks whether a code exists in a code system. The ValueSet operation of the same name asks about membership of a particular set instead. On POST, a `coding` or `codeableConcept` parameter may stand in for `url` + `code`; a codeableConcept validates if any of its codings does.
    *
    * `POST /v1/fhir/r4/CodeSystem/$validate-code`
    */
@@ -99,7 +99,7 @@ export abstract class Operations extends Transport {
   /**
    * Capability statement
    *
-   * FHIR `[base]/metadata`. Returns the `CapabilityStatement` for this service, or a `TerminologyCapabilities` when called with `?mode=terminology` — which lists the code systems served, and names those that are recognised but not served. `mode` is the only parameter it takes.
+   * FHIR `[base]/metadata`. Returns the `CapabilityStatement` for this service, or a `TerminologyCapabilities` when called with `?mode=terminology`, which lists the code systems served and names those that are recognised but not served. `mode` is the only parameter it takes.
    *
    * `GET /v1/fhir/r4/metadata`
    */
@@ -435,7 +435,7 @@ export abstract class Operations extends Transport {
   /**
    * Validate a code against a value set
    *
-   * FHIR `ValueSet/$validate-code`. A code that is not in the set is a successful `200` with `result: false`, not an error. On POST, a `coding` or `codeableConcept` parameter may stand in for `system` + `code`; a codeableConcept validates if any of its codings is in the set — useful when an element carries a vendor-local coding alongside a standard one.
+   * FHIR `ValueSet/$validate-code`. A code that is not in the set is a successful `200` with `result: false`, not an error. On POST, a `coding` or `codeableConcept` parameter may stand in for `system` + `code`; a codeableConcept validates if any of its codings is in the set, which helps when an element carries a vendor-local coding alongside a standard one.
    *
    * `GET /v1/fhir/r4/ValueSet/$validate-code`
    */
@@ -446,7 +446,7 @@ export abstract class Operations extends Transport {
   /**
    * Validate a code against a value set
    *
-   * FHIR `ValueSet/$validate-code`. A code that is not in the set is a successful `200` with `result: false`, not an error. On POST, a `coding` or `codeableConcept` parameter may stand in for `system` + `code`; a codeableConcept validates if any of its codings is in the set — useful when an element carries a vendor-local coding alongside a standard one.
+   * FHIR `ValueSet/$validate-code`. A code that is not in the set is a successful `200` with `result: false`, not an error. On POST, a `coding` or `codeableConcept` parameter may stand in for `system` + `code`; a codeableConcept validates if any of its codings is in the set, which helps when an element carries a vendor-local coding alongside a standard one.
    *
    * `POST /v1/fhir/r4/ValueSet/$validate-code`
    */
