@@ -35,6 +35,13 @@ describe("the README", () => {
   });
 });
 
+describe("what this repository publishes", () => {
+  it.each(["README.md", "CONTRIBUTING.md", "SECURITY.md", "api.md"])("%s holds no em or en dash", (name) => {
+    // api.md is generated from the spec's own words, and published beside the README.
+    expect(read(name)).not.toMatch(/[\u2014\u2013]/);
+  });
+});
+
 describe("api.md", () => {
   const rows = [...read("api.md").matchAll(/^\| \[`([a-zA-Z]+)\([^)]*\)`\]\((https:\/\/docs\.haau3\.com\/[^)]+)\)/gm)];
 
