@@ -4477,44 +4477,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/fhir+json": ({
-                    /** @constant */
-                    resourceType: "Bundle";
-                    type: string;
-                    entry?: ({
-                        fullUrl?: string;
-                        resource?: {
-                            resourceType: string;
-                        } & {
-                            [key: string]: unknown;
-                        };
-                        search?: {
-                            mode?: string;
-                        } & {
-                            [key: string]: unknown;
-                        };
-                    } & {
-                        [key: string]: unknown;
-                    })[];
-                } & {
-                    [key: string]: unknown;
-                }) | ({
-                    /** @constant */
-                    resourceType: "Parameters";
-                    parameter?: ({
-                        name: string;
-                        resource?: {
-                            resourceType: string;
-                        } & {
-                            [key: string]: unknown;
-                        };
-                        valueDateTime?: string;
-                    } & {
-                        [key: string]: unknown;
-                    })[];
-                } & {
-                    [key: string]: unknown;
-                });
+                "application/fhir+json": fhir4.Bundle | fhir4.Parameters;
             };
         };
         responses: {

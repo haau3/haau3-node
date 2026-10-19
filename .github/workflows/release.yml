@@ -89,7 +89,7 @@ jobs:
           TAG: ${{ needs.release.outputs.tag_name }}
         run: test "v$(node -p 'require("./package.json").version')" = "$TAG"
       - name: The generated code matches the pinned spec
-        run: pnpm generate && git diff --exit-code -- src/generated api.md
+        run: pnpm generate && git diff --exit-code -- src/generated api.md openapi/code-samples.json
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm build

@@ -1,0 +1,442 @@
+{
+  "overlay": "1.2.0",
+  "info": {
+    "title": "TypeScript samples for every operation of the haau3 platform API",
+    "version": "1.0.0-preview.3"
+  },
+  "extends": "https://api.haau3.com/openapi.json",
+  "actions": [
+    {
+      "target": "$.paths['/v1/scheduling/provider-locations'].get",
+      "update": {
+        "x-codeSamples": [
+          {
+            "lang": "typescript",
+            "label": "TypeScript",
+            "source": "import { Haau3 } from \"@haau3/sdk\";\n\nconst haau3 = new Haau3(); // reads HAAU3_API_KEY\nconst found = await haau3.searchProviderLocations({ publisher: \"haau3\", limit: 1 });\nconsole.log(found.total);\n"
+          }
+        ]
+      }
+    },
+    {
+      "target": "$.paths['/v1/scheduling/slots'].get",
+      "update": {
+        "x-codeSamples": [
+          {
+            "lang": "typescript",
+            "label": "TypeScript",
+            "source": "import { Haau3 } from \"@haau3/sdk\";\n\nconst haau3 = new Haau3(); // reads HAAU3_API_KEY\nconst found = await haau3.searchSlots({ publisher: \"haau3\", limit: 1 });\nconsole.log(found.total);\n"
+          }
+        ]
+      }
+    },
+    {
+      "target": "$.paths['/v1/scheduling/publishers'].get",
+      "update": {
+        "x-codeSamples": [
+          {
+            "lang": "typescript",
+            "label": "TypeScript",
+            "source": "import { Haau3 } from \"@haau3/sdk\";\n\nconst haau3 = new Haau3(); // reads HAAU3_API_KEY\nconst found = await haau3.listPublishers();\nconsole.log(found.publishers.length);\n"
+          }
+        ]
+      }
+    },
+    {
+      "target": "$.paths['/v1/scheduling/service-types'].get",
+      "update": {
+        "x-codeSamples": [
+          {
+            "lang": "typescript",
+            "label": "TypeScript",
+            "source": "import { Haau3 } from \"@haau3/sdk\";\n\nconst haau3 = new Haau3(); // reads HAAU3_API_KEY\nconst found = await haau3.listServiceTypes();\nconsole.log(found.serviceTypes.length);\n"
+          }
+        ]
+      }
+    },
+    {
+      "target": "$.paths['/v1/scheduling/specialties'].get",
+      "update": {
+        "x-codeSamples": [
+          {
+            "lang": "typescript",
+            "label": "TypeScript",
+            "source": "import { Haau3 } from \"@haau3/sdk\";\n\nconst haau3 = new Haau3(); // reads HAAU3_API_KEY\nconst found = await haau3.listSpecialties();\nconsole.log(found.specialties.length);\n"
+          }
+        ]
+      }
+    },
+    {
+      "target": "$.paths['/v1/fhir/r4/metadata'].get",
+      "update": {
+        "x-codeSamples": [
+          {
+            "lang": "typescript",
+            "label": "TypeScript",
+            "source": "import { Haau3 } from \"@haau3/sdk\";\n\nconst haau3 = new Haau3(); // reads HAAU3_API_KEY\nconst metadata = await haau3.fhirMetadata();\nconsole.log(metadata.resourceType);\n"
+          }
+        ]
+      }
+    },
+    {
+      "target": "$.paths['/v1/fhir/r4'].post",
+      "update": {
+        "x-codeSamples": [
+          {
+            "lang": "typescript",
+            "label": "TypeScript",
+            "source": "import { Haau3 } from \"@haau3/sdk\";\n\nconst haau3 = new Haau3(); // reads HAAU3_API_KEY\nconst results = await haau3.batch((b) => [\n  b.codeSystemLookup({ system: \"http://loinc.org\", code: \"2345-7\", property: \"SHORTNAME\" }),\n  b.codeSystemLookup({ system: \"http://loinc.org\", code: \"8867-4\", property: \"SHORTNAME\" }),\n  b.listInsurancePlanCounties({ state: \"DE\" }),\n]);\nfor (const result of results) console.log(result.ok ? result.status : result.error.message);\n"
+          }
+        ]
+      }
+    },
+    {
+      "target": "$.paths['/v1/fhir/r4/CodeSystem/$lookup'].get",
+      "update": {
+        "x-codeSamples": [
+          {
+            "lang": "typescript",
+            "label": "TypeScript",
+            "source": "import { Haau3 } from \"@haau3/sdk\";\n\nconst haau3 = new Haau3(); // reads HAAU3_API_KEY\nconst parameters = await haau3.codeSystemLookup({\n  code: \"2345-7\",\n  system: \"http://loinc.org\",\n  property: \"SHORTNAME\",\n});\nfor (const parameter of parameters.parameter ?? []) console.log(parameter.name);\n"
+          }
+        ]
+      }
+    },
+    {
+      "target": "$.paths['/v1/fhir/r4/CodeSystem/$lookup'].post",
+      "update": {
+        "x-codeSamples": [
+          {
+            "lang": "typescript",
+            "label": "TypeScript",
+            "source": "import { Haau3 } from \"@haau3/sdk\";\n\nconst haau3 = new Haau3(); // reads HAAU3_API_KEY\nconst parameters = await haau3.codeSystemLookupPost({\n  resourceType: \"Parameters\",\n  parameter: [\n    { name: \"system\", valueUri: \"http://loinc.org\" },\n    { name: \"code\", valueCode: \"2345-7\" },\n    { name: \"property\", valueCode: \"SHORTNAME\" },\n  ],\n});\nfor (const parameter of parameters.parameter ?? []) console.log(parameter.name);\n"
+          }
+        ]
+      }
+    },
+    {
+      "target": "$.paths['/v1/fhir/r4/CodeSystem/$validate-code'].get",
+      "update": {
+        "x-codeSamples": [
+          {
+            "lang": "typescript",
+            "label": "TypeScript",
+            "source": "import { Haau3 } from \"@haau3/sdk\";\n\nconst haau3 = new Haau3(); // reads HAAU3_API_KEY\nconst parameters = await haau3.codeSystemValidateCode({ url: \"http://loinc.org\", code: \"2345-7\" });\nfor (const parameter of parameters.parameter ?? []) console.log(parameter.name);\n"
+          }
+        ]
+      }
+    },
+    {
+      "target": "$.paths['/v1/fhir/r4/CodeSystem/$validate-code'].post",
+      "update": {
+        "x-codeSamples": [
+          {
+            "lang": "typescript",
+            "label": "TypeScript",
+            "source": "import { Haau3 } from \"@haau3/sdk\";\n\nconst haau3 = new Haau3(); // reads HAAU3_API_KEY\nconst parameters = await haau3.codeSystemValidateCodePost({\n  resourceType: \"Parameters\",\n  parameter: [{ name: \"url\", valueUri: \"http://loinc.org\" }, { name: \"code\", valueCode: \"2345-7\" }],\n});\nfor (const parameter of parameters.parameter ?? []) console.log(parameter.name);\n"
+          }
+        ]
+      }
+    },
+    {
+      "target": "$.paths['/v1/fhir/r4/ValueSet/$expand'].get",
+      "update": {
+        "x-codeSamples": [
+          {
+            "lang": "typescript",
+            "label": "TypeScript",
+            "source": "import { Haau3 } from \"@haau3/sdk\";\n\nconst haau3 = new Haau3(); // reads HAAU3_API_KEY\nconst valueSet = await haau3.valueSetExpand({ url: \"http://loinc.org/vs/LL360-9\" });\nconsole.log(valueSet.id);\n"
+          }
+        ]
+      }
+    },
+    {
+      "target": "$.paths['/v1/fhir/r4/ValueSet/$expand'].post",
+      "update": {
+        "x-codeSamples": [
+          {
+            "lang": "typescript",
+            "label": "TypeScript",
+            "source": "import { Haau3 } from \"@haau3/sdk\";\n\nconst haau3 = new Haau3(); // reads HAAU3_API_KEY\nconst valueSet = await haau3.valueSetExpandPost({\n  resourceType: \"Parameters\",\n  parameter: [{ name: \"url\", valueUri: \"http://loinc.org/vs/LL360-9\" }],\n});\nconsole.log(valueSet.id);\n"
+          }
+        ]
+      }
+    },
+    {
+      "target": "$.paths['/v1/fhir/r4/ValueSet/$validate-code'].get",
+      "update": {
+        "x-codeSamples": [
+          {
+            "lang": "typescript",
+            "label": "TypeScript",
+            "source": "import { Haau3 } from \"@haau3/sdk\";\n\nconst haau3 = new Haau3(); // reads HAAU3_API_KEY\nconst parameters = await haau3.valueSetValidateCode({\n  url: \"http://hl7.org/fhir/ValueSet/observation-vitalsignresult\",\n  code: \"8867-4\",\n  system: \"http://loinc.org\",\n});\nfor (const parameter of parameters.parameter ?? []) console.log(parameter.name);\n"
+          }
+        ]
+      }
+    },
+    {
+      "target": "$.paths['/v1/fhir/r4/ValueSet/$validate-code'].post",
+      "update": {
+        "x-codeSamples": [
+          {
+            "lang": "typescript",
+            "label": "TypeScript",
+            "source": "import { Haau3 } from \"@haau3/sdk\";\n\nconst haau3 = new Haau3(); // reads HAAU3_API_KEY\nconst parameters = await haau3.valueSetValidateCodePost({\n  resourceType: \"Parameters\",\n  parameter: [\n    { name: \"url\", valueUri: \"http://hl7.org/fhir/ValueSet/observation-vitalsignresult\" },\n    { name: \"coding\", valueCoding: { system: \"http://loinc.org\", code: \"8867-4\" } },\n  ],\n});\nfor (const parameter of parameters.parameter ?? []) console.log(parameter.name);\n"
+          }
+        ]
+      }
+    },
+    {
+      "target": "$.paths['/v1/fhir/r4/Practitioner'].get",
+      "update": {
+        "x-codeSamples": [
+          {
+            "lang": "typescript",
+            "label": "TypeScript",
+            "source": "import { Haau3 } from \"@haau3/sdk\";\n\nconst haau3 = new Haau3(); // reads HAAU3_API_KEY\nconst bundle = await haau3.searchPractitioner({ identifier: \"1093209884\" });\nconsole.log(bundle.entry?.length ?? 0);\n"
+          }
+        ]
+      }
+    },
+    {
+      "target": "$.paths['/v1/fhir/r4/Practitioner/{id}'].get",
+      "update": {
+        "x-codeSamples": [
+          {
+            "lang": "typescript",
+            "label": "TypeScript",
+            "source": "import { Haau3 } from \"@haau3/sdk\";\n\nconst haau3 = new Haau3(); // reads HAAU3_API_KEY\nconst practitioner = await haau3.readPractitioner(\"Practitioner-1093209884\");\nconsole.log(practitioner.id);\n"
+          }
+        ]
+      }
+    },
+    {
+      "target": "$.paths['/v1/fhir/r4/PractitionerRole'].get",
+      "update": {
+        "x-codeSamples": [
+          {
+            "lang": "typescript",
+            "label": "TypeScript",
+            "source": "import { Haau3 } from \"@haau3/sdk\";\n\nconst haau3 = new Haau3(); // reads HAAU3_API_KEY\nconst bundle = await haau3.searchPractitionerRole({\n  practitioner: \"Practitioner-1093209884\",\n  _count: 2,\n});\nconsole.log(bundle.entry?.length ?? 0);\n"
+          }
+        ]
+      }
+    },
+    {
+      "target": "$.paths['/v1/fhir/r4/PractitionerRole/{id}'].get",
+      "update": {
+        "x-codeSamples": [
+          {
+            "lang": "typescript",
+            "label": "TypeScript",
+            "source": "import { Haau3 } from \"@haau3/sdk\";\n\nconst haau3 = new Haau3(); // reads HAAU3_API_KEY\nconst practitionerRole = await haau3.readPractitionerRole(\"PractitionerRole-179421b5-5919-4f54-84c9-a4473b68f74c\");\nconsole.log(practitionerRole.id);\n"
+          }
+        ]
+      }
+    },
+    {
+      "target": "$.paths['/v1/fhir/r4/Organization'].get",
+      "update": {
+        "x-codeSamples": [
+          {
+            "lang": "typescript",
+            "label": "TypeScript",
+            "source": "import { Haau3 } from \"@haau3/sdk\";\n\nconst haau3 = new Haau3(); // reads HAAU3_API_KEY\nconst bundle = await haau3.searchOrganization({ type: \"ntwk\", _count: 2 });\nconsole.log(bundle.entry?.length ?? 0);\n"
+          }
+        ]
+      }
+    },
+    {
+      "target": "$.paths['/v1/fhir/r4/Organization/{id}'].get",
+      "update": {
+        "x-codeSamples": [
+          {
+            "lang": "typescript",
+            "label": "TypeScript",
+            "source": "import { Haau3 } from \"@haau3/sdk\";\n\nconst haau3 = new Haau3(); // reads HAAU3_API_KEY\nconst organization = await haau3.readOrganization(\"Organization-ea579d05-454e-4359-8751-900c940a599a\");\nconsole.log(organization.id);\n"
+          }
+        ]
+      }
+    },
+    {
+      "target": "$.paths['/v1/fhir/r4/OrganizationAffiliation'].get",
+      "update": {
+        "x-codeSamples": [
+          {
+            "lang": "typescript",
+            "label": "TypeScript",
+            "source": "import { Haau3 } from \"@haau3/sdk\";\n\nconst haau3 = new Haau3(); // reads HAAU3_API_KEY\nconst bundle = await haau3.searchOrganizationAffiliation({\n  network: \"Organization-ea579d05-454e-4359-8751-900c940a599a\",\n  _count: 2,\n});\nconsole.log(bundle.entry?.length ?? 0);\n"
+          }
+        ]
+      }
+    },
+    {
+      "target": "$.paths['/v1/fhir/r4/OrganizationAffiliation/{id}'].get",
+      "update": {
+        "x-codeSamples": [
+          {
+            "lang": "typescript",
+            "label": "TypeScript",
+            "source": "import { Haau3 } from \"@haau3/sdk\";\n\nconst haau3 = new Haau3(); // reads HAAU3_API_KEY\nconst organizationAffiliation = await haau3.readOrganizationAffiliation(\"OrganizationAffiliation-000cc9b9-738c-43cd-b923-03ac9ab4714d\");\nconsole.log(organizationAffiliation.id);\n"
+          }
+        ]
+      }
+    },
+    {
+      "target": "$.paths['/v1/fhir/r4/HealthcareService'].get",
+      "update": {
+        "x-codeSamples": [
+          {
+            "lang": "typescript",
+            "label": "TypeScript",
+            "source": "import { Haau3 } from \"@haau3/sdk\";\n\nconst haau3 = new Haau3(); // reads HAAU3_API_KEY\nconst bundle = await haau3.searchHealthcareService({\n  location: \"Location-ba334cb2-a0f9-4147-ab31-1c5af4ab9a4d\",\n  _count: 2,\n});\nconsole.log(bundle.entry?.length ?? 0);\n"
+          }
+        ]
+      }
+    },
+    {
+      "target": "$.paths['/v1/fhir/r4/HealthcareService/{id}'].get",
+      "update": {
+        "x-codeSamples": [
+          {
+            "lang": "typescript",
+            "label": "TypeScript",
+            "source": "import { Haau3 } from \"@haau3/sdk\";\n\nconst haau3 = new Haau3(); // reads HAAU3_API_KEY\nconst healthcareService = await haau3.readHealthcareService(\"HealthcareService-0009bcae-631e-45c0-9d3c-5691acb4a05d\");\nconsole.log(healthcareService.id);\n"
+          }
+        ]
+      }
+    },
+    {
+      "target": "$.paths['/v1/fhir/r4/Location'].get",
+      "update": {
+        "x-codeSamples": [
+          {
+            "lang": "typescript",
+            "label": "TypeScript",
+            "source": "import { Haau3 } from \"@haau3/sdk\";\n\nconst haau3 = new Haau3(); // reads HAAU3_API_KEY\nconst bundle = await haau3.searchLocation({ organization: \"Organization-1093090342\", _count: 2 });\nconsole.log(bundle.entry?.length ?? 0);\n"
+          }
+        ]
+      }
+    },
+    {
+      "target": "$.paths['/v1/fhir/r4/Location/{id}'].get",
+      "update": {
+        "x-codeSamples": [
+          {
+            "lang": "typescript",
+            "label": "TypeScript",
+            "source": "import { Haau3 } from \"@haau3/sdk\";\n\nconst haau3 = new Haau3(); // reads HAAU3_API_KEY\nconst location = await haau3.readLocation(\"Location-26e6731f-5e6a-48e4-aa2f-9f4c40cf402b\");\nconsole.log(location.id);\n"
+          }
+        ]
+      }
+    },
+    {
+      "target": "$.paths['/v1/fhir/r4/Endpoint'].get",
+      "update": {
+        "x-codeSamples": [
+          {
+            "lang": "typescript",
+            "label": "TypeScript",
+            "source": "import { Haau3 } from \"@haau3/sdk\";\n\nconst haau3 = new Haau3(); // reads HAAU3_API_KEY\nconst bundle = await haau3.searchEndpoint({ organization: \"Organization-1326655846\", _count: 2 });\nconsole.log(bundle.entry?.length ?? 0);\n"
+          }
+        ]
+      }
+    },
+    {
+      "target": "$.paths['/v1/fhir/r4/Endpoint/{id}'].get",
+      "update": {
+        "x-codeSamples": [
+          {
+            "lang": "typescript",
+            "label": "TypeScript",
+            "source": "import { Haau3 } from \"@haau3/sdk\";\n\nconst haau3 = new Haau3(); // reads HAAU3_API_KEY\nconst endpoint = await haau3.readEndpoint(\"Endpoint-000508b0-e3f0-4108-8d1d-a610f0675358\");\nconsole.log(endpoint.id);\n"
+          }
+        ]
+      }
+    },
+    {
+      "target": "$.paths['/v1/fhir/r4/Questionnaire'].get",
+      "update": {
+        "x-codeSamples": [
+          {
+            "lang": "typescript",
+            "label": "TypeScript",
+            "source": "import { Haau3 } from \"@haau3/sdk\";\n\nconst haau3 = new Haau3(); // reads HAAU3_API_KEY\nconst bundle = await haau3.searchQuestionnaire({ url: \"http://loinc.org/q/44249-1\" });\nconsole.log(bundle.entry?.length ?? 0);\n"
+          }
+        ]
+      }
+    },
+    {
+      "target": "$.paths['/v1/fhir/r4/Questionnaire/{id}'].get",
+      "update": {
+        "x-codeSamples": [
+          {
+            "lang": "typescript",
+            "label": "TypeScript",
+            "source": "import { Haau3 } from \"@haau3/sdk\";\n\nconst haau3 = new Haau3(); // reads HAAU3_API_KEY\nconst questionnaire = await haau3.readQuestionnaire(\"44249-1\");\nconsole.log(questionnaire.id);\n"
+          }
+        ]
+      }
+    },
+    {
+      "target": "$.paths['/v1/fhir/r4/InsurancePlan'].get",
+      "update": {
+        "x-codeSamples": [
+          {
+            "lang": "typescript",
+            "label": "TypeScript",
+            "source": "import { Haau3 } from \"@haau3/sdk\";\n\nconst haau3 = new Haau3(); // reads HAAU3_API_KEY\nconst bundle = await haau3.searchInsurancePlan({ identifier: \"H2406-013-000\" });\nconsole.log(bundle.entry?.length ?? 0);\n"
+          }
+        ]
+      }
+    },
+    {
+      "target": "$.paths['/v1/fhir/r4/InsurancePlan/$counties'].get",
+      "update": {
+        "x-codeSamples": [
+          {
+            "lang": "typescript",
+            "label": "TypeScript",
+            "source": "import { Haau3 } from \"@haau3/sdk\";\n\nconst haau3 = new Haau3(); // reads HAAU3_API_KEY\nconst parameters = await haau3.listInsurancePlanCounties({ state: \"FL\" });\nfor (const parameter of parameters.parameter ?? []) console.log(parameter.name);\n"
+          }
+        ]
+      }
+    },
+    {
+      "target": "$.paths['/v1/fhir/r4/InsurancePlan/{id}'].get",
+      "update": {
+        "x-codeSamples": [
+          {
+            "lang": "typescript",
+            "label": "TypeScript",
+            "source": "import { Haau3 } from \"@haau3/sdk\";\n\nconst haau3 = new Haau3(); // reads HAAU3_API_KEY\nconst insurancePlan = await haau3.readInsurancePlan(\"H2406-013-000\");\nconsole.log(insurancePlan.id);\n"
+          }
+        ]
+      }
+    },
+    {
+      "target": "$.paths['/v1/fhir/r4/InsurancePlan/{id}/$in-network'].get",
+      "update": {
+        "x-codeSamples": [
+          {
+            "lang": "typescript",
+            "label": "TypeScript",
+            "source": "import { Haau3 } from \"@haau3/sdk\";\n\nconst haau3 = new Haau3(); // reads HAAU3_API_KEY\nconst parameters = await haau3.checkInsurancePlanNetwork(\"H3359-038-000\", {\n  npi: [\"1518929058\", \"1992700001\"],\n});\nfor (const parameter of parameters.parameter ?? []) console.log(parameter.name);\n"
+          }
+        ]
+      }
+    },
+    {
+      "target": "$.paths['/v1/fhir/r4/$reconcile-medications'].post",
+      "update": {
+        "x-codeSamples": [
+          {
+            "lang": "typescript",
+            "label": "TypeScript",
+            "source": "import { readFile } from \"node:fs/promises\";\nimport { Haau3, type fhir4 } from \"@haau3/sdk\";\n\nconst haau3 = new Haau3(); // reads HAAU3_API_KEY\n// records.json holds one patient's FHIR medication records, as a Bundle.\nconst records: fhir4.Bundle = JSON.parse(await readFile(\"records.json\", \"utf8\"));\nconst bundle = await haau3.reconcileMedications(records);\nconsole.log(bundle.entry?.length ?? 0);\n"
+          }
+        ]
+      }
+    }
+  ]
+}
