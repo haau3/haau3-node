@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.5](https://github.com/haau3/haau3-node/compare/v0.2.4...v0.2.5) (2026-10-19)
+
+
+### Features
+
+* a code sample for every operation, HAAU3_BASE_URL, and FHIR types for MedList's body ([#18](https://github.com/haau3/haau3-node/issues/18)) ([0500381](https://github.com/haau3/haau3-node/commit/05003814984158388351d88589b6e0b415bafada))
+
 ## [0.2.4](https://github.com/haau3/haau3-node/compare/v0.2.3...v0.2.4) (2026-10-19)
 
 
