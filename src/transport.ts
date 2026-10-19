@@ -186,6 +186,96 @@ function noAnswerReason(status: number): NoAnswerReason {
   return "server-error";
 }
 
+/** Appends a query to a URL's parameters: a list sends the parameter once per value, `undefined` sends none. */
+export function appendQuery(params: URLSearchParams, query: Record<string, QueryValue> | undefined): void {
+  for (const [name, value] of Object.entries(query ?? {})) {
+    if (value === undefined) continue;
+    for (const item of Array.isArray(value) ? value : [value]) params.append(name, String(item));
+  }
+}
+
+/** What came with an answer, for {@link judge}. */
+export interface AnswerContext {
+  requestId: string | undefined;
+  attempts: number;
+  durationMs: number;
+  /** Seconds from the answer's `Retry-After`, when it had one. */
+  retryAfter?: number | undefined;
+  /** The FHIR resource types a success may be. Unset checks no type. */
+  expects?: readonly string[] | undefined;
+  /** How a success with no body is described: "a body that is not JSON", "no resource". */
+  missing: string;
+  /**
+   * An answer inside a batch. The key is checked once for the whole batch, so a 401 or 403 on one
+   * entry is a refusal of that entry, not of the key.
+   */
+  entry?: boolean;
+}
+
+/**
+ * What one answer means: the answer itself, or the error it is. A single call and each entry of a
+ * batch are judged alike. `name` says which request it was, in words that carry no value a caller
+ * sent: the method and the operation's path with its `{id}` left in.
+ */
+export function judge<T>(
+  name: string,
+  status: number,
+  body: unknown,
+  context: AnswerContext,
+): { ok: true; data: T } | { ok: false; error: AuthError | RefusedError | NoAnswerError } {
+  const { requestId, attempts, durationMs, expects } = context;
+  const timing = { attempts, durationMs };
+  if (status >= 200 && status < 300) {
+    if (body === undefined) {
+      return {
+        ok: false,
+        error: new NoAnswerError(`${name} answered ${status} with ${context.missing}.`, { reason: "unreadable", status, requestId, ...timing }),
+      };
+    }
+    if (expects && !expects.includes((body as { resourceType?: unknown } | null)?.resourceType as string)) {
+      const wanted = expects.map(withArticle).join(" or ");
+      return {
+        ok: false,
+        error: new NoAnswerError(`${name} answered ${describeAnswer(body)} where ${wanted} was expected.`, {
+          reason: "unreadable",
+          status,
+          requestId,
+          ...timing,
+        }),
+      };
+    }
+    return { ok: true, data: body as T };
+  }
+  const errorBody = readErrorBody(body);
+  if ((status === 401 || status === 403) && !context.entry) {
+    return {
+      ok: false,
+      error: new AuthError(`${name} was refused: the API key was not accepted (${status}).`, status, requestId, errorBody, timing),
+    };
+  }
+  if (status === 429 || status >= 500) {
+    const reason = noAnswerReason(status);
+    return {
+      ok: false,
+      error: new NoAnswerError(`${name} got no answer (${reason}, ${status}) after ${attempts} attempt${attempts === 1 ? "" : "s"}.`, {
+        reason,
+        status,
+        retryAfter: context.retryAfter,
+        requestId,
+        body: errorBody,
+        ...timing,
+      }),
+    };
+  }
+  if (status >= 400) {
+    return { ok: false, error: new RefusedError(`${name} was refused (${status}).`, status, requestId, errorBody, timing) };
+  }
+  return {
+    ok: false,
+    error: new NoAnswerError(`${name} answered ${status}, which is not an answer.`, { reason: "unreadable", status, requestId, ...timing }),
+  };
+}
+
 /** The connection, retries and errors every operation shares. */
 export abstract class Transport {
   readonly #apiKey: string;
@@ -284,54 +374,16 @@ export abstract class Transport {
     const { response, text, attempts, durationMs } = sent;
     const status = response.status;
     const requestId = response.headers.get("x-request-id") ?? undefined;
-    const parsed = parseBody(text, response.headers.get("content-type"));
-    const name = `${method} ${label}`;
-    const timing = { attempts, durationMs };
-
-    if (status >= 200 && status < 300) {
-      if (parsed === undefined) {
-        throw new NoAnswerError(`${name} answered ${status} with a body that is not JSON.`, {
-          reason: "unreadable",
-          status,
-          requestId,
-          ...timing,
-        });
-      }
-      if (expects && !expects.includes((parsed as { resourceType?: unknown } | null)?.resourceType as string)) {
-        const wanted = expects.map(withArticle).join(" or ");
-        throw new NoAnswerError(`${name} answered ${describeAnswer(parsed)} where ${wanted} was expected.`, {
-          reason: "unreadable",
-          status,
-          requestId,
-          ...timing,
-        });
-      }
-      return { data: parsed as T, requestId, durationMs, attempts, status, headers: response.headers };
-    }
-    const errorBody = readErrorBody(parsed);
-    if (status === 401 || status === 403) {
-      throw new AuthError(`${name} was refused: the API key was not accepted (${status}).`, status, requestId, errorBody, timing);
-    }
-    if (status === 429 || status >= 500) {
-      const reason = noAnswerReason(status);
-      throw new NoAnswerError(`${name} got no answer (${reason}, ${status}) after ${attempts} attempt${attempts === 1 ? "" : "s"}.`, {
-        reason,
-        status,
-        retryAfter: retryAfterSeconds(response.headers),
-        requestId,
-        body: errorBody,
-        ...timing,
-      });
-    }
-    if (status >= 400) {
-      throw new RefusedError(`${name} was refused (${status}).`, status, requestId, errorBody, timing);
-    }
-    throw new NoAnswerError(`${name} answered ${status}, which is not an answer.`, {
-      reason: "unreadable",
-      status,
+    const verdict = judge<T>(`${method} ${label}`, status, parseBody(text, response.headers.get("content-type")), {
       requestId,
-      ...timing,
+      attempts,
+      durationMs,
+      retryAfter: retryAfterSeconds(response.headers),
+      expects,
+      missing: "a body that is not JSON",
     });
+    if (!verdict.ok) throw verdict.error;
+    return { data: verdict.data, requestId, durationMs, attempts, status, headers: response.headers };
   }
 
   /** A URL on this client's base, refusing any other host so the key is never sent to one. */
@@ -347,10 +399,7 @@ export abstract class Transport {
     if (url.origin !== base.origin) {
       throw new Haau3Error(`Refusing to send the API key to ${url.origin}: the client's baseURL is ${base.origin}.`);
     }
-    for (const [name, value] of Object.entries(query ?? {})) {
-      if (value === undefined) continue;
-      for (const item of Array.isArray(value) ? value : [value]) url.searchParams.append(name, String(item));
-    }
+    appendQuery(url.searchParams, query);
     return url;
   }
 

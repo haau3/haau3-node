@@ -174,16 +174,39 @@ Scheduling's searches page with `limit` and `offset`, and answer with a `total`.
 
 ## Several requests in one
 
+`batch()` sends several operations of the FHIR base as one request. The function you pass gets a
+builder with the client's own methods, called the same way, which make entries instead of sending.
+Each entry gets its own result, in the order given:
+
 ```ts
-const answers = await haau3.fhirBatch({
-  resourceType: "Bundle",
-  type: "batch",
-  entry: [
-    { request: { method: "GET", url: "CodeSystem/$lookup?system=http://loinc.org&code=2345-7" } },
-    { request: { method: "GET", url: "InsurancePlan/$counties?state=NC" } },
-  ],
-});
+const [plan, counties] = await haau3.batch((b) => [
+  b.readInsurancePlan("H2406-013-000"),
+  b.listInsurancePlanCounties({ state: "NC" }),
+]);
+
+if (plan.ok) {
+  plan.data; // fhir4.InsurancePlan
+} else {
+  plan.error; // a RefusedError or a NoAnswerError, as readInsurancePlan alone would have thrown
+}
 ```
+
+A list built in code works the same way:
+
+```ts
+const lookups = await haau3.batch((b) =>
+  codes.map((code) => b.codeSystemLookup({ system: "http://loinc.org", code, property: "CLASSTYPE" })),
+);
+```
+
+Each entry is checked as the call alone is, and fails alone while the others answer. An entry that
+fails is not retried. The batch itself is retried, and throws, as any call does, and
+`.withResponse()` gives its request id. The API takes up to 100 entries in up to 1 MiB and gives a
+batch 60 seconds, so send a longer list as several batches. Every operation on the FHIR base can go
+in a batch except `reconcileMedications`.
+
+To send a batch `Bundle` you built yourself, `fhirBatch()` takes it and returns the
+`batch-response` as it is.
 
 ## Any request
 

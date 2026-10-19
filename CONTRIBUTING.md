@@ -27,6 +27,10 @@ pnpm generate
 
 CI generates again and fails if the result differs from what is committed.
 
+`src/generated/batch.ts` is the builder `batch()` hands its caller: one method per operation on the
+FHIR base, minus the ones a batch cannot carry, which the generator names in `NOT_IN_A_BATCH` with
+the spec's own words. It stops if one of those leaves the spec.
+
 The types come from [openapi-typescript](https://github.com/openapi-ts/openapi-typescript) 7.13.0,
 which declares TypeScript 5 as its peer. This repository builds with TypeScript 6.0.3. Before
 0.1.0 the generator's output under TypeScript 5.9.3 and 6.0.3 was compared and is byte-identical

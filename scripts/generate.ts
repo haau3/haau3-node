@@ -6,6 +6,8 @@
 //   element of its resource.
 // - methods.ts: one method per operation, named exactly by its operationId, with its doc comment
 //   from the operation's summary and description.
+// - batch.ts: the builder `batch()` hands its caller, one method per operation a batch can carry,
+//   named and called as on the client, each returning an entry instead of sending.
 // - types.ts: the public names. Each operation's query parameters as `<OperationId>Params`, and every
 //   component that is not a FHIR resource (Scheduling's records and answers, Problem) by its own
 //   name. A caller never writes `components["schemas"][...]`, so the generator can change without a
@@ -190,6 +192,66 @@ ${methodLines.join("\n").trimEnd()}
 `;
 await writeFile(new URL("methods.ts", OUT), methods);
 
+// --- batch.ts -----------------------------------------------------------------------------------
+
+/**
+ * The operations a batch cannot carry: the batch itself, and `$reconcile-medications`, which the
+ * spec says a batch "refuses by name" (the batch's description) and "is not offered inside a batch"
+ * (its own). Everything else on the FHIR base can go in one.
+ */
+const NOT_IN_A_BATCH = new Set(["fhirBatch", "reconcileMedications"]);
+for (const id of NOT_IN_A_BATCH) {
+  if (!operations.some((op) => op.id === id)) throw new Error(`${id} is no longer in the spec: review NOT_IN_A_BATCH.`);
+}
+const batchable = operations.filter((op) => op.path.startsWith("/v1/fhir/r4/") && !NOT_IN_A_BATCH.has(op.id));
+
+const builderLines: string[] = [];
+for (const op of batchable) {
+  const args: string[] = [];
+  for (const name of op.pathParams) args.push(`${name}: string`);
+  if (op.hasQuery) args.push(`params${op.queryRequired ? "" : "?"}: ${pascal(op.id)}Params`);
+  if (op.hasBody) args.push(`body: BodyOf<"${op.id}">`);
+  const call = [
+    `method: "${op.method}"`,
+    `path: ${JSON.stringify(op.path)}`,
+    op.pathParams.length ? `pathParams: { ${op.pathParams.join(", ")} }` : undefined,
+    op.hasQuery ? "query: params" : undefined,
+    op.hasBody ? "body" : undefined,
+    op.expects.length ? `expects: ${JSON.stringify(op.expects)}` : undefined,
+  ].filter(Boolean);
+  builderLines.push(
+    "  /**",
+    `   * ${op.summary.replaceAll("*/", "*\\/")}, as one entry of a batch. Called as \`Haau3.${op.id}\` is.`,
+    "   *",
+    `   * \`${op.method} ${op.path}\``,
+    "   */",
+    `  ${op.id}(${args.join(", ")}): BatchEntry<ResponseOf<"${op.id}">> {`,
+    `    return entry<ResponseOf<"${op.id}">>({ ${call.join(", ")} });`,
+    "  }",
+    "",
+  );
+}
+
+const batchFile = `${HEADER("The builder batch() hands its caller: one method per operation a batch can carry.")}import { entry, type BatchEntry } from "../batch.js";
+import type { BodyOf, ResponseOf } from "../operations.js";
+import type {
+${batchable
+  .filter((op) => op.hasQuery)
+  .map((op) => `  ${pascal(op.id)}Params,`)
+  .join("\n")}
+} from "./types.js";
+
+/**
+ * Every operation a batch can carry, each called as on {@link Haau3} and returning an entry for the
+ * batch instead of sending. Everything on the FHIR base but the batch itself and
+ * \`reconcileMedications\`.
+ */
+export class BatchBuilder {
+${builderLines.join("\n").trimEnd()}
+}
+`;
+await writeFile(new URL("batch.ts", OUT), batchFile);
+
 // --- types.ts -----------------------------------------------------------------------------------
 
 const ownComponents = Object.keys(schemas)
@@ -244,11 +306,15 @@ takes the per-call options (\`{ timeout, maxRetries, signal, headers, fetchOptio
 argument. Every method's answer can be awaited as it is, or with \`.withResponse()\` for its request id
 and timing too.
 
+\`batch()\` sends several of these as one request, each with its own answer or error. It takes
+every operation on the FHIR base except \`${[...NOT_IN_A_BATCH].join("` and `")}\`: ${batchable.length} of the
+${operations.length}. See the README's "Several requests in one".
+
 ${sections.join("\n\n")}
 `;
 await writeFile(new URL("../api.md", import.meta.url), apiMd);
 
 console.log(
-  `Generated ${operations.length} methods, ${ownComponents.length} component names and ` +
+  `Generated ${operations.length} methods (${batchable.length} batchable), ${ownComponents.length} component names and ` +
     `${operations.filter((op) => op.hasQuery).length} parameter types from ${spec.info.version}.`,
 );

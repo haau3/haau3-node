@@ -9,6 +9,10 @@ takes the per-call options (`{ timeout, maxRetries, signal, headers, fetchOption
 argument. Every method's answer can be awaited as it is, or with `.withResponse()` for its request id
 and timing too.
 
+`batch()` sends several of these as one request, each with its own answer or error. It takes
+every operation on the FHIR base except `fhirBatch` and `reconcileMedications`: 29 of the
+36. See the README's "Several requests in one".
+
 ## Scheduling
 
 Provider availability (SMART Scheduling Links) — slots and publishers.
