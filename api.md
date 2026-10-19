@@ -5,9 +5,13 @@
 Every operation of the haau3 platform API (`1.0.0-preview.3`) is a method on `Haau3`, named by its
 operationId. Each links to its page on docs.haau3.com, which shows its parameters and an example
 exchange. `params` is the query parameters as one object, `body` the request body, and every method
-takes the per-call options (`{ timeout, maxRetries, signal, headers, fetchOptions }`) as its last
+takes the per-call options (`{ timeout, maxRetries, signal, correlationId, headers, fetchOptions }`) as its last
 argument. Every method's answer can be awaited as it is, or with `.withResponse()` for its request id
 and timing too.
+
+`batch()` sends several of these as one request, each with its own answer or error. It takes
+every operation on the FHIR base except `fhirBatch` and `reconcileMedications`: 29 of the
+36. See the README's "Several requests in one".
 
 ## Scheduling
 

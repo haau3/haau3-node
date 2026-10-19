@@ -90,8 +90,8 @@ An agent can read the docs directly:
 | `fetch` | the global `fetch` | The fetch to send requests with. |
 | `fetchOptions` | `{ cache: "no-store" }` | Passed on to `fetch` with every request, for any runtime. |
 
-Each call takes `{ timeout, maxRetries, signal, headers, fetchOptions }` as its last argument, for
-that call only:
+Each call takes `{ timeout, maxRetries, signal, correlationId, headers, fetchOptions }` as its last
+argument, for that call only:
 
 ```ts
 await haau3.searchSlots({ state: "MA" }, { timeout: 10_000, maxRetries: 0 });
@@ -145,8 +145,13 @@ never printed when the error is logged. Every error the API answered carries `at
 `durationMs` too.
 
 A FHIR answer is checked against the resource types its operation answers with. Anything else, a
-`Bundle` where an `InsurancePlan` was asked for, say, is a `NoAnswerError` with reason `"unreadable"`,
-so what a method returns is always the type it says.
+`Bundle` where an `InsurancePlan` was asked for, say, is a `NoAnswerError` with reason
+`"unreadable"`. The check is of the resource type, not of every element inside it: those are typed
+as FHIR R4 declares them, and the SDK does not validate each one.
+
+`error.toJSON()` gives an error as a plain object that is safe to log: its name, its message and the
+fields above that are set, and never the body or the `cause`. `JSON.stringify(error)` prints the
+same.
 
 ## Request ids and timing
 
@@ -158,6 +163,15 @@ const { data: plan, requestId, durationMs, attempts } = await haau3.readInsuranc
 ```
 
 Quote the `requestId` when you ask for help: it finds the request in the API's own logs.
+
+To find a request by an id of your own, such as your job's or your trace's, pass it as
+`correlationId`. It must be a UUID, which is all the API keeps; anything else is refused before it
+is sent. The API keeps it with its record of the request, and it comes back on the answer and on
+every error the API answered:
+
+```ts
+const { data, correlationId } = await haau3.readInsurancePlan(id, { correlationId: jobId }).withResponse();
+```
 
 ## Paging
 
@@ -174,16 +188,39 @@ Scheduling's searches page with `limit` and `offset`, and answer with a `total`.
 
 ## Several requests in one
 
+`batch()` sends several operations of the FHIR base as one request. The function you pass gets a
+builder with the client's own methods, called the same way, which make entries instead of sending.
+Each entry gets its own result, in the order given:
+
 ```ts
-const answers = await haau3.fhirBatch({
-  resourceType: "Bundle",
-  type: "batch",
-  entry: [
-    { request: { method: "GET", url: "CodeSystem/$lookup?system=http://loinc.org&code=2345-7" } },
-    { request: { method: "GET", url: "InsurancePlan/$counties?state=NC" } },
-  ],
-});
+const [plan, counties] = await haau3.batch((b) => [
+  b.readInsurancePlan("H2406-013-000"),
+  b.listInsurancePlanCounties({ state: "NC" }),
+]);
+
+if (plan.ok) {
+  plan.data; // fhir4.InsurancePlan
+} else {
+  plan.error; // a RefusedError or a NoAnswerError, as readInsurancePlan alone would have thrown
+}
 ```
+
+A list built in code works the same way:
+
+```ts
+const lookups = await haau3.batch((b) =>
+  codes.map((code) => b.codeSystemLookup({ system: "http://loinc.org", code, property: "CLASSTYPE" })),
+);
+```
+
+Each entry is checked as the call alone is, and fails alone while the others answer. An entry that
+fails is not retried. The batch itself is retried, and throws, as any call does, and
+`.withResponse()` gives its request id. The API takes up to 100 entries in up to 1 MiB and gives a
+batch 60 seconds, so send a longer list as several batches. Every operation on the FHIR base can go
+in a batch except `reconcileMedications`.
+
+To send a batch `Bundle` you built yourself, `fhirBatch()` takes it and returns the
+`batch-response` as it is.
 
 ## Any request
 

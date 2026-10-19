@@ -2,6 +2,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { Haau3 } from "../src/index.js";
+import { BatchBuilder } from "../src/generated/batch.js";
 import { spec } from "./helpers.js";
 
 const read = (name: string) => readFileSync(new URL(`../${name}`, import.meta.url), "utf8");
@@ -24,6 +25,14 @@ describe("the README", () => {
       expect(readme, call).toContain(`haau3.${call}`);
     }
   });
+
+  it("shows a batch, built from the builder's methods", () => {
+    const readme = read("README.md");
+    expect(readme).toContain("haau3.batch((b) =>");
+    const built = [...readme.matchAll(/\bb\.([a-zA-Z]+)\(/g)].map((m) => m[1]!);
+    expect(built.length).toBeGreaterThan(0);
+    expect(built.filter((name) => typeof (BatchBuilder.prototype as unknown as Record<string, unknown>)[name] !== "function")).toEqual([]);
+  });
 });
 
 describe("api.md", () => {
@@ -38,6 +47,10 @@ describe("api.md", () => {
     const links = rows.map((m) => m[2]);
     expect(new Set(links).size).toBe(links.length);
     expect(links.every((link) => link!.startsWith("https://docs.haau3.com/api-reference/"))).toBe(true);
+  });
+
+  it("says which operations a batch cannot carry", () => {
+    expect(read("api.md")).toContain("except `fhirBatch` and `reconcileMedications`");
   });
 
   it("names the spec version it was generated from", () => {
