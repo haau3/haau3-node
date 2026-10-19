@@ -202,6 +202,26 @@ function cacheFieldTaken(): boolean {
   }
 }
 
+/**
+ * A base URL without its trailing slashes, refused unless it is an http or https URL with a host and
+ * no query or fragment. The error names where the URL came from, the option or the variable.
+ */
+function checkedBaseURL(base: string, source: "baseURL" | "HAAU3_BASE_URL"): string {
+  const stripped = base.replace(/\/+$/, "");
+  let url: URL | undefined;
+  try {
+    url = new URL(stripped);
+  } catch {
+    url = undefined;
+  }
+  if (!url || !["http:", "https:"].includes(url.protocol) || !url.hostname || url.search || url.hash) {
+    throw new Haau3Error(
+      `${source} takes an http or https URL with a host, such as https://api.haau3.com: ${JSON.stringify(base)} is not one.`,
+    );
+  }
+  return stripped;
+}
+
 /** A value from `process.env`, where the runtime has one. Empty counts as unset. */
 function env(name: "HAAU3_API_KEY" | "HAAU3_BASE_URL"): string | undefined {
   const g = globalThis as { process?: { env?: Record<string, string | undefined> } };
@@ -394,7 +414,13 @@ export abstract class Transport {
     this.#fetch = fetchImpl;
     this.#fetchOptions = options.fetchOptions ?? {};
     this.#noStoreTaken = cacheFieldTaken();
-    this.baseURL = (options.baseURL ?? env("HAAU3_BASE_URL") ?? DEFAULT_BASE_URL).replace(/\/+$/, "");
+    const fromEnv = env("HAAU3_BASE_URL");
+    this.baseURL =
+      options.baseURL !== undefined
+        ? checkedBaseURL(options.baseURL, "baseURL")
+        : fromEnv !== undefined
+          ? checkedBaseURL(fromEnv, "HAAU3_BASE_URL")
+          : DEFAULT_BASE_URL;
     this.timeout = options.timeout ?? DEFAULT_TIMEOUT;
     this.maxRetries = options.maxRetries ?? DEFAULT_MAX_RETRIES;
   }
@@ -427,8 +453,8 @@ export abstract class Transport {
     for (const [name, value] of Object.entries(call.pathParams ?? {})) {
       path = path.replace(`{${name}}`, encodeURIComponent(value));
     }
-    // A bad baseURL rejects the call rather than throwing at it. The request itself starts now,
-    // as the call is made, so an abort right after it reaches the fetch.
+    // A URL that cannot be made rejects the call rather than throwing at it. The request itself
+    // starts now, as the call is made, so an abort right after it reaches the fetch.
     let url: URL;
     try {
       url = this.#url(path, call.query as Record<string, QueryValue>);
