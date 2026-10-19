@@ -13,6 +13,12 @@
 //   name. A caller never writes `components["schemas"][...]`, so the generator can change without a
 //   breaking change.
 //
+// - openapi/code-samples.json: a TypeScript sample for every operation, as an OpenAPI Overlay that
+//   adds `x-codeSamples` to the spec, so a documentation site can show a call beside each operation.
+//   Each sample is a whole program that sends the operation's example request from the spec and
+//   prints one field of the answer. test/samples.test.ts runs every one, as it is written, against a
+//   stand-in API, and scripts/check-consumer.ts compiles them against the packed package.
+//
 // Run it with `pnpm generate` after `pnpm fetch-spec`. CI runs it again and fails if the output
 // differs from what is committed.
 
@@ -42,9 +48,11 @@ function fhirType(schema: Json | undefined): string | undefined {
 const ast = await openapiTS(spec as never, {
   // The FHIR marker: only the component itself becomes `fhir4.<Type>`. The hook is also
   // called for each of its properties with the parent's path, so the path alone is not enough.
+  // A request body written inline (MedList's takes a Bundle or a Parameters) is marked the same way,
+  // and is typed as @types/fhir's resource too, so a caller holding a `fhir4.Bundle` passes it as it is.
   transform(schema, options) {
     const type = fhirType(schema as Json);
-    if (type && options.path === `#/components/schemas/${type}`) {
+    if (type && (options.path === `#/components/schemas/${type}` || /\/requestBody\/content\/[^/]+(\/schema)?(\/(oneOf|anyOf)\/\d+)?$/.test(options.path ?? ""))) {
       return ts.factory.createTypeReferenceNode(`fhir4.${type}`);
     }
     return undefined;
@@ -71,6 +79,8 @@ interface Operation {
   fhir: boolean;
   /** The FHIR resource types a success answers with, from its 200 schema. Empty for other answers. */
   expects: string[];
+  /** The operation as the spec writes it, for its example request. */
+  raw: Json;
 }
 
 /**
@@ -134,6 +144,7 @@ for (const [path, item] of Object.entries(spec.paths as Record<string, Json>)) {
       hasBody: Boolean(op.requestBody),
       fhir: path.startsWith("/v1/fhir/"),
       expects: expectedTypes(op),
+      raw: op,
     });
   }
 }
@@ -314,7 +325,193 @@ ${sections.join("\n\n")}
 `;
 await writeFile(new URL("../api.md", import.meta.url), apiMd);
 
+// --- openapi/code-samples.json ------------------------------------------------------------------
+
+/** The first example of a request body or an answer, as the spec carries it. */
+function firstExample(content: Json | undefined): unknown {
+  const media = Object.values(content ?? {})[0] as Json | undefined;
+  if (!media) return undefined;
+  if (media.example !== undefined) return media.example;
+  return (Object.values(media.examples ?? {})[0] as Json | undefined)?.value;
+}
+
+const WIDTH = 100;
+const propertyName = (name: string) => (/^[A-Za-z_$][A-Za-z0-9_$]*$/.test(name) ? name : JSON.stringify(name));
+
+/** A value as a TypeScript literal on one line. */
+function inline(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(inline).join(", ")}]`;
+  if (value !== null && typeof value === "object") {
+    const entries = Object.entries(value);
+    if (entries.length === 0) return "{}";
+    return `{ ${entries.map(([name, v]) => `${propertyName(name)}: ${inline(v)}`).join(", ")} }`;
+  }
+  return JSON.stringify(value);
+}
+
+/** An object or array over several lines, each part on one line where it fits. */
+function expanded(value: unknown, indent: string): string {
+  const inner = `${indent}  `;
+  const part = (lead: string, v: unknown) => {
+    const one = inline(v);
+    return v === null || typeof v !== "object" || lead.length + one.length + 1 <= WIDTH ? one : expanded(v, inner);
+  };
+  if (Array.isArray(value)) return `[\n${value.map((v) => `${inner}${part(inner, v)},`).join("\n")}\n${indent}]`;
+  const lines = Object.entries(value as Json).map(([name, v]) => {
+    const lead = `${inner}${propertyName(name)}: `;
+    return `${lead}${part(lead, v)},`;
+  });
+  return `{\n${lines.join("\n")}\n${indent}}`;
+}
+
+/** A call on one line, or with its last argument opened over several lines when it does not fit. */
+function callLine(indent: string, callee: string, args: unknown[], end: string): string {
+  const one = `${indent}${callee}(${args.map(inline).join(", ")})${end}`;
+  const last = args.at(-1);
+  if (one.length <= WIDTH || last === null || typeof last !== "object") return one;
+  return `${indent}${callee}(${[...args.slice(0, -1).map(inline), expanded(last, indent)].join(", ")})${end}`;
+}
+
+/** The arguments of an operation's example request: its path values, its query and its body. */
+function exampleArgs(op: Operation): unknown[] {
+  const params = (op.raw.parameters ?? []).filter((p: Json) => !p.$ref) as Json[];
+  const args: unknown[] = [];
+  for (const p of params.filter((p) => p.in === "path")) {
+    if (p.example === undefined) throw new Error(`${op.id}: path parameter ${p.name} has no example.`);
+    args.push(p.example);
+  }
+  const query = params.filter((p) => p.in === "query");
+  const missing = query.filter((p) => p.required && p.example === undefined);
+  if (missing.length) throw new Error(`${op.id}: required ${missing.map((p) => p.name).join(", ")} without an example.`);
+  const given = Object.fromEntries(query.filter((p) => p.example !== undefined).map((p) => [p.name, p.example]));
+  if (Object.keys(given).length) args.push(given);
+  if (op.hasBody) args.push(firstExample(op.raw.requestBody.content));
+  return args;
+}
+
+const lowerFirst = (text: string) => text[0]!.toLowerCase() + text.slice(1);
+
+/** What a sample names its answer: the resource it is, `metadata` for either of two, `found` otherwise. */
+function answerName(op: Operation): string {
+  if (op.expects.length > 1) return "metadata";
+  return op.expects.length === 1 ? lowerFirst(op.expects[0]!) : "found";
+}
+
+/**
+ * The one line that shows what came back: a resource's id, how many entries a Bundle holds, the
+ * name of each output parameter, a search's total, or how many records a list holds.
+ */
+function printLine(op: Operation, name: string): string {
+  if (op.expects.length > 1) return `console.log(${name}.resourceType);`;
+  const type = op.expects[0];
+  if (type === "Bundle") return `console.log(${name}.entry?.length ?? 0);`;
+  if (type === "Parameters") return `for (const parameter of ${name}.parameter ?? []) console.log(parameter.name);`;
+  if (type) return `console.log(${name}.id);`;
+  const ref = (Object.values(op.raw.responses["200"].content as Json)[0] as Json).schema.$ref as string;
+  const properties = (schemas[ref.split("/").pop()!]?.properties ?? {}) as Record<string, Json>;
+  if (properties.total) return `console.log(${name}.total);`;
+  const lists = Object.entries(properties).filter(([, schema]) => schema.type === "array");
+  if (lists.length !== 1) throw new Error(`${op.id}: no one field to print.`);
+  return `console.log(${name}.${lists[0]![0]}.length);`;
+}
+
+const IMPORT = 'import { Haau3 } from "@haau3/sdk";';
+const CLIENT = "const haau3 = new Haau3(); // reads HAAU3_API_KEY";
+const program = (head: string[], body: string[]) => `${[...head, "", CLIENT, ...body].join("\n")}\n`;
+
+/**
+ * Operations whose example body is too long to show: the sample reads it from a file instead. Only
+ * MedList's, a whole patient's records.
+ */
+const BODY_FROM_FILE: Record<string, { file: string; comment: string }> = {
+  reconcileMedications: { file: "records.json", comment: "one patient's FHIR medication records" },
+};
+
+/** One entry of the example batch Bundle as the builder call that makes it. */
+function batchCall(request: Json): string {
+  const [pathPart = "", queryPart = ""] = String(request.url).split("?");
+  const segments = `/v1/fhir/r4/${pathPart}`.split("/");
+  const op = batchable.find((candidate) => {
+    const template = candidate.path.split("/");
+    return (
+      candidate.method === request.method &&
+      template.length === segments.length &&
+      template.every((part, i) => part.startsWith("{") || part === segments[i])
+    );
+  });
+  if (!op) throw new Error(`The example batch's ${request.method} ${request.url} is no operation a batch takes.`);
+  const args: unknown[] = op.path
+    .split("/")
+    .flatMap((part, i) => (part.startsWith("{") ? [decodeURIComponent(segments[i]!)] : []));
+  const search = new URLSearchParams(queryPart);
+  if ([...search.keys()].length) {
+    const declared = (op.raw.parameters ?? []) as Json[];
+    const params: Json = {};
+    for (const name of new Set(search.keys())) {
+      const schema = declared.find((p) => p.name === name)?.schema as Json | undefined;
+      if (!schema) throw new Error(`The example batch sends ${name}, which ${op.id} does not declare.`);
+      const values = search.getAll(name).map((v) =>
+        schema.type === "integer" || schema.type === "number" ? Number(v) : schema.type === "boolean" ? v === "true" : v,
+      );
+      params[name] = values.length > 1 ? values : values[0];
+    }
+    args.push(params);
+  }
+  return callLine("  ", `b.${op.id}`, args, ",");
+}
+
+function sample(op: Operation): string {
+  if (op.id === "fhirBatch") {
+    const bundle = firstExample(op.raw.requestBody.content) as Json;
+    return program(
+      [IMPORT],
+      [
+        "const results = await haau3.batch((b) => [",
+        ...(bundle.entry as Json[]).map((entry) => batchCall(entry.request)),
+        "]);",
+        "for (const result of results) console.log(result.ok ? result.status : result.error.message);",
+      ],
+    );
+  }
+  const name = answerName(op);
+  const fromFile = BODY_FROM_FILE[op.id];
+  if (fromFile) {
+    const type = (firstExample(op.raw.requestBody.content) as Json).resourceType as string;
+    return program(
+      ['import { readFile } from "node:fs/promises";', 'import { Haau3, type fhir4 } from "@haau3/sdk";'],
+      [
+        `// ${fromFile.file} holds ${fromFile.comment}, as a ${type}.`,
+        `const records: fhir4.${type} = JSON.parse(await readFile("${fromFile.file}", "utf8"));`,
+        `const ${name} = await haau3.${op.id}(records);`,
+        printLine(op, name),
+      ],
+    );
+  }
+  return program([IMPORT], [callLine("", `const ${name} = await haau3.${op.id}`, exampleArgs(op), ";"), printLine(op, name)]);
+}
+
+for (const id of Object.keys(BODY_FROM_FILE)) {
+  if (!operations.some((op) => op.id === id && op.hasBody)) throw new Error(`${id} no longer takes a body: review BODY_FROM_FILE.`);
+}
+
+const inSpecOrder = Object.entries(spec.paths as Record<string, Json>).flatMap(([path, item]) =>
+  (["get", "post"] as const).filter((m) => item[m]).map((m) => operations.find((op) => op.path === path && op.method === m.toUpperCase())!),
+);
+const overlay = {
+  overlay: "1.2.0",
+  info: { title: "TypeScript samples for every operation of the haau3 platform API", version: spec.info.version },
+  extends: "https://api.haau3.com/openapi.json",
+  actions: inSpecOrder.map((op) => {
+    if (op.path.includes("'")) throw new Error(`${op.path} cannot be written as a JSONPath name selector.`);
+    return {
+      target: `$.paths['${op.path}'].${op.method.toLowerCase()}`,
+      update: { "x-codeSamples": [{ lang: "typescript", label: "TypeScript", source: sample(op) }] },
+    };
+  }),
+};
+await writeFile(new URL("../openapi/code-samples.json", import.meta.url), `${JSON.stringify(overlay, null, 2)}\n`);
+
 console.log(
   `Generated ${operations.length} methods (${batchable.length} batchable), ${ownComponents.length} component names and ` +
-    `${operations.filter((op) => op.hasQuery).length} parameter types from ${spec.info.version}.`,
+    `${operations.filter((op) => op.hasQuery).length} parameter types and ${overlay.actions.length} samples from ${spec.info.version}.`,
 );

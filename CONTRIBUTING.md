@@ -17,8 +17,9 @@ Node 24 and pnpm 12. pnpm installs no version of anything published in the last 
 
 ## Generated code
 
-`src/generated/` and `api.md` are written by `scripts/generate.ts` from `openapi/openapi.json`, the
-pinned copy of `https://api.haau3.com/openapi.json`. Never edit them by hand. To take a new spec:
+`src/generated/`, `api.md` and `openapi/code-samples.json` are written by `scripts/generate.ts` from
+`openapi/openapi.json`, the pinned copy of `https://api.haau3.com/openapi.json`. Never edit them by
+hand. To take a new spec:
 
 ```sh
 pnpm fetch-spec
@@ -26,6 +27,14 @@ pnpm generate
 ```
 
 CI generates again and fails if the result differs from what is committed.
+
+`openapi/code-samples.json` is an [OpenAPI Overlay](https://spec.openapis.org/overlay/latest.html)
+that adds a TypeScript sample to every operation as `x-codeSamples`, for a documentation site to show
+beside it. Each sample is a whole program that sends the operation's example request from the spec
+and prints one field of the answer. `test/samples.test.ts` runs each one as it is written, with
+`HAAU3_BASE_URL` pointing at a stand-in that answers only the example request, and
+`scripts/check-consumer.ts` compiles them, and every TypeScript block of the README, against the
+packed package.
 
 `src/generated/batch.ts` is the builder `batch()` hands its caller: one method per operation on the
 FHIR base, minus the ones a batch cannot carry, which the generator names in `NOT_IN_A_BATCH` with
@@ -57,7 +66,7 @@ so the reasons are here):
 - three rules compare `info.version` as a release number and misread `1.0.0-preview.N`, so they are
   off (`api-version-decreased`, `api-version-not-bumped`, `api-major-version-not-bumped`).
 
-If the generated code did not change, the PR is titled `chore:` and releases nothing. To run oasdiff
+If neither the generated code nor the samples changed, the PR is titled `chore:` and releases nothing. To run oasdiff
 yourself, against the spec on `main`:
 
 ```sh

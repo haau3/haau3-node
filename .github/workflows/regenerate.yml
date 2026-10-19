@@ -91,7 +91,7 @@ jobs:
         env:
           HAAU3_SPEC_URL: ${{ env.SPEC_URL }}
         run: |
-          if git diff --quiet -- src/generated; then generated=false; else generated=true; fi
+          if git diff --quiet -- src/generated openapi/code-samples.json; then generated=false; else generated=true; fi
           GENERATED_CHANGED="$generated" pnpm exec tsx scripts/describe-regeneration.ts \
             "$RUNNER_TEMP/pinned.json" "$RUNNER_TEMP/changes.json" "$RUNNER_TEMP/body.md" >> "$GITHUB_OUTPUT"
 

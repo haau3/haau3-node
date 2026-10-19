@@ -79,15 +79,18 @@ with its parameters and its answer typed from the published spec.
 An agent can read the docs directly:
 
 - [docs.haau3.com/llms.txt](https://docs.haau3.com/llms.txt) lists every docs page as Markdown.
-- `https://docs.haau3.com/mcp` is an MCP server that searches the docs. In Claude Code:
-  `claude mcp add --transport http haau3 https://docs.haau3.com/mcp`.
+- `https://docs.haau3.com/mcp` is an MCP server that searches the docs. To add it:
+  - Claude Code: `claude mcp add --transport http haau3 https://docs.haau3.com/mcp`
+  - Codex: `codex mcp add haau3 --url https://docs.haau3.com/mcp`
+  - Cursor, in `.cursor/mcp.json`: `{ "mcpServers": { "haau3": { "url": "https://docs.haau3.com/mcp" } } }`
+  - VS Code: `code --add-mcp '{"name":"haau3","type":"http","url":"https://docs.haau3.com/mcp"}'`
 
 ## Options
 
 | Option | Default | |
 |---|---|---|
 | `apiKey` | `process.env.HAAU3_API_KEY` | Your platform API key. |
-| `baseURL` | `https://api.haau3.com` | Where the API is. |
+| `baseURL` | `process.env.HAAU3_BASE_URL`, then `https://api.haau3.com` | Where the API is. The API key is sent there only. |
 | `timeout` | `65000` | Milliseconds one attempt may take. |
 | `maxRetries` | `1` | Retries after a timeout, a network failure, a 429 or a 5xx. |
 | `fetch` | the global `fetch` | The fetch to send requests with. |
@@ -224,7 +227,7 @@ A list built in code works the same way:
 
 ```ts
 const lookups = await haau3.batch((b) =>
-  codes.map((code) => b.codeSystemLookup({ system: "http://loinc.org", code, property: "CLASSTYPE" })),
+  codes.map((code) => b.codeSystemLookup({ system: "http://loinc.org", code, property: "SHORTNAME" })),
 );
 ```
 

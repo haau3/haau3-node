@@ -71,7 +71,7 @@ export const RULES: Rule[] = [
 ];
 
 /** Files whose text is not this repository's own words: the API's spec, what is generated from it, lockfiles. */
-const NOT_OURS = [/^src\/generated\//, /^openapi\/openapi\.json$/, /^api\.md$/, /^pnpm-lock\.yaml$/, /^test\/fixtures\//];
+const NOT_OURS = [/^src\/generated\//, /^openapi\/(openapi|code-samples)\.json$/, /^api\.md$/, /^pnpm-lock\.yaml$/, /^test\/fixtures\//];
 /** This check and its tests, which hold the patterns and their samples. */
 const THE_CHECK = [/^scripts\/check-public-text\.ts$/, /^test\/public-text\.test\.ts$/];
 
