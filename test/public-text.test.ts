@@ -26,6 +26,7 @@ describe("the public-text check", () => {
   it("allows what this repository's own text uses", () => {
     const text = [
       "npm install @haau3/sdk, from haau3/haau3-node#3, opened by haau3-bot[bot] as haau3-sdk/0.1.1.",
+      "Also for Python: haau3 on PyPI, from https://github.com/haau3/haau3-python (haau3-python), and haau3-go to come.",
       "PHQ-9 and UTF-8, the plan H2406-013, openapi-ts/openapi-typescript#2841 and pnpm@12.12.1.",
       "* the API's spec at 1.0.0-preview.4 ([#5](https://github.com/haau3/haau3-node/issues/5))",
       "Write to security@haau3.com. Co-Authored-By: Claude <noreply@anthropic.com>",

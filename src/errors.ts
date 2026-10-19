@@ -29,10 +29,11 @@ export interface Haau3ErrorJSON {
   durationMs?: number;
   requestId?: string;
   correlationId?: string;
+  detail?: string;
 }
 
 /** The fields {@link Haau3Error.toJSON} copies when they are set, in this order. */
-const LOGGED = ["status", "reason", "retryAfter", "attempts", "durationMs", "requestId", "correlationId"] as const;
+const LOGGED = ["status", "reason", "retryAfter", "attempts", "durationMs", "requestId", "correlationId", "detail"] as const;
 
 /** What every error this package throws has. */
 export class Haau3Error extends Error {
@@ -149,6 +150,12 @@ export class NoAnswerError extends Haau3Error {
   readonly attempts: number;
   /** Milliseconds from the first attempt to the last failure, waits between attempts included. */
   readonly durationMs: number | undefined;
+  /**
+   * For a timeout or a network failure, what failed, safe to log: the system's code for it
+   * (`"ECONNREFUSED"`, `"ENOTFOUND"`, `"CERT_HAS_EXPIRED"`) or the failing error's name
+   * (`"TimeoutError"`). Never a message, which can name the address.
+   */
+  readonly detail: string | undefined;
   /** The OperationOutcome the FHIR base answered with. Not enumerable, so it is never printed. */
   declare readonly outcome?: OperationOutcome;
   /** The problem the other services answered with. Not enumerable, so it is never printed. */
@@ -164,6 +171,7 @@ export class NoAnswerError extends Haau3Error {
       retryAfter?: number;
       requestId?: string;
       correlationId?: string | undefined;
+      detail?: string;
       body?: AnswerBody;
       cause?: unknown;
     },
@@ -174,6 +182,7 @@ export class NoAnswerError extends Haau3Error {
     this.retryAfter = details.retryAfter;
     this.attempts = details.attempts;
     this.durationMs = details.durationMs;
+    this.detail = details.detail;
     attachBody(this, details.body);
   }
 }

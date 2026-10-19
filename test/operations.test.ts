@@ -97,7 +97,7 @@ describe("the operations", () => {
       ),
     );
     expect(request!.headers.authorization).toBe(`Bearer ${KEY}`);
-    expect(request!.headers["user-agent"]).toBe(`haau3-sdk/${VERSION}`);
+    expect(request!.headers["user-agent"]).toBe(`haau3-node/${VERSION} (node ${process.versions.node.split(".")[0]})`);
     expect(request!.headers.accept).toBe(fhir ? "application/fhir+json" : "application/json");
     if (c.body === undefined) {
       expect(request!.body).toBeUndefined();

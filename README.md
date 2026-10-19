@@ -13,6 +13,8 @@ directory), and standard FHIR Questionnaires such as the PHQ-9.
 
 The haau3 platform API is in preview: it may change as we build, usually to add features or improve performance.
 
+Also for Python: [`haau3` on PyPI](https://pypi.org/project/haau3/).
+
 ## Install
 
 ```sh
@@ -133,6 +135,7 @@ try {
   } else if (error instanceof NoAnswerError) {
     error.reason; // "timeout", "network", "rate-limited", "unavailable", "server-error" or "unreadable"
     error.retryAfter; // seconds, when the API said
+    error.detail; // for a timeout or a network failure: what failed, such as "ECONNREFUSED" or "TimeoutError"
   } else if (error instanceof AuthError) {
     // the key was missing, unknown or revoked
   }
@@ -175,7 +178,8 @@ const { data, correlationId } = await haau3.readInsurancePlan(id, { correlationI
 
 ## Paging
 
-`pages()` yields a FHIR search's first page and every page after it:
+`pages()` yields a FHIR search's first page and every page after it, following each `next` link on
+the client's own host and stopping at a link to a page already read:
 
 ```ts
 const first = await haau3.searchInsurancePlan({ "coverage-area-state": "NC" });
@@ -225,10 +229,10 @@ To send a batch `Bundle` you built yourself, `fhirBatch()` takes it and returns 
 ## Any request
 
 `request()` sends a request as you give it and returns what the API answered, whatever the
-status, with its headers, request id, attempts and duration:
+status, with its status text, headers, request id, attempts and duration:
 
 ```ts
-const { status, body, requestId } = await haau3.request({ method: "GET", path: "/v1/scheduling/publishers" });
+const { status, statusText, body, requestId } = await haau3.request({ method: "GET", path: "/v1/scheduling/publishers" });
 ```
 
 ## Versions
