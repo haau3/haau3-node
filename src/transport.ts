@@ -7,18 +7,26 @@ import { VERSION } from "./version.js";
 /**
  * Options passed on to `fetch` with every request: anything the runtime's `RequestInit` takes, such
  * as `cache`, undici's `dispatcher`, Cloudflare's `cf` or Next.js's `next`. The SDK's own method,
- * headers, body, signal and redirect always win. `cache` is declared here because Node's own `RequestInit` type leaves it out,
- * though Node's fetch takes it.
+ * headers, body, signal and redirect always win. `cache` and `dispatcher` are declared here because
+ * Node's own `RequestInit` type leaves them out, though Node's fetch takes both.
  */
-export type FetchOptions = Omit<RequestInit, "method" | "headers" | "body" | "signal" | "redirect" | "cache"> & {
+export type FetchOptions = Omit<RequestInit, "method" | "headers" | "body" | "signal" | "redirect" | "cache" | "dispatcher"> & {
   cache?: "default" | "force-cache" | "no-cache" | "no-store" | "only-if-cached" | "reload" | undefined;
+  /**
+   * For Node's fetch: an undici `Dispatcher`, such as a `ProxyAgent` to send through a proxy or an
+   * `Agent` with its own connection settings, from whichever version of undici you install.
+   */
+  dispatcher?: object | undefined;
 };
 
 /** How to construct the client. Every option has a default. */
 export interface ClientOptions {
   /** Your platform API key (`haau3_sk_…`). Defaults to `process.env.HAAU3_API_KEY`. */
   apiKey?: string;
-  /** Where the API is. Defaults to `https://api.haau3.com`. */
+  /**
+   * Where the API is. Defaults to `process.env.HAAU3_BASE_URL`, then `https://api.haau3.com`. The API
+   * key is sent to this address only.
+   */
   baseURL?: string;
   /** Milliseconds one attempt may take. Defaults to 65,000. */
   timeout?: number;
@@ -194,9 +202,10 @@ function cacheFieldTaken(): boolean {
   }
 }
 
-function envKey(): string | undefined {
+/** A value from `process.env`, where the runtime has one. Empty counts as unset. */
+function env(name: "HAAU3_API_KEY" | "HAAU3_BASE_URL"): string | undefined {
   const g = globalThis as { process?: { env?: Record<string, string | undefined> } };
-  return g.process?.env?.HAAU3_API_KEY || undefined;
+  return g.process?.env?.[name] || undefined;
 }
 
 /** Seconds from a `Retry-After` header, when it holds a number of seconds. */
@@ -377,7 +386,7 @@ export abstract class Transport {
         "@haau3/sdk runs on a server only: an API key in a browser is public. Call the API from your server.",
       );
     }
-    const apiKey = options.apiKey ?? envKey();
+    const apiKey = options.apiKey ?? env("HAAU3_API_KEY");
     if (!apiKey) throw new Haau3Error("No API key: pass apiKey, or set HAAU3_API_KEY.");
     const fetchImpl = options.fetch ?? (globalThis as { fetch?: typeof fetch }).fetch;
     if (!fetchImpl) throw new Haau3Error("No fetch: pass one as the fetch option. Node 22 and newer have one.");
@@ -385,7 +394,7 @@ export abstract class Transport {
     this.#fetch = fetchImpl;
     this.#fetchOptions = options.fetchOptions ?? {};
     this.#noStoreTaken = cacheFieldTaken();
-    this.baseURL = (options.baseURL ?? DEFAULT_BASE_URL).replace(/\/+$/, "");
+    this.baseURL = (options.baseURL ?? env("HAAU3_BASE_URL") ?? DEFAULT_BASE_URL).replace(/\/+$/, "");
     this.timeout = options.timeout ?? DEFAULT_TIMEOUT;
     this.maxRetries = options.maxRetries ?? DEFAULT_MAX_RETRIES;
   }
