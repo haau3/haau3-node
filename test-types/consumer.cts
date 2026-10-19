@@ -30,6 +30,14 @@ export async function tour(): Promise<void> {
   const status: number = raw.status;
   void [plan, slot, location, lookup, counties, network, capabilities, batch, status];
 
+  // Request ids and timing on a typed call, and fetch options for a framework.
+  const answered = await haau3.readInsurancePlan("H2406-013-000", { fetchOptions: { cache: "reload" } }).withResponse();
+  const fromWith: fhir4.InsurancePlan = answered.data;
+  const requestId: string | undefined = answered.requestId;
+  const took: number = answered.durationMs;
+  const nextClient = new Haau3({ apiKey: "haau3_sk_example", fetchOptions: { cache: undefined, keepalive: true } });
+  void [fromWith, requestId, took, nextClient];
+
   // @ts-expect-error `state` is required.
   await haau3.listInsurancePlanCounties({});
   // @ts-expect-error The grouped endpoint is searchProviderLocations; /actors is gone.
@@ -45,7 +53,8 @@ export async function tour(): Promise<void> {
     } else if (error instanceof NoAnswerError) {
       const reason: NoAnswerReason = error.reason;
       const wait: number | undefined = error.retryAfter;
-      void [reason, wait];
+      const ms: number | undefined = error.durationMs;
+      void [reason, wait, ms];
     } else if (error instanceof AuthError) {
       const id: string | undefined = error.requestId;
       void id;
