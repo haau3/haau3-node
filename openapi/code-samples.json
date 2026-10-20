@@ -2,7 +2,7 @@
   "overlay": "1.2.0",
   "info": {
     "title": "TypeScript samples for every operation of the haau3 platform API",
-    "version": "1.0.0-preview.4"
+    "version": "1.0.0-preview.6"
   },
   "extends": "https://api.haau3.com/openapi.json",
   "actions": [
@@ -427,13 +427,25 @@
       }
     },
     {
+      "target": "$.paths['/v1/fhir/r4/$process-message'].post",
+      "update": {
+        "x-codeSamples": [
+          {
+            "lang": "typescript",
+            "label": "TypeScript",
+            "source": "import { readFile } from \"node:fs/promises\";\nimport { Haau3, type fhir4 } from \"@haau3/sdk\";\n\nconst haau3 = new Haau3(); // reads HAAU3_API_KEY\n// request.json holds a pharmacy benefit check without patient details, as a Bundle.\nconst body: fhir4.Bundle = JSON.parse(await readFile(\"request.json\", \"utf8\"));\nconst bundle = await haau3.processMessage(body);\nconsole.log(bundle.entry?.length ?? 0);\n"
+          }
+        ]
+      }
+    },
+    {
       "target": "$.paths['/v1/fhir/r4/$reconcile-medications'].post",
       "update": {
         "x-codeSamples": [
           {
             "lang": "typescript",
             "label": "TypeScript",
-            "source": "import { readFile } from \"node:fs/promises\";\nimport { Haau3, type fhir4 } from \"@haau3/sdk\";\n\nconst haau3 = new Haau3(); // reads HAAU3_API_KEY\n// records.json holds one patient's FHIR medication records, as a Bundle.\nconst records: fhir4.Bundle = JSON.parse(await readFile(\"records.json\", \"utf8\"));\nconst bundle = await haau3.reconcileMedications(records);\nconsole.log(bundle.entry?.length ?? 0);\n"
+            "source": "import { readFile } from \"node:fs/promises\";\nimport { Haau3, type fhir4 } from \"@haau3/sdk\";\n\nconst haau3 = new Haau3(); // reads HAAU3_API_KEY\n// request.json holds one patient's medication records, as a Bundle.\nconst body: fhir4.Bundle = JSON.parse(await readFile(\"request.json\", \"utf8\"));\nconst bundle = await haau3.reconcileMedications(body);\nconsole.log(bundle.entry?.length ?? 0);\n"
           }
         ]
       }

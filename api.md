@@ -2,7 +2,7 @@
 
 # API reference
 
-Every operation of the haau3 platform API (`1.0.0-preview.4`) is a method on `Haau3`, named by its
+Every operation of the haau3 platform API (`1.0.0-preview.6`) is a method on `Haau3`, named by its
 operationId. Each links to its page on docs.haau3.com, which shows its parameters and an example
 exchange. `params` is the query parameters as one object, `body` the request body, and every method
 takes the per-call options (`{ timeout, maxRetries, signal, correlationId, headers, fetchOptions }`) as its last
@@ -10,8 +10,8 @@ argument. Every method's answer can be awaited as it is, or with `.withResponse(
 and timing too.
 
 `batch()` sends several of these as one request, each with its own answer or error. It takes
-every operation on the FHIR base except `fhirBatch` and `reconcileMedications`: 29 of the
-36. See the README's "Several requests in one".
+every operation on the FHIR base except `fhirBatch`, `processMessage` and `reconcileMedications`: 29 of the
+37. See the README's "Several requests in one".
 
 ## Scheduling
 
@@ -89,6 +89,14 @@ FHIR InsurancePlan: what a Medicare Advantage or ACA Marketplace plan covers and
 | [`readInsurancePlan(id)`](https://docs.haau3.com/api-reference/plan-benefits/read-a-plan) | `GET /v1/fhir/r4/InsurancePlan/{id}` | Read a plan |
 | [`checkInsurancePlanNetwork(id, params)`](https://docs.haau3.com/api-reference/plan-benefits/check-providers-against-a-plans-network) | `GET /v1/fhir/r4/InsurancePlan/{id}/$in-network` | Check providers against a plan's network |
 | [`listInsurancePlanCounties(params)`](https://docs.haau3.com/api-reference/plan-benefits/list-a-states-counties) | `GET /v1/fhir/r4/InsurancePlan/$counties` | List a state's counties |
+
+## Pharmacy Benefits
+
+The CARIN Consumer Real-Time Pharmacy Benefit Check as FHIR messaging: what a medication would cost a member under their coverage, or its price at pharmacies near a ZIP code, in real time, from the sources this service connects to. A member's request receives patient data, so send it only under an executed agreement.
+
+| Method | Request | What it does |
+|---|---|---|
+| [`processMessage(body)`](https://docs.haau3.com/api-reference/pharmacy-benefits/check-what-a-medication-costs-pharmacy-benefit-check) | `POST /v1/fhir/r4/$process-message` | Check what a medication costs (pharmacy benefit check) |
 
 ## MedList
 

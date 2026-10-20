@@ -151,7 +151,7 @@ const SRC = new URL("../src/index.ts", import.meta.url).pathname;
 
 /**
  * Runs one sample as a program of its own, as a customer would, with `@haau3/sdk` resolving to this
- * repository's source. MedList's sample reads records.json from where it runs.
+ * repository's source. A sample whose body nests resources reads it from request.json where it runs.
  */
 function run(source: string, files: Record<string, string> = {}): Promise<{ code: number; stdout: string; stderr: string }> {
   const dir = mkdtempSync(join(tmpdir(), "sdk-sample-"));
@@ -178,7 +178,8 @@ const sampleOf = (operation: Operation) =>
   overlay.actions.find((a) => a.target === `$.paths['${operation.path}'].${operation.method.toLowerCase()}`)!.update[
     "x-codeSamples"
   ][0]!.source;
-const records = () => JSON.stringify(firstExample(operations.find((o) => o.id === "reconcileMedications")!.op.requestBody.content));
+const requestFile = (operation: Operation): Record<string, string> =>
+  sampleOf(operation).includes('readFile("request.json"') ? { "request.json": JSON.stringify(firstExample(operation.op.requestBody.content)) } : {};
 
 describe("the code samples overlay", () => {
   it("is an OpenAPI Overlay for the spec it was generated from", () => {
@@ -209,7 +210,7 @@ describe("the code samples overlay", () => {
 
 describe("each sample, run as written", () => {
   it.concurrent.each(operations)("$id sends its example request and prints what came back", async (operation) => {
-    const result = await run(sampleOf(operation), operation.id === "reconcileMedications" ? { "records.json": records() } : {});
+    const result = await run(sampleOf(operation), requestFile(operation));
     expect(result.stderr).toBe("");
     expect(result.code).toBe(0);
     expect(result.stdout.trimEnd()).toBe(expectedOutput(operation));

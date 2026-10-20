@@ -103,7 +103,7 @@ export class Haau3 extends Operations {
    * and throws, as any call does: an {@link AuthError}, a {@link NoAnswerError} when no answer came
    * back, a {@link RefusedError} when the API refused the whole batch. The API takes up to 100
    * entries in up to 1 MiB, and gives a batch 60 seconds; a larger batch is refused, so send several.
-   * `reconcileMedications` cannot go in a batch.
+   * The operations the spec marks `x-haau3-batchable: false` cannot go in a batch; api.md names them.
    */
   batch<const E extends readonly BatchEntry<unknown>[]>(
     build: (b: BatchBuilder) => E,
