@@ -134,7 +134,7 @@ export interface paths {
         put?: never;
         /**
          * Run several operations in one request (batch)
-         * @description POST a FHIR `Bundle` with `type: batch` to send several requests in one round trip. Each entry's `request.url` is relative to this base and may be any read, search or operation of any service on it, except `$reconcile-medications`, which a batch refuses by name. Entries are independent: one that fails, such as a lookup of an unknown code, does not fail the others, and each carries its own status in the `batch-response`. For example, a batch of 50 terminology lookups measured about 4.8 ms per code, against 181 ms each when sent one at a time. Transaction bundles are not accepted: nothing on this base writes, so all or nothing would only turn one bad entry into a wholly failed request. A batch carries at most 100 entries in at most 1 MiB, and has 60 seconds: an entry still running then answers `504` inside the `200`. See https://docs.haau3.com/errors#limits.
+         * @description POST a FHIR `Bundle` with `type: batch` to send several requests in one round trip. Each entry's `request.url` is relative to this base and may be any read, search or operation of any service on it, except `$reconcile-medications` and `$process-message`, which a batch refuses by name. Entries are independent: one that fails, such as a lookup of an unknown code, does not fail the others, and each carries its own status in the `batch-response`. For example, a batch of 50 terminology lookups measured about 4.8 ms per code, against 181 ms each when sent one at a time. Transaction bundles are not accepted: nothing on this base writes, so all or nothing would only turn one bad entry into a wholly failed request. A batch carries at most 100 entries in at most 1 MiB, and has 60 seconds: an entry still running then answers `504` inside the `200`. See https://docs.haau3.com/errors#limits.
          */
         post: operations["fhirBatch"];
         delete?: never;
@@ -661,6 +661,26 @@ export interface paths {
         get: operations["checkInsurancePlanNetwork"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/fhir/r4/$process-message": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Check what a medication costs (pharmacy benefit check)
+         * @description FHIR system-level operation `$process-message`, as the CARIN Consumer Real-Time Pharmacy Benefit Check (STU2 ballot, `2.0.0-ballot`) specifies. POST a FHIR `Bundle` of type `message` whose first entry is a MessageHeader with one of two events. `rtpbc-request-non-phi` asks for a medication's price without patient details: a Claim naming the product (an NDC of 11 digits with no dashes, or an RxNorm code) and the quantity, with the patient and the coverage masked, and a pharmacy or one or more ZIP codes. `rtpbc-request` asks what a medication would cost a member under their coverage: the member's Patient and Coverage, with the payer's identifier in `payor.identifier`, the prescription and its prescriber, and a pharmacy. The answer is a `message` Bundle whose MessageHeader answers the request's, with one ClaimResponse that carries either prices and coverage in `item` or the reason there are none in `error`, and for a member's request the request's Patient as it was sent. A check no connected source can answer carries `no-responder-for-coverage` or `no-price-source` from `https://haau3.com/fhir/CodeSystem/pharmacy-benefits-processing-code`. A price is an estimate; the pharmacy confirms the price. A member's request receives patient data, so send it only under an executed agreement. Nothing a request carries is stored or logged, apart from the request's ids, and every answer is sent with `Cache-Control: no-store`. The operation takes no parameters and is not offered inside a batch. The contract is published at https://fhir.haau3.com/pharmacy-benefits.html.
+         */
+        post: operations["processMessage"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4463,6 +4483,63 @@ export interface operations {
                     "application/fhir+json": components["schemas"]["OperationOutcome"];
                 };
             };
+        };
+    };
+    processMessage: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description An id of your own for this request, as a UUID. It comes back in the `X-Correlation-Id` header and is kept with haau3's record of the request. Any value that is not a UUID is ignored. See https://docs.haau3.com/errors#request-ids. */
+                "X-Request-Id"?: components["parameters"]["XRequestId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/fhir+json": components["schemas"]["Bundle"];
+            };
+        };
+        responses: {
+            /** @description The answer: a FHIR `Bundle` of type `message` with a MessageHeader and one ClaimResponse, returned as the response body itself. */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["XRequestId"];
+                    "X-Correlation-Id": components["headers"]["XCorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/fhir+json": components["schemas"]["Bundle"];
+                };
+            };
+            /** @description The request was refused, before any source was asked: a query parameter (the operation takes none), a body that is not a `message` Bundle (a Parameters resource is refused by name), an event other than the two above (coded `not-supported`), a list over its cap (coded `too-long`: 20 entries, 10 codings on a product, 10 ZIP codes, 10 identifiers on a pharmacy, 20 coverage classes), an element the CARIN profiles require that is missing, a reference that names no entry in the Bundle, a product with no NDC or RxNorm code, a ZIP code that is not five digits or ZIP+4, a request without patient details that names its patient or coverage, or a member's request with no Coverage or no payer identifier. The OperationOutcome names the element by its FHIRPath, never a value sent. */
+            400: {
+                headers: {
+                    "X-Request-Id": components["headers"]["XRequestId"];
+                    "X-Correlation-Id": components["headers"]["XCorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/fhir+json": components["schemas"]["OperationOutcome"];
+                };
+            };
+            401: components["responses"]["FhirUnauthorized"];
+            406: components["responses"]["FhirNotAcceptable"];
+            /** @description The request body is over 1 MiB. */
+            413: {
+                headers: {
+                    "X-Request-Id": components["headers"]["XRequestId"];
+                    "X-Correlation-Id": components["headers"]["XCorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/fhir+json": components["schemas"]["OperationOutcome"];
+                };
+            };
+            415: components["responses"]["FhirUnsupportedMediaType"];
+            429: components["responses"]["FhirTooManyRequests"];
+            500: components["responses"]["FhirServerError"];
+            503: components["responses"]["FhirUnavailable"];
         };
     };
     reconcileMedications: {

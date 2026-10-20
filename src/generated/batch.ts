@@ -92,6 +92,15 @@ export class BatchBuilder {
   }
 
   /**
+   * Check what a medication costs (pharmacy benefit check), as one entry of a batch. Called as `Haau3.processMessage` is.
+   *
+   * `POST /v1/fhir/r4/$process-message`
+   */
+  processMessage(body: BodyOf<"processMessage">): BatchEntry<ResponseOf<"processMessage">> {
+    return entry<ResponseOf<"processMessage">>({ method: "POST", path: "/v1/fhir/r4/$process-message", body, expects: ["Bundle"] });
+  }
+
+  /**
    * Read an Endpoint, as one entry of a batch. Called as `Haau3.readEndpoint` is.
    *
    * `GET /v1/fhir/r4/Endpoint/{id}`
