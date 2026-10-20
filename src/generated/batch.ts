@@ -24,8 +24,8 @@ import type {
 
 /**
  * Every operation a batch can carry, each called as on {@link Haau3} and returning an entry for the
- * batch instead of sending. Everything on the FHIR base but the batch itself and
- * `reconcileMedications`.
+ * batch instead of sending. Everything on the FHIR base but the batch itself and the operations the
+ * spec marks `x-haau3-batchable: false`: `processMessage` and `reconcileMedications`.
  */
 export class BatchBuilder {
   /**

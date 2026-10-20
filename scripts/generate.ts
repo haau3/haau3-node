@@ -206,15 +206,29 @@ await writeFile(new URL("methods.ts", OUT), methods);
 // --- batch.ts -----------------------------------------------------------------------------------
 
 /**
- * The operations a batch cannot carry: the batch itself, and `$reconcile-medications`, which the
- * spec says a batch "refuses by name" (the batch's description) and "is not offered inside a batch"
- * (its own). Everything else on the FHIR base can go in one.
+ * Which operations a batch can carry, as the spec says it: every operation under the FHIR base but
+ * the ones it marks `x-haau3-batchable: false`, which the API refuses inside a batch by name. The
+ * batch itself sits at the base, not under it. The spec defines the field only as `false`, and only
+ * on the FHIR base, so anything else stops the generator rather than being guessed at.
  */
-const NOT_IN_A_BATCH = new Set(["fhirBatch", "reconcileMedications"]);
-for (const id of NOT_IN_A_BATCH) {
-  if (!operations.some((op) => op.id === id)) throw new Error(`${id} is no longer in the spec: review NOT_IN_A_BATCH.`);
+const BATCHABLE = "x-haau3-batchable";
+for (const op of operations) {
+  const mark: unknown = op.raw[BATCHABLE];
+  if (mark === undefined) continue;
+  if (mark !== false) throw new Error(`${op.id} carries ${BATCHABLE}: ${JSON.stringify(mark)}, where the spec defines only false.`);
+  if (!op.path.startsWith("/v1/fhir/r4/")) throw new Error(`${op.id} is marked ${BATCHABLE}: false, but is not on the FHIR base.`);
 }
-const batchable = operations.filter((op) => op.path.startsWith("/v1/fhir/r4/") && !NOT_IN_A_BATCH.has(op.id));
+const batchOperation = operations.find((op) => op.path === "/v1/fhir/r4" && op.method === "POST");
+if (!batchOperation) throw new Error("The spec has no batch at POST /v1/fhir/r4.");
+const refusedInABatch = operations.filter((op) => op.raw[BATCHABLE] === false).map((op) => op.id);
+const notInABatch = [batchOperation.id, ...refusedInABatch];
+const batchable = operations.filter((op) => op.path.startsWith("/v1/fhir/r4/") && op.raw[BATCHABLE] !== false);
+
+/** `a`, `b` and `c`, in code font. */
+const named = (ids: readonly string[]) => {
+  const quoted = ids.map((id) => `\`${id}\``);
+  return quoted.length < 2 ? quoted.join("") : `${quoted.slice(0, -1).join(", ")} and ${quoted.at(-1)}`;
+};
 
 const builderLines: string[] = [];
 for (const op of batchable) {
@@ -254,8 +268,8 @@ ${batchable
 
 /**
  * Every operation a batch can carry, each called as on {@link Haau3} and returning an entry for the
- * batch instead of sending. Everything on the FHIR base but the batch itself and
- * \`reconcileMedications\`.
+ * batch instead of sending. Everything on the FHIR base but the batch itself and the operations the
+ * spec marks \`x-haau3-batchable: false\`: ${named(refusedInABatch)}.
  */
 export class BatchBuilder {
 ${builderLines.join("\n").trimEnd()}
@@ -318,7 +332,7 @@ argument. Every method's answer can be awaited as it is, or with \`.withResponse
 and timing too.
 
 \`batch()\` sends several of these as one request, each with its own answer or error. It takes
-every operation on the FHIR base except \`${[...NOT_IN_A_BATCH].join("` and `")}\`: ${batchable.length} of the
+every operation on the FHIR base except ${named(notInABatch)}: ${batchable.length} of the
 ${operations.length}. See the README's "Several requests in one".
 
 ${sections.join("\n\n")}
@@ -420,12 +434,29 @@ const CLIENT = "const haau3 = new Haau3(); // reads HAAU3_API_KEY";
 const program = (head: string[], body: string[]) => `${[...head, "", CLIENT, ...body].join("\n")}\n`;
 
 /**
- * Operations whose example body is too long to show: the sample reads it from a file instead. Only
- * MedList's, a whole patient's records.
+ * Where a sample reads a body that nests resources: a Bundle's entries or a Parameters resource's
+ * parts. Such a body is too long to show in a sample and, typed inline, a nested resource is checked
+ * against FHIR's bare Resource; read from a file, it is typed by what it is.
  */
-const BODY_FROM_FILE: Record<string, { file: string; comment: string }> = {
-  reconcileMedications: { file: "records.json", comment: "one patient's FHIR medication records" },
-};
+const BODY_FILE = "request.json";
+
+/** Whether an example body holds a resource inside it, at any depth below its own. */
+function nestsResources(value: unknown, depth = 0): boolean {
+  if (Array.isArray(value)) return value.some((item) => nestsResources(item, depth + 1));
+  if (typeof value !== "object" || value === null) return false;
+  if (depth > 0 && typeof (value as Json).resourceType === "string") return true;
+  return Object.values(value as Json).some((item) => nestsResources(item, depth + 1));
+}
+
+/** The label the spec gives an operation's first request example, as a phrase: "one patient's ...". */
+function exampleLabel(content: Json): string {
+  const media = Object.values(content)[0] as Json;
+  const label = (Object.values(media.examples ?? {})[0] as Json | undefined)?.summary;
+  if (typeof label !== "string" || label === "") throw new Error("A body read from a file needs its example's summary, to say what the file holds.");
+  // "A pharmacy ..." and "One patient's ..." read on as "a pharmacy ...", "one patient's ...", and an
+  // acronym such as "FHIR" stays as it is.
+  return /^[A-Z](?![A-Z])/.test(label) ? label[0]!.toLowerCase() + label.slice(1) : label;
+}
 
 /** One entry of the example batch Bundle as the builder call that makes it. */
 function batchCall(request: Json): string {
@@ -474,24 +505,20 @@ function sample(op: Operation): string {
     );
   }
   const name = answerName(op);
-  const fromFile = BODY_FROM_FILE[op.id];
-  if (fromFile) {
-    const type = (firstExample(op.raw.requestBody.content) as Json).resourceType as string;
+  const body = op.hasBody ? (firstExample(op.raw.requestBody.content) as Json) : undefined;
+  if (body !== undefined && nestsResources(body)) {
+    const type = body.resourceType as string;
     return program(
       ['import { readFile } from "node:fs/promises";', 'import { Haau3, type fhir4 } from "@haau3/sdk";'],
       [
-        `// ${fromFile.file} holds ${fromFile.comment}, as a ${type}.`,
-        `const records: fhir4.${type} = JSON.parse(await readFile("${fromFile.file}", "utf8"));`,
-        `const ${name} = await haau3.${op.id}(records);`,
+        `// ${BODY_FILE} holds ${exampleLabel(op.raw.requestBody.content)}, as a ${type}.`,
+        `const body: fhir4.${type} = JSON.parse(await readFile("${BODY_FILE}", "utf8"));`,
+        `const ${name} = await haau3.${op.id}(body);`,
         printLine(op, name),
       ],
     );
   }
   return program([IMPORT], [callLine("", `const ${name} = await haau3.${op.id}`, exampleArgs(op), ";"), printLine(op, name)]);
-}
-
-for (const id of Object.keys(BODY_FROM_FILE)) {
-  if (!operations.some((op) => op.id === id && op.hasBody)) throw new Error(`${id} no longer takes a body: review BODY_FROM_FILE.`);
 }
 
 const inSpecOrder = Object.entries(spec.paths as Record<string, Json>).flatMap(([path, item]) =>

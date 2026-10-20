@@ -37,8 +37,13 @@ and prints one field of the answer. `test/samples.test.ts` runs each one as it i
 packed package.
 
 `src/generated/batch.ts` is the builder `batch()` hands its caller: one method per operation on the
-FHIR base, minus the ones a batch cannot carry, which the generator names in `NOT_IN_A_BATCH` with
-the spec's own words. It stops if one of those leaves the spec.
+FHIR base, minus the ones a batch cannot carry. The spec marks each of those `x-haau3-batchable:
+false`, and the generator reads that field rather than keeping a list. It stops on any other value
+of the field, or on the field outside the FHIR base.
+
+A sample whose request body nests resources, a Bundle's entries or a Parameters resource's parts,
+reads that body from `request.json`, and says what the file holds in the words of the spec's
+example label.
 
 The types come from [openapi-typescript](https://github.com/openapi-ts/openapi-typescript) 7.13.0,
 which declares TypeScript 5 as its peer. This repository builds with TypeScript 6.0.3. Before

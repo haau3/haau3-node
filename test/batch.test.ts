@@ -211,17 +211,21 @@ describe("the builder", () => {
     (["get", "post"] as const).filter((m) => item[m]).map((m) => ({ path, method: m.toUpperCase(), op: item[m] })),
   );
 
-  it("offers every operation on the FHIR base but the batch itself and reconcileMedications", () => {
+  const refused = operations.filter(({ op }) => op["x-haau3-batchable"] === false);
+
+  it("offers every operation on the FHIR base but the batch itself and the ones the spec marks x-haau3-batchable: false", () => {
     const offered = Object.getOwnPropertyNames(BatchBuilder.prototype).filter((name) => name !== "constructor");
     const expected = operations
-      .filter(({ path, op }) => path.startsWith("/v1/fhir/r4/") && op.operationId !== "reconcileMedications")
+      .filter(({ path, op }) => path.startsWith("/v1/fhir/r4/") && op["x-haau3-batchable"] !== false)
       .map(({ op }) => op.operationId as string);
     expect(offered.sort()).toEqual(expected.sort());
     expect(offered).not.toContain("fhirBatch");
+    for (const { op } of refused) expect(offered).not.toContain(op.operationId);
   });
 
-  it("leaves out reconcileMedications because the spec says a batch refuses it", () => {
-    expect(spec.paths["/v1/fhir/r4"]!.post.description).toContain("except `$reconcile-medications`, which a batch refuses by name");
+  it("finds the operations a batch refuses marked in the spec, and the batch's description naming the mark", () => {
+    expect(refused.map(({ op }) => op.operationId)).toContain("reconcileMedications");
+    expect(spec.paths["/v1/fhir/r4"]!.post.description).toContain("`x-haau3-batchable: false`");
   });
 
   // Each entry's address is the request the same method sends on its own, from the spec's examples.
@@ -229,7 +233,7 @@ describe("the builder", () => {
     const media = Object.values(content ?? {})[0] as Record<string, any> | undefined;
     return media?.example ?? (Object.values(media?.examples ?? {})[0] as { value?: unknown } | undefined)?.value;
   };
-  const batchable = operations.filter(({ path, op }) => path.startsWith("/v1/fhir/r4/") && op.operationId !== "reconcileMedications");
+  const batchable = operations.filter(({ path, op }) => path.startsWith("/v1/fhir/r4/") && op["x-haau3-batchable"] !== false);
 
   it.each(batchable.map(({ op, method }) => ({ id: op.operationId as string, method, op })))(
     "$id makes the entry its direct call would send",

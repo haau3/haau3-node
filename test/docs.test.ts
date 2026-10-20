@@ -56,8 +56,14 @@ describe("api.md", () => {
     expect(links.every((link) => link!.startsWith("https://docs.haau3.com/api-reference/"))).toBe(true);
   });
 
-  it("says which operations a batch cannot carry", () => {
-    expect(read("api.md")).toContain("except `fhirBatch` and `reconcileMedications`");
+  it("says which operations a batch cannot carry: the batch, and the ones the spec marks x-haau3-batchable: false", () => {
+    const refused = Object.values(spec.paths as Record<string, Record<string, any>>)
+      .flatMap((item) => Object.values(item))
+      .filter((op) => op["x-haau3-batchable"] === false)
+      .map((op) => `\`${op.operationId}\``);
+    expect(refused).toContain("`reconcileMedications`");
+    const names = ["`fhirBatch`", ...refused];
+    expect(read("api.md")).toContain(`except ${names.slice(0, -1).join(", ")} and ${names.at(-1)}:`);
   });
 
   it("names the spec version it was generated from", () => {

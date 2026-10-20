@@ -2,7 +2,7 @@
 // the shapes its own text uses. The samples are made up.
 import { execFileSync } from "node:child_process";
 import { describe, expect, it } from "vitest";
-import { check, termRules } from "../scripts/check-public-text.js";
+import { check, SPEC_NAMES, termRules } from "../scripts/check-public-text.js";
 
 const found = (text: string) => check("sample", text).map((f) => f.match);
 
@@ -32,6 +32,14 @@ describe("the public-text check", () => {
       "Write to security@haau3.com. Co-Authored-By: Claude <noreply@anthropic.com>",
     ].join("\n");
     expect(found(text)).toEqual([]);
+  });
+
+  it("allows a haau3- name the published spec carries, and no other", () => {
+    expect(SPEC_NAMES.has("haau3-insurance-plan")).toBe(true);
+    expect(found("the profile haau3-insurance-plan, the field x-haau3-batchable")).toEqual([]);
+    // A name the spec carries only as part of a longer one is not allowed by it (the control).
+    expect(SPEC_NAMES.has("haau3-insurance")).toBe(false);
+    expect(found("it runs in haau3-insurance")).toEqual(["haau3-insurance"]);
   });
 
   it("allows a changelog link only to this repository", () => {

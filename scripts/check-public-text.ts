@@ -22,6 +22,18 @@ export interface Rule {
 /** Words for standards and published identifiers that look like ticket numbers. */
 const STANDARD_IDS = new Set(["UTF-8", "UTF-16", "UTF-32", "PHQ-2", "PHQ-9", "GAD-2", "GAD-7", "SHA-1", "SHA-2", "SHA-3", "TLS-1"]);
 
+/**
+ * The haau3- names the published spec carries, which are public by being in it: the guide's profile
+ * ids, the demo publishers, the spec's own extensions. openapi/openapi.json is the spec as
+ * api.haau3.com serves it, pinned by `pnpm fetch-spec`, so the set follows the API and nothing here
+ * is kept by hand. Any other haau3- name is still refused, and the private terms still apply to all.
+ */
+export const SPEC_NAMES: ReadonlySet<string> = new Set(
+  [...readFileSync(new URL("../openapi/openapi.json", import.meta.url), "utf8").matchAll(/\bhaau3-[a-z0-9][\w-]*/gi)].map((m) =>
+    m[0].toLowerCase(),
+  ),
+);
+
 /** Email domains a public commit or file may name. */
 const EMAIL_DOMAINS = /(^|\.)(haau3\.com|users\.noreply\.github\.com|anthropic\.com|example\.(com|org|net))$/i;
 
@@ -33,9 +45,9 @@ export const RULES: Rule[] = [
     allow: (match) => /^haau3\/haau3-(node|python|go)(?![\w-])/.test(match),
   },
   {
-    name: "a haau3 project, repository or service name other than the SDKs'",
+    name: "a haau3 project, repository or service name other than the SDKs' and the spec's",
     pattern: /\bhaau3-[a-z0-9][\w-]*/gi,
-    allow: (match) => /^haau3-(node|python|go|bot|sdk)\b/i.test(match),
+    allow: (match) => /^haau3-(node|python|go|bot|sdk)\b/i.test(match) || SPEC_NAMES.has(match.toLowerCase()),
   },
   {
     name: "an issue or pull request number without the repository it belongs to",

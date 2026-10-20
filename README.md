@@ -65,6 +65,10 @@ const phq9 = await haau3.readQuestionnaire("44249-1");
 const plan = await haau3.readInsurancePlan("H2406-013-000");
 const network = await haau3.checkInsurancePlanNetwork("H3359-038-000", { npi: ["1518929058"] });
 
+// Pharmacy Benefits: what a medication would cost, as the CARIN pharmacy benefit check, from a FHIR
+// message Bundle. A member's check carries patient data, so send it only under an executed agreement.
+const checked = await haau3.processMessage(message);
+
 // MedList: one reconciled medication list from one patient's FHIR medication records. It receives
 // patient data, so send it only under an executed agreement.
 const list = await haau3.reconcileMedications(records);
@@ -238,7 +242,8 @@ Each entry is checked as the call alone is, and fails alone while the others ans
 fails is not retried. The batch itself is retried, and throws, as any call does, and
 `.withResponse()` gives its request id. The API takes up to 100 entries in up to 1 MiB and gives a
 batch 60 seconds, so send a longer list as several batches. Every operation on the FHIR base can go
-in a batch except `reconcileMedications`.
+in a batch except `processMessage` and `reconcileMedications`, which the spec marks
+`x-haau3-batchable: false`.
 
 To send a batch `Bundle` you built yourself, `fhirBatch()` takes it and returns the
 `batch-response` as it is.
