@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.7](https://github.com/haau3/haau3-node/compare/v0.2.6...v0.2.7) (2026-10-20)
+
+
+### Features
+
+* the API's spec at 1.0.0-preview.6, with the batch's exclusions read from it ([#24](https://github.com/haau3/haau3-node/issues/24)) ([96171cc](https://github.com/haau3/haau3-node/commit/96171cceea437d1940878501be23e9aa7ab46ebf))
+
 ## [0.2.6](https://github.com/haau3/haau3-node/compare/v0.2.5...v0.2.6) (2026-10-19)
 
 
