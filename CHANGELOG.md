@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.8](https://github.com/haau3/haau3-node/compare/v0.2.7...v0.2.8) (2026-10-21)
+
+
+### Features
+
+* a 403 is a ForbiddenError, which says the key was accepted ([#27](https://github.com/haau3/haau3-node/issues/27)) ([e02afd2](https://github.com/haau3/haau3-node/commit/e02afd2177cb6f48772d0afa6557bca806db2537))
+
 ## [0.2.7](https://github.com/haau3/haau3-node/compare/v0.2.6...v0.2.7) (2026-10-20)
 
 
