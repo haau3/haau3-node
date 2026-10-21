@@ -1,6 +1,6 @@
 import type { OperationOutcome } from "fhir/r4.js";
 import { APIPromise, type ResponseMeta, type WithResponse } from "./api-promise.js";
-import { AuthError, Haau3Error, NoAnswerError, RefusedError, type AnswerBody, type NoAnswerReason } from "./errors.js";
+import { AuthError, ForbiddenError, Haau3Error, NoAnswerError, RefusedError, type AnswerBody, type NoAnswerReason } from "./errors.js";
 import type { Problem } from "./generated/types.js";
 import { VERSION } from "./version.js";
 
@@ -333,7 +333,7 @@ export function judge<T>(
   status: number,
   body: unknown,
   context: AnswerContext,
-): { ok: true; data: T } | { ok: false; error: AuthError | RefusedError | NoAnswerError } {
+): { ok: true; data: T } | { ok: false; error: AuthError | ForbiddenError | RefusedError | NoAnswerError } {
   const { requestId, attempts, durationMs, expects } = context;
   const timing = { attempts, durationMs, correlationId: context.correlationId };
   if (status >= 200 && status < 300) {
@@ -358,10 +358,22 @@ export function judge<T>(
     return { ok: true, data: body as T };
   }
   const errorBody = readErrorBody(body);
-  if ((status === 401 || status === 403) && !context.entry) {
+  if (status === 401 && !context.entry) {
     return {
       ok: false,
-      error: new AuthError(`${name} was refused: the API key was not accepted (${status}).`, status, requestId, errorBody, timing),
+      error: new AuthError(`${name} was refused: the API key was not accepted (401).`, status, requestId, errorBody, timing),
+    };
+  }
+  if (status === 403 && !context.entry) {
+    return {
+      ok: false,
+      error: new ForbiddenError(
+        `${name} was refused: the API key was accepted, and its organization may not make this request (403).`,
+        status,
+        requestId,
+        errorBody,
+        timing,
+      ),
     };
   }
   if (status === 429 || status >= 500) {

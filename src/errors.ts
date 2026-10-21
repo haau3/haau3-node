@@ -87,7 +87,11 @@ export interface Timing {
   correlationId?: string | undefined;
 }
 
-/** The API refused the key: none was sent, it is not one the API knows, or it was revoked (401, 403). */
+/**
+ * The API refused the request because of the key. A 401 means the key itself: none was sent, it is
+ * not one the API knows, or it was revoked. A 403 is a {@link ForbiddenError}, this class's subclass:
+ * the key was accepted, and its organization may not make the request.
+ */
 export class AuthError extends Haau3Error {
   override name = "AuthError";
   readonly status: number;
@@ -107,6 +111,16 @@ export class AuthError extends Haau3Error {
     this.durationMs = timing?.durationMs;
     attachBody(this, body);
   }
+}
+
+/**
+ * The API accepted the key and refused the request for the key's organization (403): an operation
+ * the organization may not use, or one not yet open to it. The key itself is fine, so there is
+ * nothing to rotate; `outcome` (or `problem`) says why, in the API's words. A subclass of
+ * {@link AuthError}, so code that catches `AuthError` still catches it.
+ */
+export class ForbiddenError extends AuthError {
+  override name = "ForbiddenError";
 }
 
 /**

@@ -1,7 +1,7 @@
 // The three kinds of error, and the rule that no body the API answered with is ever printed.
 import { inspect } from "node:util";
 import { describe, expect, it } from "vitest";
-import { AuthError, Haau3, Haau3Error, NoAnswerError, RefusedError } from "../src/index.js";
+import { AuthError, ForbiddenError, Haau3, Haau3Error, NoAnswerError, RefusedError } from "../src/index.js";
 import { KEY, answer, fakeFetch, fhirAnswer } from "./helpers.js";
 
 /** What an answer can repeat from a request that carried a patient's records. */
@@ -30,6 +30,34 @@ describe("the three kinds", () => {
       expect(error).toMatchObject({ status, requestId: "6b1f3c2e-4d5a-4b6c-8d7e-9f0a1b2c3d4e" });
       expect((error as AuthError).outcome?.issue[0]?.diagnostics).toBe("key");
     }
+  });
+
+  it("answers 403 with ForbiddenError, which says the key was accepted", async () => {
+    const error = (await failWith(() => fhirAnswer(outcome("not yet open"), 403)).readInsurancePlan("x").catch((e: unknown) => e)) as ForbiddenError;
+    expect(error).toBeInstanceOf(ForbiddenError);
+    expect(error.name).toBe("ForbiddenError");
+    expect(error.status).toBe(403);
+    expect(error.message).toBe("GET /v1/fhir/r4/InsurancePlan/{id} was refused: the API key was accepted, and its organization may not make this request (403).");
+    expect(error.message).not.toMatch(/not accepted/);
+    expect(error.outcome?.issue[0]?.diagnostics).toBe("not yet open");
+    expect(error.toJSON()).toMatchObject({ name: "ForbiddenError", status: 403 });
+  });
+
+  it("answers 401 with AuthError alone, saying the key was not accepted (control for the 403)", async () => {
+    const error = (await failWith(() => fhirAnswer(outcome("key"), 401)).readInsurancePlan("x").catch((e: unknown) => e)) as AuthError;
+    expect(error).not.toBeInstanceOf(ForbiddenError);
+    expect(error.name).toBe("AuthError");
+    expect(error.message).toBe("GET /v1/fhir/r4/InsurancePlan/{id} was refused: the API key was not accepted (401).");
+  });
+
+  it("carries a problem on a 403 off the FHIR base, as it does an outcome on it", async () => {
+    const problem = { type: "https://docs.haau3.com/errors#forbidden", title: "Forbidden", status: 403, detail: "d", instance: "urn:uuid:x" };
+    const error = (await failWith(() => answer(problem, 403, {}, "application/problem+json"))
+      .searchSlots({ state: "MA" })
+      .catch((e: unknown) => e)) as ForbiddenError;
+    expect(error).toBeInstanceOf(ForbiddenError);
+    expect(error.problem).toEqual(problem);
+    expect(error.outcome).toBeUndefined();
   });
 
   it("answers other 4xx with RefusedError, telling 404 from 410", async () => {
@@ -84,10 +112,12 @@ describe("a body is readable and never printed", () => {
     expect(printed(error)).not.toContain("4455667");
   });
 
-  it("does the same for AuthError and NoAnswerError", async () => {
+  it("does the same for AuthError, ForbiddenError and NoAnswerError", async () => {
     const auth = await failWith(() => fhirAnswer(outcome(PATIENT), 401)).readInsurancePlan("x").catch((e: unknown) => e);
+    const forbidden = await failWith(() => fhirAnswer(outcome(PATIENT), 403)).readInsurancePlan("x").catch((e: unknown) => e);
     const none = await failWith(() => fhirAnswer(outcome(PATIENT), 503)).readInsurancePlan("x").catch((e: unknown) => e);
-    for (const error of [auth, none]) {
+    expect(forbidden).toBeInstanceOf(ForbiddenError);
+    for (const error of [auth, forbidden, none]) {
       expect((error as AuthError).outcome?.issue[0]?.diagnostics).toBe(PATIENT);
       expect(printed(error)).not.toContain("Jane");
     }
