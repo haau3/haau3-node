@@ -182,7 +182,7 @@ export class BatchBuilder {
   }
 
   /**
-   * Find healthcare services, as one entry of a batch. Called as `Haau3.searchHealthcareService` is.
+   * Find healthcare services and pharmacies, as one entry of a batch. Called as `Haau3.searchHealthcareService` is.
    *
    * `GET /v1/fhir/r4/HealthcareService`
    */

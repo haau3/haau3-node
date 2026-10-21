@@ -154,7 +154,7 @@ export abstract class Operations extends Transport {
   /**
    * Check what a medication costs (pharmacy benefit check)
    *
-   * FHIR system-level operation `$process-message`, as the CARIN Consumer Real-Time Pharmacy Benefit Check (STU2 ballot, `2.0.0-ballot`) specifies. POST a FHIR `Bundle` of type `message` whose first entry is a MessageHeader with one of two events. `rtpbc-request-non-phi` asks for a medication's price without patient details: a Claim naming the product (an NDC of 11 digits with no dashes, or an RxNorm code) and the quantity, with the patient and the coverage masked, and a pharmacy or one or more ZIP codes. `rtpbc-request` asks what a medication would cost a member under their coverage: the member's Patient and Coverage, with the payer's identifier in `payor.identifier`, the prescription and its prescriber, and a pharmacy. The answer is a `message` Bundle whose MessageHeader answers the request's, with one ClaimResponse that carries either prices and coverage in `item` or the reason there are none in `error`, and for a member's request the request's Patient as it was sent. A check no connected source can answer carries `no-responder-for-coverage` or `no-price-source` from `https://haau3.com/fhir/CodeSystem/pharmacy-benefits-processing-code`. A price is an estimate; the pharmacy confirms the price. A member's request receives patient data, so send it only under an executed agreement. Nothing a request carries is stored or logged, apart from the request's ids, and every answer is sent with `Cache-Control: no-store`. The operation takes no parameters and is not offered inside a batch. The contract is published at https://fhir.haau3.com/pharmacy-benefits.html.
+   * FHIR system-level operation `$process-message`, as the CARIN Consumer Real-Time Pharmacy Benefit Check (STU2 ballot, `2.0.0-ballot`) specifies. Not yet open to customers: while its price sources are being licensed, every request from a customer's organization, with or without patient details, is refused with `403` `forbidden`. POST a FHIR `Bundle` of type `message` whose first entry is a MessageHeader with one of two events. `rtpbc-request-non-phi` asks for a medication's price without patient details: a Claim naming the product (an NDC of 11 digits with no dashes, or an RxNorm code) and the quantity, with the patient and the coverage masked, and a pharmacy, up to three ZIP codes, or both. It is answered by price sources: Cost Plus Drugs (its mail order and the Team Cuban Card) and ClixRx. `rtpbc-request` asks what a medication would cost a member under their coverage: the member's Patient and Coverage, with the payer's identifier in `payor.identifier`, the prescription and its prescriber, and a pharmacy. The answer is a `message` Bundle whose MessageHeader answers the request's, with one ClaimResponse that carries either prices and coverage in `item` or the reason there are none in `error`, and for a member's request the request's Patient as it was sent. With prices, `item` is the lowest price at a pharmacy near the ZIP codes or at the pharmacy named, every price is also an `addItem` alternative naming its pharmacy by an Organization in the Bundle and its price source in `programCode`, from `https://haau3.com/fhir/CodeSystem/pharmacy-benefits-price-source`, and `processNote` says where each price came from, when, and which free discount card pays it. Each price repeats the request's product coding, which CARIN requires to carry a display: an RxNorm code sent without one is answered with the display haau3's RxNorm release gives it, and an NDC needs its display sent with it. A check no connected source can answer carries `no-responder-for-coverage`, `no-price-source` or `source-not-available-to-caller` from `https://haau3.com/fhir/CodeSystem/pharmacy-benefits-processing-code`. A price is an estimate; the pharmacy confirms the price. A member's request receives patient data, so send it only under an executed agreement. Nothing a request carries is stored or logged, apart from the request's ids, and every answer is sent with `Cache-Control: no-store`. The operation takes no parameters and is not offered inside a batch. The contract is published at https://fhir.haau3.com/pharmacy-benefits.html.
    *
    * `POST /v1/fhir/r4/$process-message`
    */
@@ -176,7 +176,7 @@ export abstract class Operations extends Transport {
   /**
    * Read a HealthcareService
    *
-   * Read one healthcare service by id, as returned by a search on this service.
+   * Read one healthcare service by id, as returned by a search on this service. A pharmacy service's id (`HealthcareService-pharmacy-{NPI}`) is read back from NPPES.
    *
    * `GET /v1/fhir/r4/HealthcareService/{id}`
    */
@@ -198,7 +198,7 @@ export abstract class Operations extends Transport {
   /**
    * Read a Location
    *
-   * Read one location by id, as returned by a search on this service.
+   * Read one location by id, as returned by a search on this service. A pharmacy's store (`Location-pharmacy-{NPI}`, from a pharmacy search on `HealthcareService`) is read back from NPPES.
    *
    * `GET /v1/fhir/r4/Location/{id}`
    */
@@ -286,9 +286,15 @@ export abstract class Operations extends Transport {
   }
 
   /**
-   * Find healthcare services
+   * Find healthcare services and pharmacies
    *
-   * Search `HealthcareService` by location, or by network beside a location. The directory's service records name a network and, for a few, a location; none names an organization, so `organization` is refused rather than answered with nothing.
+   * Search `HealthcareService` two ways.
+   *
+   * **The directory's services**, by location, or by network beside a location. The directory's service records name a network and, for a few, a location; none names an organization, so `organization` is refused on this search rather than answered with nothing.
+   *
+   * **Pharmacies**, modelled as NDH 2.0.0 models them: each match is a pharmacy service, with category `pharm` and its NUCC pharmacy codes as `specialty`, provided by an organization at a store. Start the search with `service-category=pharm` (every kind) or `specialty` (one kind or several, separated by commas). A pharmacy search needs `location.address-state` with `location.address-postalcode` or `location.address-city`, or one pharmacy's `organization` or `organization.identifier`; `name` narrows it. Add `_include=HealthcareService:organization` and `_include=HealthcareService:location` to get each pharmacy's organization (its NPI) and store (its address) in the same bundle.
+   *
+   * Pharmacies are found in NPPES, CMS's NPI Registry, until CMS's National Provider Directory serves them. Each is found and served at its primary practice address. The organization keeps the directory's own id (`Organization-{NPI}`) and reads back from the directory, where a pharmacy registered in the last few weeks can answer 404 until the directory's next load. A pharmacy service's and store's ids are read back from NPPES, and change when the search moves to the directory. NPPES returns at most 1,200 records for one search, so a continuation past them is refused with a 422 that asks for a narrower search, rather than repeating a page or ending early. One store can bill under more than one NPI, and each is served as its own pharmacy.
    *
    * `GET /v1/fhir/r4/HealthcareService`
    */
@@ -424,7 +430,7 @@ export abstract class Operations extends Transport {
   /**
    * Expand a value set
    *
-   * FHIR `ValueSet/$expand`. Expands a value set canonical to its member codes, with an optional text filter and paging (`count=0` returns the total only).
+   * FHIR `ValueSet/$expand`. Expands a value set canonical to its member codes, with a text filter and paging (`count=0` returns the total only). On the RxNorm value sets this service holds, the filter searches by name and is required, and the matches come ranked, best first, with `expansion.total` the number of matches.
    *
    * `GET /v1/fhir/r4/ValueSet/$expand`
    */
@@ -435,7 +441,7 @@ export abstract class Operations extends Transport {
   /**
    * Expand a value set
    *
-   * FHIR `ValueSet/$expand`. Expands a value set canonical to its member codes, with an optional text filter and paging (`count=0` returns the total only).
+   * FHIR `ValueSet/$expand`. Expands a value set canonical to its member codes, with a text filter and paging (`count=0` returns the total only). On the RxNorm value sets this service holds, the filter searches by name and is required, and the matches come ranked, best first, with `expansion.total` the number of matches.
    *
    * `POST /v1/fhir/r4/ValueSet/$expand`
    */

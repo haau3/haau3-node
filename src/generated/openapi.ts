@@ -200,13 +200,13 @@ export interface paths {
         };
         /**
          * Expand a value set
-         * @description FHIR `ValueSet/$expand`. Expands a value set canonical to its member codes, with an optional text filter and paging (`count=0` returns the total only).
+         * @description FHIR `ValueSet/$expand`. Expands a value set canonical to its member codes, with a text filter and paging (`count=0` returns the total only). On the RxNorm value sets this service holds, the filter searches by name and is required, and the matches come ranked, best first, with `expansion.total` the number of matches.
          */
         get: operations["valueSetExpand"];
         put?: never;
         /**
          * Expand a value set
-         * @description FHIR `ValueSet/$expand`. Expands a value set canonical to its member codes, with an optional text filter and paging (`count=0` returns the total only).
+         * @description FHIR `ValueSet/$expand`. Expands a value set canonical to its member codes, with a text filter and paging (`count=0` returns the total only). On the RxNorm value sets this service holds, the filter searches by name and is required, and the matches come ranked, best first, with `expansion.total` the number of matches.
          */
         post: operations["valueSetExpandPost"];
         delete?: never;
@@ -419,8 +419,14 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Find healthcare services
-         * @description Search `HealthcareService` by location, or by network beside a location. The directory's service records name a network and, for a few, a location; none names an organization, so `organization` is refused rather than answered with nothing.
+         * Find healthcare services and pharmacies
+         * @description Search `HealthcareService` two ways.
+         *
+         *     **The directory's services**, by location, or by network beside a location. The directory's service records name a network and, for a few, a location; none names an organization, so `organization` is refused on this search rather than answered with nothing.
+         *
+         *     **Pharmacies**, modelled as NDH 2.0.0 models them: each match is a pharmacy service, with category `pharm` and its NUCC pharmacy codes as `specialty`, provided by an organization at a store. Start the search with `service-category=pharm` (every kind) or `specialty` (one kind or several, separated by commas). A pharmacy search needs `location.address-state` with `location.address-postalcode` or `location.address-city`, or one pharmacy's `organization` or `organization.identifier`; `name` narrows it. Add `_include=HealthcareService:organization` and `_include=HealthcareService:location` to get each pharmacy's organization (its NPI) and store (its address) in the same bundle.
+         *
+         *     Pharmacies are found in NPPES, CMS's NPI Registry, until CMS's National Provider Directory serves them. Each is found and served at its primary practice address. The organization keeps the directory's own id (`Organization-{NPI}`) and reads back from the directory, where a pharmacy registered in the last few weeks can answer 404 until the directory's next load. A pharmacy service's and store's ids are read back from NPPES, and change when the search moves to the directory. NPPES returns at most 1,200 records for one search, so a continuation past them is refused with a 422 that asks for a narrower search, rather than repeating a page or ending early. One store can bill under more than one NPI, and each is served as its own pharmacy.
          */
         get: operations["searchHealthcareService"];
         put?: never;
@@ -440,7 +446,7 @@ export interface paths {
         };
         /**
          * Read a HealthcareService
-         * @description Read one healthcare service by id, as returned by a search on this service.
+         * @description Read one healthcare service by id, as returned by a search on this service. A pharmacy service's id (`HealthcareService-pharmacy-{NPI}`) is read back from NPPES.
          */
         get: operations["readHealthcareService"];
         put?: never;
@@ -480,7 +486,7 @@ export interface paths {
         };
         /**
          * Read a Location
-         * @description Read one location by id, as returned by a search on this service.
+         * @description Read one location by id, as returned by a search on this service. A pharmacy's store (`Location-pharmacy-{NPI}`, from a pharmacy search on `HealthcareService`) is read back from NPPES.
          */
         get: operations["readLocation"];
         put?: never;
@@ -678,7 +684,7 @@ export interface paths {
         put?: never;
         /**
          * Check what a medication costs (pharmacy benefit check)
-         * @description FHIR system-level operation `$process-message`, as the CARIN Consumer Real-Time Pharmacy Benefit Check (STU2 ballot, `2.0.0-ballot`) specifies. POST a FHIR `Bundle` of type `message` whose first entry is a MessageHeader with one of two events. `rtpbc-request-non-phi` asks for a medication's price without patient details: a Claim naming the product (an NDC of 11 digits with no dashes, or an RxNorm code) and the quantity, with the patient and the coverage masked, and a pharmacy or one or more ZIP codes. `rtpbc-request` asks what a medication would cost a member under their coverage: the member's Patient and Coverage, with the payer's identifier in `payor.identifier`, the prescription and its prescriber, and a pharmacy. The answer is a `message` Bundle whose MessageHeader answers the request's, with one ClaimResponse that carries either prices and coverage in `item` or the reason there are none in `error`, and for a member's request the request's Patient as it was sent. A check no connected source can answer carries `no-responder-for-coverage` or `no-price-source` from `https://haau3.com/fhir/CodeSystem/pharmacy-benefits-processing-code`. A price is an estimate; the pharmacy confirms the price. A member's request receives patient data, so send it only under an executed agreement. Nothing a request carries is stored or logged, apart from the request's ids, and every answer is sent with `Cache-Control: no-store`. The operation takes no parameters and is not offered inside a batch. The contract is published at https://fhir.haau3.com/pharmacy-benefits.html.
+         * @description FHIR system-level operation `$process-message`, as the CARIN Consumer Real-Time Pharmacy Benefit Check (STU2 ballot, `2.0.0-ballot`) specifies. Not yet open to customers: while its price sources are being licensed, every request from a customer's organization, with or without patient details, is refused with `403` `forbidden`. POST a FHIR `Bundle` of type `message` whose first entry is a MessageHeader with one of two events. `rtpbc-request-non-phi` asks for a medication's price without patient details: a Claim naming the product (an NDC of 11 digits with no dashes, or an RxNorm code) and the quantity, with the patient and the coverage masked, and a pharmacy, up to three ZIP codes, or both. It is answered by price sources: Cost Plus Drugs (its mail order and the Team Cuban Card) and ClixRx. `rtpbc-request` asks what a medication would cost a member under their coverage: the member's Patient and Coverage, with the payer's identifier in `payor.identifier`, the prescription and its prescriber, and a pharmacy. The answer is a `message` Bundle whose MessageHeader answers the request's, with one ClaimResponse that carries either prices and coverage in `item` or the reason there are none in `error`, and for a member's request the request's Patient as it was sent. With prices, `item` is the lowest price at a pharmacy near the ZIP codes or at the pharmacy named, every price is also an `addItem` alternative naming its pharmacy by an Organization in the Bundle and its price source in `programCode`, from `https://haau3.com/fhir/CodeSystem/pharmacy-benefits-price-source`, and `processNote` says where each price came from, when, and which free discount card pays it. Each price repeats the request's product coding, which CARIN requires to carry a display: an RxNorm code sent without one is answered with the display haau3's RxNorm release gives it, and an NDC needs its display sent with it. A check no connected source can answer carries `no-responder-for-coverage`, `no-price-source` or `source-not-available-to-caller` from `https://haau3.com/fhir/CodeSystem/pharmacy-benefits-processing-code`. A price is an estimate; the pharmacy confirms the price. A member's request receives patient data, so send it only under an executed agreement. Nothing a request carries is stored or logged, apart from the request's ids, and every answer is sent with `Cache-Control: no-store`. The operation takes no parameters and is not offered inside a batch. The contract is published at https://fhir.haau3.com/pharmacy-benefits.html.
          */
         post: operations["processMessage"];
         delete?: never;
@@ -1640,7 +1646,7 @@ export interface operations {
                 };
             };
             406: components["responses"]["FhirNotAcceptable"];
-            /** @description The request is well formed, but this service does not answer it in that form: an operation it does not offer for a code system it holds, or the expansion of a value set defined by a rule too large to list, the whole of LOINC included. The `OperationOutcome` says which, and what to ask instead. */
+            /** @description The request is well formed, but this service does not answer it in that form: an operation it does not offer for a code system it holds, the expansion of a value set defined by a rule too large to list (the whole of LOINC included), or an RxNorm expansion with no `filter` or one too short, coded `too-costly`. The `OperationOutcome` says which, and what to ask instead. */
             422: {
                 headers: {
                     "X-Request-Id": components["headers"]["XRequestId"];
@@ -1753,7 +1759,7 @@ export interface operations {
                 };
             };
             415: components["responses"]["FhirUnsupportedMediaType"];
-            /** @description The request is well formed, but this service does not answer it in that form: an operation it does not offer for a code system it holds, or the expansion of a value set defined by a rule too large to list, the whole of LOINC included. The `OperationOutcome` says which, and what to ask instead. */
+            /** @description The request is well formed, but this service does not answer it in that form: an operation it does not offer for a code system it holds, the expansion of a value set defined by a rule too large to list (the whole of LOINC included), or an RxNorm expansion with no `filter` or one too short, coded `too-costly`. The `OperationOutcome` says which, and what to ask instead. */
             422: {
                 headers: {
                     "X-Request-Id": components["headers"]["XRequestId"];
@@ -1869,7 +1875,7 @@ export interface operations {
                 };
             };
             406: components["responses"]["FhirNotAcceptable"];
-            /** @description The request is well formed, but this service does not answer it in that form: an operation it does not offer for a code system it holds, or the expansion of a value set defined by a rule too large to list, the whole of LOINC included. The `OperationOutcome` says which, and what to ask instead. */
+            /** @description The request is well formed, but this service does not answer it in that form: an operation it does not offer for a code system it holds, the expansion of a value set defined by a rule too large to list (the whole of LOINC included), or an RxNorm expansion with no `filter` or one too short, coded `too-costly`. The `OperationOutcome` says which, and what to ask instead. */
             422: {
                 headers: {
                     "X-Request-Id": components["headers"]["XRequestId"];
@@ -1982,7 +1988,7 @@ export interface operations {
                 };
             };
             415: components["responses"]["FhirUnsupportedMediaType"];
-            /** @description The request is well formed, but this service does not answer it in that form: an operation it does not offer for a code system it holds, or the expansion of a value set defined by a rule too large to list, the whole of LOINC included. The `OperationOutcome` says which, and what to ask instead. */
+            /** @description The request is well formed, but this service does not answer it in that form: an operation it does not offer for a code system it holds, the expansion of a value set defined by a rule too large to list (the whole of LOINC included), or an RxNorm expansion with no `filter` or one too short, coded `too-costly`. The `OperationOutcome` says which, and what to ask instead. */
             422: {
                 headers: {
                     "X-Request-Id": components["headers"]["XRequestId"];
@@ -2036,21 +2042,21 @@ export interface operations {
         parameters: {
             query?: {
                 /**
-                 * @description Canonical URL of the value set to expand. Defaults to the implicit all-LOINC value set (`http://loinc.org?fhir_vs`), which is every LOINC code. That expansion is not served and answers `422`: expand a LOINC group or answer list instead, or ask `$validate-code` whether a code is in LOINC.
+                 * @description Canonical URL of the value set to expand. Defaults to the implicit all-LOINC value set (`http://loinc.org?fhir_vs`), which is every LOINC code. That expansion is not served and answers `422`: expand a LOINC group or answer list instead, or ask `$validate-code` whether a code is in LOINC. The RxNorm value sets this service holds are `https://haau3.com/fhir/ValueSet/rxnorm-current-prescribable-content` (every concept of the release it serves) and `https://haau3.com/fhir/ValueSet/rxnorm-current-prescribable-products` (its drug products: clinical and branded drugs and packs).
                  * @example http://loinc.org/vs/LL360-9
                  */
                 url?: string;
-                /** @description Text filter to narrow the expansion to matching concepts. Applies to value sets this service hosts. For a value set resolved from its own source, narrowing is refused with a `400` naming this parameter, because that source answers a whole expansion or nothing: expand it whole and filter the result. */
+                /** @description Text to narrow the expansion: each word must be the start of a word in a concept's name, and every word must match, with case and accents ignored. On the RxNorm value sets it is required, with at least 3 letters or digits, and the matches come ranked, best first; without it, or with fewer, the answer is `422` coded `too-costly`. At most 500 characters. For a value set resolved from its own source, narrowing is refused with a `400` naming this parameter, because that source answers a whole expansion or nothing: expand it whole and filter the result. */
                 filter?: string;
-                /** @description Maximum number of concepts to return (`0` returns the total only). Applies to value sets this service hosts. For a value set resolved from its own source, narrowing is refused with a `400` naming this parameter, because that source answers a whole expansion or nothing: expand it whole and filter the result. */
+                /** @description Maximum number of concepts to return (`0` returns the total only). On the RxNorm value sets the first 20 come back when it is not sent. For a value set resolved from its own source, narrowing is refused with a `400` naming this parameter, because that source answers a whole expansion or nothing: expand it whole and filter the result. */
                 count?: number;
-                /** @description Number of concepts to skip for pagination. Applies to value sets this service hosts. For a value set resolved from its own source, narrowing is refused with a `400` naming this parameter, because that source answers a whole expansion or nothing: expand it whole and filter the result. */
+                /** @description Number of concepts to skip, for paging; `expansion.total` is the number of matching concepts. For a value set resolved from its own source, narrowing is refused with a `400` naming this parameter, because that source answers a whole expansion or nothing: expand it whole and filter the result. */
                 offset?: number;
-                /** @description Not supported on this operation, and refused with a `400` naming it. Expansions are returned whole, in their source's own language and order. */
+                /** @description Not supported on this operation, and refused with a `400` naming it. This service does not narrow an expansion by language, designation or status. */
                 displayLanguage?: string;
-                /** @description Not supported on this operation, and refused with a `400` naming it. Expansions are returned whole. */
+                /** @description Not supported on this operation, and refused with a `400` naming it. This service does not narrow an expansion by language, designation or status. */
                 includeDesignations?: boolean;
-                /** @description Not supported on this operation, and refused with a `400` naming it. Expansions are returned whole. */
+                /** @description Not supported on this operation, and refused with a `400` naming it. This service does not narrow an expansion by language, designation or status. */
                 activeOnly?: boolean;
             };
             header?: {
@@ -2097,7 +2103,7 @@ export interface operations {
                 };
             };
             406: components["responses"]["FhirNotAcceptable"];
-            /** @description The request is well formed, but this service does not answer it in that form: an operation it does not offer for a code system it holds, or the expansion of a value set defined by a rule too large to list, the whole of LOINC included. The `OperationOutcome` says which, and what to ask instead. */
+            /** @description The request is well formed, but this service does not answer it in that form: an operation it does not offer for a code system it holds, the expansion of a value set defined by a rule too large to list (the whole of LOINC included), or an RxNorm expansion with no `filter` or one too short, coded `too-costly`. The `OperationOutcome` says which, and what to ask instead. */
             422: {
                 headers: {
                     "X-Request-Id": components["headers"]["XRequestId"];
@@ -2210,7 +2216,7 @@ export interface operations {
                 };
             };
             415: components["responses"]["FhirUnsupportedMediaType"];
-            /** @description The request is well formed, but this service does not answer it in that form: an operation it does not offer for a code system it holds, or the expansion of a value set defined by a rule too large to list, the whole of LOINC included. The `OperationOutcome` says which, and what to ask instead. */
+            /** @description The request is well formed, but this service does not answer it in that form: an operation it does not offer for a code system it holds, the expansion of a value set defined by a rule too large to list (the whole of LOINC included), or an RxNorm expansion with no `filter` or one too short, coded `too-costly`. The `OperationOutcome` says which, and what to ask instead. */
             422: {
                 headers: {
                     "X-Request-Id": components["headers"]["XRequestId"];
@@ -2329,7 +2335,7 @@ export interface operations {
                 };
             };
             406: components["responses"]["FhirNotAcceptable"];
-            /** @description The request is well formed, but this service does not answer it in that form: an operation it does not offer for a code system it holds, or the expansion of a value set defined by a rule too large to list, the whole of LOINC included. The `OperationOutcome` says which, and what to ask instead. */
+            /** @description The request is well formed, but this service does not answer it in that form: an operation it does not offer for a code system it holds, the expansion of a value set defined by a rule too large to list (the whole of LOINC included), or an RxNorm expansion with no `filter` or one too short, coded `too-costly`. The `OperationOutcome` says which, and what to ask instead. */
             422: {
                 headers: {
                     "X-Request-Id": components["headers"]["XRequestId"];
@@ -2442,7 +2448,7 @@ export interface operations {
                 };
             };
             415: components["responses"]["FhirUnsupportedMediaType"];
-            /** @description The request is well formed, but this service does not answer it in that form: an operation it does not offer for a code system it holds, or the expansion of a value set defined by a rule too large to list, the whole of LOINC included. The `OperationOutcome` says which, and what to ask instead. */
+            /** @description The request is well formed, but this service does not answer it in that form: an operation it does not offer for a code system it holds, the expansion of a value set defined by a rule too large to list (the whole of LOINC included), or an RxNorm expansion with no `filter` or one too short, coded `too-costly`. The `OperationOutcome` says which, and what to ask instead. */
             422: {
                 headers: {
                     "X-Request-Id": components["headers"]["XRequestId"];
@@ -2569,7 +2575,7 @@ export interface operations {
             406: components["responses"]["FhirNotAcceptable"];
             429: components["responses"]["FhirTooManyRequests"];
             500: components["responses"]["FhirServerError"];
-            /** @description The directory could not be reached, answered in a shape that cannot be served, or answered with more than is served at once: a `_revinclude` past the directory's 100 records on a page, or an answer over 8 MiB. No answer is given: this is never reported as an empty result, which would read as 'no such provider'. */
+            /** @description The directory could not be reached, answered in a shape that cannot be served, or answered with more than is served at once: a `_revinclude` past the directory's 100 records on a page, or an answer over 8 MiB. For a pharmacy, the same of the NPI Registry (NPPES), or a record it sent that does not match the search. No answer is given: this is never reported as an empty result, which would read as 'no such provider'. */
             502: {
                 headers: {
                     "X-Request-Id": components["headers"]["XRequestId"];
@@ -2580,7 +2586,7 @@ export interface operations {
                     "application/fhir+json": components["schemas"]["OperationOutcome"];
                 };
             };
-            /** @description The directory is rate limiting requests. Send the request again after `Retry-After`. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
+            /** @description The directory, or for a pharmacy the NPI Registry, is rate limiting requests. Send the request again after `Retry-After`. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
             503: {
                 headers: {
                     /** @description Sent when waiting will help: the API key could not be checked just now, or the source behind this service is rate limiting requests. How many seconds to wait before sending the request again. */
@@ -2593,7 +2599,7 @@ export interface operations {
                     "application/fhir+json": components["schemas"]["OperationOutcome"];
                 };
             };
-            /** @description The directory did not respond in time. */
+            /** @description The directory, or for a pharmacy the NPI Registry, did not respond in time. */
             504: {
                 headers: {
                     "X-Request-Id": components["headers"]["XRequestId"];
@@ -2661,7 +2667,7 @@ export interface operations {
             406: components["responses"]["FhirNotAcceptable"];
             429: components["responses"]["FhirTooManyRequests"];
             500: components["responses"]["FhirServerError"];
-            /** @description The directory could not be reached, answered in a shape that cannot be served, or answered with more than is served at once: a `_revinclude` past the directory's 100 records on a page, or an answer over 8 MiB. No answer is given: this is never reported as an empty result, which would read as 'no such provider'. */
+            /** @description The directory could not be reached, answered in a shape that cannot be served, or answered with more than is served at once: a `_revinclude` past the directory's 100 records on a page, or an answer over 8 MiB. For a pharmacy, the same of the NPI Registry (NPPES), or a record it sent that does not match the search. No answer is given: this is never reported as an empty result, which would read as 'no such provider'. */
             502: {
                 headers: {
                     "X-Request-Id": components["headers"]["XRequestId"];
@@ -2672,7 +2678,7 @@ export interface operations {
                     "application/fhir+json": components["schemas"]["OperationOutcome"];
                 };
             };
-            /** @description The directory is rate limiting requests. Send the request again after `Retry-After`. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
+            /** @description The directory, or for a pharmacy the NPI Registry, is rate limiting requests. Send the request again after `Retry-After`. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
             503: {
                 headers: {
                     /** @description Sent when waiting will help: the API key could not be checked just now, or the source behind this service is rate limiting requests. How many seconds to wait before sending the request again. */
@@ -2685,7 +2691,7 @@ export interface operations {
                     "application/fhir+json": components["schemas"]["OperationOutcome"];
                 };
             };
-            /** @description The directory did not respond in time. */
+            /** @description The directory, or for a pharmacy the NPI Registry, did not respond in time. */
             504: {
                 headers: {
                     "X-Request-Id": components["headers"]["XRequestId"];
@@ -2782,7 +2788,7 @@ export interface operations {
             406: components["responses"]["FhirNotAcceptable"];
             429: components["responses"]["FhirTooManyRequests"];
             500: components["responses"]["FhirServerError"];
-            /** @description The directory could not be reached, answered in a shape that cannot be served, or answered with more than is served at once: a `_revinclude` past the directory's 100 records on a page, or an answer over 8 MiB. No answer is given: this is never reported as an empty result, which would read as 'no such provider'. */
+            /** @description The directory could not be reached, answered in a shape that cannot be served, or answered with more than is served at once: a `_revinclude` past the directory's 100 records on a page, or an answer over 8 MiB. For a pharmacy, the same of the NPI Registry (NPPES), or a record it sent that does not match the search. No answer is given: this is never reported as an empty result, which would read as 'no such provider'. */
             502: {
                 headers: {
                     "X-Request-Id": components["headers"]["XRequestId"];
@@ -2793,7 +2799,7 @@ export interface operations {
                     "application/fhir+json": components["schemas"]["OperationOutcome"];
                 };
             };
-            /** @description The directory is rate limiting requests. Send the request again after `Retry-After`. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
+            /** @description The directory, or for a pharmacy the NPI Registry, is rate limiting requests. Send the request again after `Retry-After`. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
             503: {
                 headers: {
                     /** @description Sent when waiting will help: the API key could not be checked just now, or the source behind this service is rate limiting requests. How many seconds to wait before sending the request again. */
@@ -2806,7 +2812,7 @@ export interface operations {
                     "application/fhir+json": components["schemas"]["OperationOutcome"];
                 };
             };
-            /** @description The directory did not respond in time. */
+            /** @description The directory, or for a pharmacy the NPI Registry, did not respond in time. */
             504: {
                 headers: {
                     "X-Request-Id": components["headers"]["XRequestId"];
@@ -2874,7 +2880,7 @@ export interface operations {
             406: components["responses"]["FhirNotAcceptable"];
             429: components["responses"]["FhirTooManyRequests"];
             500: components["responses"]["FhirServerError"];
-            /** @description The directory could not be reached, answered in a shape that cannot be served, or answered with more than is served at once: a `_revinclude` past the directory's 100 records on a page, or an answer over 8 MiB. No answer is given: this is never reported as an empty result, which would read as 'no such provider'. */
+            /** @description The directory could not be reached, answered in a shape that cannot be served, or answered with more than is served at once: a `_revinclude` past the directory's 100 records on a page, or an answer over 8 MiB. For a pharmacy, the same of the NPI Registry (NPPES), or a record it sent that does not match the search. No answer is given: this is never reported as an empty result, which would read as 'no such provider'. */
             502: {
                 headers: {
                     "X-Request-Id": components["headers"]["XRequestId"];
@@ -2885,7 +2891,7 @@ export interface operations {
                     "application/fhir+json": components["schemas"]["OperationOutcome"];
                 };
             };
-            /** @description The directory is rate limiting requests. Send the request again after `Retry-After`. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
+            /** @description The directory, or for a pharmacy the NPI Registry, is rate limiting requests. Send the request again after `Retry-After`. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
             503: {
                 headers: {
                     /** @description Sent when waiting will help: the API key could not be checked just now, or the source behind this service is rate limiting requests. How many seconds to wait before sending the request again. */
@@ -2898,7 +2904,7 @@ export interface operations {
                     "application/fhir+json": components["schemas"]["OperationOutcome"];
                 };
             };
-            /** @description The directory did not respond in time. */
+            /** @description The directory, or for a pharmacy the NPI Registry, did not respond in time. */
             504: {
                 headers: {
                     "X-Request-Id": components["headers"]["XRequestId"];
@@ -2921,7 +2927,7 @@ export interface operations {
                 /** @description The organizations that are part of one organization. Give a Organization id, `Organization/{id}`, or the `fullUrl` this service returned. An address on another server is refused. */
                 partof?: string;
                 /**
-                 * @description An organization type from `http://terminology.hl7.org/CodeSystem/organization-type`, bare or with that system: `prov` for healthcare providers, `pay` for payers, `ntwk` for insurance networks. `ntwk` is also accepted under Plan-Net's `http://hl7.org/fhir/us/davinci-pdex-plan-net/CodeSystem/OrgTypeCS`. `type=ntwk` and `type=pay` may stand alone, to list every network or every payer; any other type narrows a search. The directory records networks by the text of their type rather than a code; this service searches that text and confirms each answer is a network, and answers 502 rather than serve one that is not.
+                 * @description An organization type from `http://terminology.hl7.org/CodeSystem/organization-type`, bare or with that system: `prov` for healthcare providers, `pay` for payers, `ntwk` for insurance networks. `ntwk` is also accepted under Plan-Net's `http://hl7.org/fhir/us/davinci-pdex-plan-net/CodeSystem/OrgTypeCS`. `type=ntwk` and `type=pay` may stand alone, to list every network or every payer; any other type narrows a search. The directory records networks by the text of their type rather than a code; this service searches that text and confirms each answer is a network, and answers 502 rather than serve one that is not. A NUCC provider taxonomy code is refused: the directory's organizations carry none, and pharmacies are searched as `HealthcareService` (`service-category=pharm`).
                  * @example ntwk
                  */
                 type?: string;
@@ -2995,7 +3001,7 @@ export interface operations {
             406: components["responses"]["FhirNotAcceptable"];
             429: components["responses"]["FhirTooManyRequests"];
             500: components["responses"]["FhirServerError"];
-            /** @description The directory could not be reached, answered in a shape that cannot be served, or answered with more than is served at once: a `_revinclude` past the directory's 100 records on a page, or an answer over 8 MiB. No answer is given: this is never reported as an empty result, which would read as 'no such provider'. */
+            /** @description The directory could not be reached, answered in a shape that cannot be served, or answered with more than is served at once: a `_revinclude` past the directory's 100 records on a page, or an answer over 8 MiB. For a pharmacy, the same of the NPI Registry (NPPES), or a record it sent that does not match the search. No answer is given: this is never reported as an empty result, which would read as 'no such provider'. */
             502: {
                 headers: {
                     "X-Request-Id": components["headers"]["XRequestId"];
@@ -3006,7 +3012,7 @@ export interface operations {
                     "application/fhir+json": components["schemas"]["OperationOutcome"];
                 };
             };
-            /** @description The directory is rate limiting requests. Send the request again after `Retry-After`. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
+            /** @description The directory, or for a pharmacy the NPI Registry, is rate limiting requests. Send the request again after `Retry-After`. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
             503: {
                 headers: {
                     /** @description Sent when waiting will help: the API key could not be checked just now, or the source behind this service is rate limiting requests. How many seconds to wait before sending the request again. */
@@ -3019,7 +3025,7 @@ export interface operations {
                     "application/fhir+json": components["schemas"]["OperationOutcome"];
                 };
             };
-            /** @description The directory did not respond in time. */
+            /** @description The directory, or for a pharmacy the NPI Registry, did not respond in time. */
             504: {
                 headers: {
                     "X-Request-Id": components["headers"]["XRequestId"];
@@ -3087,7 +3093,7 @@ export interface operations {
             406: components["responses"]["FhirNotAcceptable"];
             429: components["responses"]["FhirTooManyRequests"];
             500: components["responses"]["FhirServerError"];
-            /** @description The directory could not be reached, answered in a shape that cannot be served, or answered with more than is served at once: a `_revinclude` past the directory's 100 records on a page, or an answer over 8 MiB. No answer is given: this is never reported as an empty result, which would read as 'no such provider'. */
+            /** @description The directory could not be reached, answered in a shape that cannot be served, or answered with more than is served at once: a `_revinclude` past the directory's 100 records on a page, or an answer over 8 MiB. For a pharmacy, the same of the NPI Registry (NPPES), or a record it sent that does not match the search. No answer is given: this is never reported as an empty result, which would read as 'no such provider'. */
             502: {
                 headers: {
                     "X-Request-Id": components["headers"]["XRequestId"];
@@ -3098,7 +3104,7 @@ export interface operations {
                     "application/fhir+json": components["schemas"]["OperationOutcome"];
                 };
             };
-            /** @description The directory is rate limiting requests. Send the request again after `Retry-After`. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
+            /** @description The directory, or for a pharmacy the NPI Registry, is rate limiting requests. Send the request again after `Retry-After`. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
             503: {
                 headers: {
                     /** @description Sent when waiting will help: the API key could not be checked just now, or the source behind this service is rate limiting requests. How many seconds to wait before sending the request again. */
@@ -3111,7 +3117,7 @@ export interface operations {
                     "application/fhir+json": components["schemas"]["OperationOutcome"];
                 };
             };
-            /** @description The directory did not respond in time. */
+            /** @description The directory, or for a pharmacy the NPI Registry, did not respond in time. */
             504: {
                 headers: {
                     "X-Request-Id": components["headers"]["XRequestId"];
@@ -3198,7 +3204,7 @@ export interface operations {
             406: components["responses"]["FhirNotAcceptable"];
             429: components["responses"]["FhirTooManyRequests"];
             500: components["responses"]["FhirServerError"];
-            /** @description The directory could not be reached, answered in a shape that cannot be served, or answered with more than is served at once: a `_revinclude` past the directory's 100 records on a page, or an answer over 8 MiB. No answer is given: this is never reported as an empty result, which would read as 'no such provider'. */
+            /** @description The directory could not be reached, answered in a shape that cannot be served, or answered with more than is served at once: a `_revinclude` past the directory's 100 records on a page, or an answer over 8 MiB. For a pharmacy, the same of the NPI Registry (NPPES), or a record it sent that does not match the search. No answer is given: this is never reported as an empty result, which would read as 'no such provider'. */
             502: {
                 headers: {
                     "X-Request-Id": components["headers"]["XRequestId"];
@@ -3209,7 +3215,7 @@ export interface operations {
                     "application/fhir+json": components["schemas"]["OperationOutcome"];
                 };
             };
-            /** @description The directory is rate limiting requests. Send the request again after `Retry-After`. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
+            /** @description The directory, or for a pharmacy the NPI Registry, is rate limiting requests. Send the request again after `Retry-After`. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
             503: {
                 headers: {
                     /** @description Sent when waiting will help: the API key could not be checked just now, or the source behind this service is rate limiting requests. How many seconds to wait before sending the request again. */
@@ -3222,7 +3228,7 @@ export interface operations {
                     "application/fhir+json": components["schemas"]["OperationOutcome"];
                 };
             };
-            /** @description The directory did not respond in time. */
+            /** @description The directory, or for a pharmacy the NPI Registry, did not respond in time. */
             504: {
                 headers: {
                     "X-Request-Id": components["headers"]["XRequestId"];
@@ -3290,7 +3296,7 @@ export interface operations {
             406: components["responses"]["FhirNotAcceptable"];
             429: components["responses"]["FhirTooManyRequests"];
             500: components["responses"]["FhirServerError"];
-            /** @description The directory could not be reached, answered in a shape that cannot be served, or answered with more than is served at once: a `_revinclude` past the directory's 100 records on a page, or an answer over 8 MiB. No answer is given: this is never reported as an empty result, which would read as 'no such provider'. */
+            /** @description The directory could not be reached, answered in a shape that cannot be served, or answered with more than is served at once: a `_revinclude` past the directory's 100 records on a page, or an answer over 8 MiB. For a pharmacy, the same of the NPI Registry (NPPES), or a record it sent that does not match the search. No answer is given: this is never reported as an empty result, which would read as 'no such provider'. */
             502: {
                 headers: {
                     "X-Request-Id": components["headers"]["XRequestId"];
@@ -3301,7 +3307,7 @@ export interface operations {
                     "application/fhir+json": components["schemas"]["OperationOutcome"];
                 };
             };
-            /** @description The directory is rate limiting requests. Send the request again after `Retry-After`. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
+            /** @description The directory, or for a pharmacy the NPI Registry, is rate limiting requests. Send the request again after `Retry-After`. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
             503: {
                 headers: {
                     /** @description Sent when waiting will help: the API key could not be checked just now, or the source behind this service is rate limiting requests. How many seconds to wait before sending the request again. */
@@ -3314,7 +3320,7 @@ export interface operations {
                     "application/fhir+json": components["schemas"]["OperationOutcome"];
                 };
             };
-            /** @description The directory did not respond in time. */
+            /** @description The directory, or for a pharmacy the NPI Registry, did not respond in time. */
             504: {
                 headers: {
                     "X-Request-Id": components["headers"]["XRequestId"];
@@ -3337,8 +3343,26 @@ export interface operations {
                 location?: string;
                 /** @description The services the directory lists in one insurance network. Cannot be used on its own: send it beside `location`. A search that breaks this rule is refused before the directory is asked. Give a Organization id, `Organization/{id}`, or the `fullUrl` this service returned. An address on another server is refused. */
                 network?: string;
+                /** @description `pharm`, bare or as `http://terminology.hl7.org/CodeSystem/ndh-healthcare-service-category|pharm`: every pharmacy, of any kind. Starts a pharmacy search, as `specialty` does. A pharmacy search needs `location.address-state` with `location.address-postalcode` or `location.address-city`, or one pharmacy's `organization` or `organization.identifier`; `name` narrows it. */
+                "service-category"?: string;
+                /** @description A NUCC pharmacy code, bare or as `http://nucc.org/provider-taxonomy|{code}`, or several separated by commas to find pharmacies of any of those kinds: for example `3336C0003X` (community or retail) or `3336M0002X` (mail order). Starts a pharmacy search. A pharmacy may carry only the general code 333600000X or only a specific one, so send `333600000X,3336C0003X` to find either, or `service-category=pharm` for every kind. Only pharmacy codes (333600000X, 3336C0002X, 3336C0003X, 3336C0004X, 3336H0001X, 3336I0012X, 3336L0003X, 3336M0002X, 3336M0003X, 3336N0007X, 3336S0011X) are served. A pharmacy search needs `location.address-state` with `location.address-postalcode` or `location.address-city`, or one pharmacy's `organization` or `organization.identifier`; `name` narrows it. */
+                specialty?: string;
+                /** @description A pharmacy search's state: the two-letter code of the state the pharmacy's store is in. Required, with a ZIP code or a city, unless the search names one pharmacy. */
+                "location.address-state"?: string;
+                /** @description Narrows a pharmacy search to stores whose ZIP code starts with this: a ZIP code, or its first two or more digits. Send it with `location.address-state`. */
+                "location.address-postalcode"?: string;
+                /** @description Narrows a pharmacy search to stores in a city whose name starts with this, so `Miami` also finds Miami Beach. Two or more letters. Send it with `location.address-state`. */
+                "location.address-city"?: string;
+                /** @description Narrows a pharmacy search to pharmacies whose name, or a name they do business as, starts with this. Two or more letters. Cannot be used on its own, or with a state alone. */
+                name?: string;
+                /** @description One pharmacy: the organization that provides it, as a pharmacy search returned it (`Organization-{NPI}`). Stands alone on a pharmacy search. Give a Organization id, `Organization/{id}`, or the `fullUrl` this service returned. An address on another server is refused. */
+                organization?: string;
+                /** @description One pharmacy by its NPI, as `{system}|{npi}` or a bare 10-digit value, under the same systems `Organization` accepts. Stands alone on a pharmacy search. */
+                "organization.identifier"?: string;
                 /** @description `true` or `false`. Narrows a search; cannot be used on its own. */
                 active?: "true" | "false";
+                /** @description On a pharmacy search, `HealthcareService:organization` brings the organization that provides each pharmacy (its NPI, names and phone), and `HealthcareService:location` its store (address and phone). Repeat the parameter to include several. Included entries do not count toward `_count`. */
+                _include?: ("HealthcareService:organization" | "HealthcareService:location")[];
                 /** @description A HealthcareService id. Searching by id rather than reading it lets one request also bring the records an `_include` or `_revinclude` names. */
                 _id?: string;
                 /** @description `count` only: answers how many records match, as `total`, with no entries. Cannot be combined with `_include`, `_revinclude`, `_count` or `page`. */
@@ -3360,7 +3384,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description A FHIR `Bundle` with `type: searchset`. `total` is present when the directory sends one. */
+            /** @description A FHIR `Bundle` with `type: searchset`. `total` is present when the directory sends one; a pharmacy search never carries one, because NPPES gives no count. */
             200: {
                 headers: {
                     "X-Request-Id": components["headers"]["XRequestId"];
@@ -3395,9 +3419,20 @@ export interface operations {
                 };
             };
             406: components["responses"]["FhirNotAcceptable"];
+            /** @description A pharmacy search's continuation went past the 1,200 records the NPI Registry returns for one search. Narrow the search with a ZIP code, a city or a name. */
+            422: {
+                headers: {
+                    "X-Request-Id": components["headers"]["XRequestId"];
+                    "X-Correlation-Id": components["headers"]["XCorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/fhir+json": components["schemas"]["OperationOutcome"];
+                };
+            };
             429: components["responses"]["FhirTooManyRequests"];
             500: components["responses"]["FhirServerError"];
-            /** @description The directory could not be reached, answered in a shape that cannot be served, or answered with more than is served at once: a `_revinclude` past the directory's 100 records on a page, or an answer over 8 MiB. No answer is given: this is never reported as an empty result, which would read as 'no such provider'. */
+            /** @description The directory could not be reached, answered in a shape that cannot be served, or answered with more than is served at once: a `_revinclude` past the directory's 100 records on a page, or an answer over 8 MiB. For a pharmacy, the same of the NPI Registry (NPPES), or a record it sent that does not match the search. No answer is given: this is never reported as an empty result, which would read as 'no such provider'. */
             502: {
                 headers: {
                     "X-Request-Id": components["headers"]["XRequestId"];
@@ -3408,7 +3443,7 @@ export interface operations {
                     "application/fhir+json": components["schemas"]["OperationOutcome"];
                 };
             };
-            /** @description The directory is rate limiting requests. Send the request again after `Retry-After`. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
+            /** @description The directory, or for a pharmacy the NPI Registry, is rate limiting requests. Send the request again after `Retry-After`. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
             503: {
                 headers: {
                     /** @description Sent when waiting will help: the API key could not be checked just now, or the source behind this service is rate limiting requests. How many seconds to wait before sending the request again. */
@@ -3421,7 +3456,7 @@ export interface operations {
                     "application/fhir+json": components["schemas"]["OperationOutcome"];
                 };
             };
-            /** @description The directory did not respond in time. */
+            /** @description The directory, or for a pharmacy the NPI Registry, did not respond in time. */
             504: {
                 headers: {
                     "X-Request-Id": components["headers"]["XRequestId"];
@@ -3489,7 +3524,7 @@ export interface operations {
             406: components["responses"]["FhirNotAcceptable"];
             429: components["responses"]["FhirTooManyRequests"];
             500: components["responses"]["FhirServerError"];
-            /** @description The directory could not be reached, answered in a shape that cannot be served, or answered with more than is served at once: a `_revinclude` past the directory's 100 records on a page, or an answer over 8 MiB. No answer is given: this is never reported as an empty result, which would read as 'no such provider'. */
+            /** @description The directory could not be reached, answered in a shape that cannot be served, or answered with more than is served at once: a `_revinclude` past the directory's 100 records on a page, or an answer over 8 MiB. For a pharmacy, the same of the NPI Registry (NPPES), or a record it sent that does not match the search. No answer is given: this is never reported as an empty result, which would read as 'no such provider'. */
             502: {
                 headers: {
                     "X-Request-Id": components["headers"]["XRequestId"];
@@ -3500,7 +3535,7 @@ export interface operations {
                     "application/fhir+json": components["schemas"]["OperationOutcome"];
                 };
             };
-            /** @description The directory is rate limiting requests. Send the request again after `Retry-After`. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
+            /** @description The directory, or for a pharmacy the NPI Registry, is rate limiting requests. Send the request again after `Retry-After`. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
             503: {
                 headers: {
                     /** @description Sent when waiting will help: the API key could not be checked just now, or the source behind this service is rate limiting requests. How many seconds to wait before sending the request again. */
@@ -3513,7 +3548,7 @@ export interface operations {
                     "application/fhir+json": components["schemas"]["OperationOutcome"];
                 };
             };
-            /** @description The directory did not respond in time. */
+            /** @description The directory, or for a pharmacy the NPI Registry, did not respond in time. */
             504: {
                 headers: {
                     "X-Request-Id": components["headers"]["XRequestId"];
@@ -3606,7 +3641,7 @@ export interface operations {
             406: components["responses"]["FhirNotAcceptable"];
             429: components["responses"]["FhirTooManyRequests"];
             500: components["responses"]["FhirServerError"];
-            /** @description The directory could not be reached, answered in a shape that cannot be served, or answered with more than is served at once: a `_revinclude` past the directory's 100 records on a page, or an answer over 8 MiB. No answer is given: this is never reported as an empty result, which would read as 'no such provider'. */
+            /** @description The directory could not be reached, answered in a shape that cannot be served, or answered with more than is served at once: a `_revinclude` past the directory's 100 records on a page, or an answer over 8 MiB. For a pharmacy, the same of the NPI Registry (NPPES), or a record it sent that does not match the search. No answer is given: this is never reported as an empty result, which would read as 'no such provider'. */
             502: {
                 headers: {
                     "X-Request-Id": components["headers"]["XRequestId"];
@@ -3617,7 +3652,7 @@ export interface operations {
                     "application/fhir+json": components["schemas"]["OperationOutcome"];
                 };
             };
-            /** @description The directory is rate limiting requests. Send the request again after `Retry-After`. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
+            /** @description The directory, or for a pharmacy the NPI Registry, is rate limiting requests. Send the request again after `Retry-After`. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
             503: {
                 headers: {
                     /** @description Sent when waiting will help: the API key could not be checked just now, or the source behind this service is rate limiting requests. How many seconds to wait before sending the request again. */
@@ -3630,7 +3665,7 @@ export interface operations {
                     "application/fhir+json": components["schemas"]["OperationOutcome"];
                 };
             };
-            /** @description The directory did not respond in time. */
+            /** @description The directory, or for a pharmacy the NPI Registry, did not respond in time. */
             504: {
                 headers: {
                     "X-Request-Id": components["headers"]["XRequestId"];
@@ -3698,7 +3733,7 @@ export interface operations {
             406: components["responses"]["FhirNotAcceptable"];
             429: components["responses"]["FhirTooManyRequests"];
             500: components["responses"]["FhirServerError"];
-            /** @description The directory could not be reached, answered in a shape that cannot be served, or answered with more than is served at once: a `_revinclude` past the directory's 100 records on a page, or an answer over 8 MiB. No answer is given: this is never reported as an empty result, which would read as 'no such provider'. */
+            /** @description The directory could not be reached, answered in a shape that cannot be served, or answered with more than is served at once: a `_revinclude` past the directory's 100 records on a page, or an answer over 8 MiB. For a pharmacy, the same of the NPI Registry (NPPES), or a record it sent that does not match the search. No answer is given: this is never reported as an empty result, which would read as 'no such provider'. */
             502: {
                 headers: {
                     "X-Request-Id": components["headers"]["XRequestId"];
@@ -3709,7 +3744,7 @@ export interface operations {
                     "application/fhir+json": components["schemas"]["OperationOutcome"];
                 };
             };
-            /** @description The directory is rate limiting requests. Send the request again after `Retry-After`. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
+            /** @description The directory, or for a pharmacy the NPI Registry, is rate limiting requests. Send the request again after `Retry-After`. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
             503: {
                 headers: {
                     /** @description Sent when waiting will help: the API key could not be checked just now, or the source behind this service is rate limiting requests. How many seconds to wait before sending the request again. */
@@ -3722,7 +3757,7 @@ export interface operations {
                     "application/fhir+json": components["schemas"]["OperationOutcome"];
                 };
             };
-            /** @description The directory did not respond in time. */
+            /** @description The directory, or for a pharmacy the NPI Registry, did not respond in time. */
             504: {
                 headers: {
                     "X-Request-Id": components["headers"]["XRequestId"];
@@ -3809,7 +3844,7 @@ export interface operations {
             406: components["responses"]["FhirNotAcceptable"];
             429: components["responses"]["FhirTooManyRequests"];
             500: components["responses"]["FhirServerError"];
-            /** @description The directory could not be reached, answered in a shape that cannot be served, or answered with more than is served at once: a `_revinclude` past the directory's 100 records on a page, or an answer over 8 MiB. No answer is given: this is never reported as an empty result, which would read as 'no such provider'. */
+            /** @description The directory could not be reached, answered in a shape that cannot be served, or answered with more than is served at once: a `_revinclude` past the directory's 100 records on a page, or an answer over 8 MiB. For a pharmacy, the same of the NPI Registry (NPPES), or a record it sent that does not match the search. No answer is given: this is never reported as an empty result, which would read as 'no such provider'. */
             502: {
                 headers: {
                     "X-Request-Id": components["headers"]["XRequestId"];
@@ -3820,7 +3855,7 @@ export interface operations {
                     "application/fhir+json": components["schemas"]["OperationOutcome"];
                 };
             };
-            /** @description The directory is rate limiting requests. Send the request again after `Retry-After`. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
+            /** @description The directory, or for a pharmacy the NPI Registry, is rate limiting requests. Send the request again after `Retry-After`. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
             503: {
                 headers: {
                     /** @description Sent when waiting will help: the API key could not be checked just now, or the source behind this service is rate limiting requests. How many seconds to wait before sending the request again. */
@@ -3833,7 +3868,7 @@ export interface operations {
                     "application/fhir+json": components["schemas"]["OperationOutcome"];
                 };
             };
-            /** @description The directory did not respond in time. */
+            /** @description The directory, or for a pharmacy the NPI Registry, did not respond in time. */
             504: {
                 headers: {
                     "X-Request-Id": components["headers"]["XRequestId"];
@@ -3901,7 +3936,7 @@ export interface operations {
             406: components["responses"]["FhirNotAcceptable"];
             429: components["responses"]["FhirTooManyRequests"];
             500: components["responses"]["FhirServerError"];
-            /** @description The directory could not be reached, answered in a shape that cannot be served, or answered with more than is served at once: a `_revinclude` past the directory's 100 records on a page, or an answer over 8 MiB. No answer is given: this is never reported as an empty result, which would read as 'no such provider'. */
+            /** @description The directory could not be reached, answered in a shape that cannot be served, or answered with more than is served at once: a `_revinclude` past the directory's 100 records on a page, or an answer over 8 MiB. For a pharmacy, the same of the NPI Registry (NPPES), or a record it sent that does not match the search. No answer is given: this is never reported as an empty result, which would read as 'no such provider'. */
             502: {
                 headers: {
                     "X-Request-Id": components["headers"]["XRequestId"];
@@ -3912,7 +3947,7 @@ export interface operations {
                     "application/fhir+json": components["schemas"]["OperationOutcome"];
                 };
             };
-            /** @description The directory is rate limiting requests. Send the request again after `Retry-After`. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
+            /** @description The directory, or for a pharmacy the NPI Registry, is rate limiting requests. Send the request again after `Retry-After`. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
             503: {
                 headers: {
                     /** @description Sent when waiting will help: the API key could not be checked just now, or the source behind this service is rate limiting requests. How many seconds to wait before sending the request again. */
@@ -3925,7 +3960,7 @@ export interface operations {
                     "application/fhir+json": components["schemas"]["OperationOutcome"];
                 };
             };
-            /** @description The directory did not respond in time. */
+            /** @description The directory, or for a pharmacy the NPI Registry, did not respond in time. */
             504: {
                 headers: {
                     "X-Request-Id": components["headers"]["XRequestId"];
@@ -4501,7 +4536,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description The answer: a FHIR `Bundle` of type `message` with a MessageHeader and one ClaimResponse, returned as the response body itself. */
+            /** @description The answer: a FHIR `Bundle` of type `message` with a MessageHeader, one ClaimResponse and the pharmacy Organizations its prices name, returned as the response body itself. */
             200: {
                 headers: {
                     "X-Request-Id": components["headers"]["XRequestId"];
@@ -4512,7 +4547,7 @@ export interface operations {
                     "application/fhir+json": components["schemas"]["Bundle"];
                 };
             };
-            /** @description The request was refused, before any source was asked: a query parameter (the operation takes none), a body that is not a `message` Bundle (a Parameters resource is refused by name), an event other than the two above (coded `not-supported`), a list over its cap (coded `too-long`: 20 entries, 10 codings on a product, 10 ZIP codes, 10 identifiers on a pharmacy, 20 coverage classes), an element the CARIN profiles require that is missing, a reference that names no entry in the Bundle, a product with no NDC or RxNorm code, a ZIP code that is not five digits or ZIP+4, a request without patient details that names its patient or coverage, or a member's request with no Coverage or no payer identifier. The OperationOutcome names the element by its FHIRPath, never a value sent. */
+            /** @description The request was refused, before any source was asked: a query parameter (the operation takes none), a body that is not a `message` Bundle (a Parameters resource is refused by name), an event other than the two above (coded `not-supported`), a list over its cap (coded `too-long`: 20 entries, 10 codings on a product, 3 ZIP codes, 10 identifiers on a pharmacy, 20 coverage classes), an element the CARIN profiles require that is missing, a reference that names no entry in the Bundle, a product with no NDC or RxNorm code, a ZIP code that is not five digits or ZIP+4, a request without patient details that names its patient or coverage, or a member's request with no Coverage or no payer identifier. The OperationOutcome names the element by its FHIRPath, never a value sent. */
             400: {
                 headers: {
                     "X-Request-Id": components["headers"]["XRequestId"];
@@ -4524,6 +4559,17 @@ export interface operations {
                 };
             };
             401: components["responses"]["FhirUnauthorized"];
+            /** @description Not yet open to customers: while its price sources are being licensed, every request from a customer's organization is refused, with or without patient details, before its body is read. Coded `forbidden`. */
+            403: {
+                headers: {
+                    "X-Request-Id": components["headers"]["XRequestId"];
+                    "X-Correlation-Id": components["headers"]["XCorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/fhir+json": components["schemas"]["OperationOutcome"];
+                };
+            };
             406: components["responses"]["FhirNotAcceptable"];
             /** @description The request body is over 1 MiB. */
             413: {
@@ -4539,7 +4585,19 @@ export interface operations {
             415: components["responses"]["FhirUnsupportedMediaType"];
             429: components["responses"]["FhirTooManyRequests"];
             500: components["responses"]["FhirServerError"];
-            503: components["responses"]["FhirUnavailable"];
+            /** @description No price was returned, and a price source asked did not answer in time or answered with an error, so a later request may be answered. Coded `source-unavailable` in `issue.details.coding`, with `Retry-After`. A source's own words are never repeated. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
+            503: {
+                headers: {
+                    /** @description Sent when waiting will help: the API key could not be checked just now, or the source behind this service is rate limiting requests. How many seconds to wait before sending the request again. */
+                    "Retry-After"?: number;
+                    "X-Request-Id": components["headers"]["XRequestId"];
+                    "X-Correlation-Id": components["headers"]["XCorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/fhir+json": components["schemas"]["OperationOutcome"];
+                };
+            };
         };
     };
     reconcileMedications: {

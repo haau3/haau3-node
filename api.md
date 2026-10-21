@@ -2,7 +2,7 @@
 
 # API reference
 
-Every operation of the haau3 platform API (`1.0.0-preview.6`) is a method on `Haau3`, named by its
+Every operation of the haau3 platform API (`1.0.0-preview.10`) is a method on `Haau3`, named by its
 operationId. Each links to its page on docs.haau3.com, which shows its parameters and an example
 exchange. `params` is the query parameters as one object, `body` the request body, and every method
 takes the per-call options (`{ timeout, maxRetries, signal, correlationId, headers, fetchOptions }`) as its last
@@ -57,7 +57,7 @@ CMS's National Provider Directory as FHIR R4: practitioners and their roles, org
 |---|---|---|
 | [`searchEndpoint(params?)`](https://docs.haau3.com/api-reference/provider-directory/find-endpoints) | `GET /v1/fhir/r4/Endpoint` | Find endpoints |
 | [`readEndpoint(id)`](https://docs.haau3.com/api-reference/provider-directory/read-an-endpoint) | `GET /v1/fhir/r4/Endpoint/{id}` | Read an Endpoint |
-| [`searchHealthcareService(params?)`](https://docs.haau3.com/api-reference/provider-directory/find-healthcare-services) | `GET /v1/fhir/r4/HealthcareService` | Find healthcare services |
+| [`searchHealthcareService(params?)`](https://docs.haau3.com/api-reference/provider-directory/find-healthcare-services-and-pharmacies) | `GET /v1/fhir/r4/HealthcareService` | Find healthcare services and pharmacies |
 | [`readHealthcareService(id)`](https://docs.haau3.com/api-reference/provider-directory/read-a-healthcareservice) | `GET /v1/fhir/r4/HealthcareService/{id}` | Read a HealthcareService |
 | [`searchLocation(params?)`](https://docs.haau3.com/api-reference/provider-directory/find-practice-locations) | `GET /v1/fhir/r4/Location` | Find practice locations |
 | [`readLocation(id)`](https://docs.haau3.com/api-reference/provider-directory/read-a-location) | `GET /v1/fhir/r4/Location/{id}` | Read a Location |
