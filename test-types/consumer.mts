@@ -21,6 +21,20 @@ export async function tour(): Promise<void> {
       void name;
     }
   }
+  // matches() and resolve() type what a page holds, with no cast.
+  const pharmacies = await haau3.searchHealthcareService({
+    "service-category": "pharm",
+    "location.address-state": "FL",
+    "location.address-postalcode": "33131",
+    _include: ["HealthcareService:organization", "HealthcareService:location"],
+  });
+  for (const pharmacy of haau3.matches(pharmacies, "HealthcareService")) {
+    const organization: fhir4.Organization | undefined = haau3.resolve(pharmacies, pharmacy.providedBy, { type: "Organization", from: pharmacy });
+    const anything: fhir4.FhirResource | undefined = haau3.resolve(pharmacies, pharmacy.location?.[0]);
+    // @ts-expect-error A reference resolved as an Organization is not a Location.
+    const wrong: fhir4.Location | undefined = haau3.resolve(pharmacies, pharmacy.providedBy, { type: "Organization" });
+    void [organization, anything, wrong];
+  }
   const slots = await haau3.searchSlots({ state: "MA", limit: 25 });
   const slot: SchedulingSlot | undefined = slots.slots[0];
   const locations = await haau3.searchProviderLocations({ publisher: "haau3" });
