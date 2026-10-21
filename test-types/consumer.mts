@@ -1,6 +1,6 @@
 // Compiled against the packed package by scripts/check-consumer.ts, under each TypeScript version
 // customers use (5.9, 6.0, 7.0), as ES modules. consumer.cts is the same as CommonJS.
-import { AuthError, Haau3, NoAnswerError, RefusedError, type fhir4, type NoAnswerReason } from "@haau3/sdk";
+import { AuthError, ForbiddenError, Haau3, NoAnswerError, RefusedError, type fhir4, type NoAnswerReason } from "@haau3/sdk";
 import type { SchedulingProviderLocation, SchedulingSlot, SearchInsurancePlanParams } from "@haau3/sdk";
 import type { BatchResult, BodyOf, Haau3ErrorJSON, QueryOf, ResponseOf } from "@haau3/sdk";
 
@@ -102,6 +102,10 @@ export async function tour(): Promise<void> {
       const wait: number | undefined = error.retryAfter;
       const ms: number | undefined = error.durationMs;
       void [reason, wait, ms];
+    } else if (error instanceof ForbiddenError) {
+      const status: number = error.status;
+      const why: fhir4.OperationOutcomeIssue[] | undefined = error.outcome?.issue;
+      void [status, why];
     } else if (error instanceof AuthError) {
       const id: string | undefined = error.requestId;
       const mine: string | undefined = error.correlationId;

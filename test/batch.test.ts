@@ -106,6 +106,7 @@ describe("an entry's result", () => {
     ["400", RefusedError, { status: 400 }],
     // The key is checked once for the whole batch, so a refusal inside it is the entry's own.
     ["401", RefusedError, { status: 401 }],
+    ["403", RefusedError, { status: 403 }],
     ["429", NoAnswerError, { status: 429, reason: "rate-limited", retryAfter: undefined }],
     ["500", NoAnswerError, { status: 500, reason: "server-error" }],
     ["502", NoAnswerError, { status: 502, reason: "unavailable" }],
