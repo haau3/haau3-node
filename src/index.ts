@@ -4,6 +4,7 @@ export { AuthError, ForbiddenError, Haau3Error, NoAnswerError, RefusedError, typ
 export type { ClientOptions, FetchOptions, QueryValue, RawRequest, RawResponse, RequestOptions } from "./transport.js";
 export type { BodyOf, OperationId, QueryOf, ResponseOf } from "./operations.js";
 export type { BatchEntry, BatchResult, BatchResults } from "./batch.js";
+export type { ResolveOptions, ResourceOf, ResourceType } from "./bundles.js";
 export type { BatchBuilder } from "./generated/batch.js";
 export type * from "./generated/types.js";
 export { VERSION } from "./version.js";

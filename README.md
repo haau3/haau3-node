@@ -218,6 +218,30 @@ It yields each entry whose search mode is `match`, or says none. A resource an `
 `_revinclude` brought, and a search's own `OperationOutcome`, are not among them; `pages()` gives
 every entry. Scheduling's searches page with `limit` and `offset`, and answer with a `total`.
 
+`matches()` gives one page's matches of a type, typed, with no request, and `resolve()` finds the
+resource a reference names in that page, such as one an `_include` brought:
+
+```ts
+const page = await haau3.searchHealthcareService({
+  "service-category": "pharm",
+  "location.address-state": "FL",
+  "location.address-postalcode": "33131",
+  _include: ["HealthcareService:organization", "HealthcareService:location"],
+});
+
+for (const pharmacy of haau3.matches(page, "HealthcareService")) {
+  const organization = haau3.resolve(page, pharmacy.providedBy, { type: "Organization" });
+  const store = haau3.resolve(page, pharmacy.location?.[0], { type: "Location" });
+  console.log(pharmacy.name, organization?.identifier?.[0]?.value, store?.address?.city);
+}
+```
+
+`resolve()` follows FHIR's rules for references in a Bundle: an absolute reference is the entry with
+that `fullUrl`; a relative one is resolved against the address of the entry holding it when you pass
+that resource as `from`, and otherwise is the one entry whose address ends in that type and id; `#id`
+is found in `from`'s `contained`. It is `undefined` when the page does not hold the resource, and
+throws when two entries could be the one meant or the resource is not of `type`.
+
 ## Several requests in one
 
 `batch()` sends several operations of the FHIR base as one request. The function you pass gets a

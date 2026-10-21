@@ -1,6 +1,7 @@
-import type { Bundle, FhirResource } from "fhir/r4.js";
+import type { Bundle, FhirResource, Reference } from "fhir/r4.js";
 import { APIPromise, type WithResponse } from "./api-promise.js";
 import { batchBundle, readBatch, type BatchEntry, type BatchResults } from "./batch.js";
+import { matchesIn, resolveIn, type ResolveOptions, type ResourceOf, type ResourceType } from "./bundles.js";
 import { NoAnswerError } from "./errors.js";
 import { BatchBuilder } from "./generated/batch.js";
 import { Operations } from "./generated/methods.js";
@@ -75,13 +76,59 @@ export class Haau3 extends Operations {
    * ```
    */
   async *resources(first: Bundle, options: RequestOptions = {}): AsyncGenerator<FhirResource, void, undefined> {
-    for await (const page of this.pages(first, options)) {
-      for (const entry of page.entry ?? []) {
-        const mode = entry.search?.mode;
-        // @types/fhir types a Bundle's entries as the base Resource; a search's are FHIR resources.
-        if (entry.resource && (mode === undefined || mode === "match")) yield entry.resource as FhirResource;
-      }
-    }
+    for await (const page of this.pages(first, options)) yield* matchesIn(page);
+  }
+
+  /**
+   * One page's matches, with no request: each entry whose search mode is `match`, or says none, and
+   * of `type` when you give one, typed as it. A resource an `_include` brought is not among them;
+   * {@link resolve} finds it from the reference that names it. {@link resources} gives the matches
+   * of every page.
+   *
+   * ```ts
+   * const page = await haau3.searchHealthcareService({ "service-category": "pharm", "location.address-state": "FL", "location.address-postalcode": "33131" });
+   * for (const service of haau3.matches(page, "HealthcareService")) console.log(service.name);
+   * ```
+   */
+  matches<K extends ResourceType = ResourceType>(page: Bundle, type?: K): ResourceOf<K>[] {
+    return matchesIn(page, type);
+  }
+
+  /**
+   * The resource a reference names, found in a Bundle with no request, as FHIR R4 resolves one:
+   * a resource an `_include` brought, a message's other entries, a contained resource. Undefined
+   * when the Bundle does not hold it, so a reference to a resource elsewhere is yours to read.
+   *
+   * ```ts
+   * const page = await haau3.searchHealthcareService({
+   *   "service-category": "pharm",
+   *   "location.address-state": "FL",
+   *   "location.address-postalcode": "33131",
+   *   _include: ["HealthcareService:organization", "HealthcareService:location"],
+   * });
+   * for (const service of haau3.matches(page, "HealthcareService")) {
+   *   const organization = haau3.resolve(page, service.providedBy, { type: "Organization" });
+   *   const store = haau3.resolve(page, service.location?.[0], { type: "Location" });
+   * }
+   * ```
+   *
+   * - An absolute reference (`https://...`, `urn:uuid:...`) is the entry with that `fullUrl`.
+   * - A relative one (`Organization/123`) is resolved against the address of the entry holding
+   *   the reference when you pass that resource as `from`, as FHIR says; without `from`, it is the
+   *   one entry whose RESTful address ends in that type and id.
+   * - A reference to a contained resource (`#id`) is found in `from`'s `contained`.
+   * - A version (`.../_history/2`) is matched to the resource's `meta.versionId`.
+   * - A reference by identifier alone, or one FHIR gives no meaning, is undefined.
+   *
+   * Throws a {@link Haau3Error} when the Bundle holds two entries the reference could name, when the
+   * resource found is not of `type`, and when `from` is needed but missing or not in the Bundle.
+   */
+  resolve<K extends ResourceType = ResourceType>(
+    bundle: Bundle,
+    reference: Reference | string | null | undefined,
+    options: ResolveOptions<K> = {},
+  ): ResourceOf<K> | undefined {
+    return resolveIn(bundle, reference, options);
   }
 
   /**
