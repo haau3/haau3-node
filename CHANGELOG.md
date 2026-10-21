@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.10](https://github.com/haau3/haau3-node/compare/v0.2.9...v0.2.10) (2026-10-21)
+
+
+### Features
+
+* matches() and resolve(), a page's matches typed, and what a reference names in it ([#30](https://github.com/haau3/haau3-node/issues/30)) ([357ec90](https://github.com/haau3/haau3-node/commit/357ec903493c95eb1da5b613909315ad9e5c3aa2))
+
 ## [0.2.9](https://github.com/haau3/haau3-node/compare/v0.2.8...v0.2.9) (2026-10-21)
 
 
