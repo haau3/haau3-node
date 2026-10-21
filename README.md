@@ -132,10 +132,11 @@ A retry waits a short, growing interval, or what the API's `Retry-After` header 
 
 ## Errors
 
-Every error is a `Haau3Error`, with the `requestId` the API answered with. There are three kinds:
+Every error is a `Haau3Error`, with the `requestId` the API answered with. There are three kinds,
+and `AuthError` has a subclass for a 403:
 
 ```ts
-import { AuthError, NoAnswerError, RefusedError } from "@haau3/sdk";
+import { AuthError, ForbiddenError, NoAnswerError, RefusedError } from "@haau3/sdk";
 
 try {
   await haau3.readInsurancePlan(id);
@@ -147,11 +148,17 @@ try {
     error.reason; // "timeout", "network", "rate-limited", "unavailable", "server-error" or "unreadable"
     error.retryAfter; // seconds, when the API said
     error.detail; // for a timeout or a network failure: what failed, such as "ECONNREFUSED" or "TimeoutError"
+  } else if (error instanceof ForbiddenError) {
+    // 403: the key was accepted, and its organization may not make this request
+    error.outcome; // why, in the API's words
   } else if (error instanceof AuthError) {
-    // the key was missing, unknown or revoked
+    // 401: the key was missing, unknown or revoked
   }
 }
 ```
+
+`ForbiddenError` extends `AuthError`, so test for it first, as above. A 403 never means the key is
+wrong: there is nothing to rotate, and the body says what the organization may not do.
 
 No answer is never reported as an empty result, and an empty result is never an error. An error's
 message never includes the body the API answered with, and the body (`outcome` or `problem`) is
