@@ -2,7 +2,7 @@
 
 # API reference
 
-Every operation of the haau3 platform API (`1.0.0-preview.10`) is a method on `Haau3`, named by its
+Every operation of the haau3 platform API (`1.0.0-preview.12`) is a method on `Haau3`, named by its
 operationId. Each links to its page on docs.haau3.com, which shows its parameters and an example
 exchange. `params` is the query parameters as one object, `body` the request body, and every method
 takes the per-call options (`{ timeout, maxRetries, signal, correlationId, headers, fetchOptions }`) as its last
@@ -79,16 +79,16 @@ FHIR Questionnaire, served as its source publishes it. This service holds copies
 | [`searchQuestionnaire(params?)`](https://docs.haau3.com/api-reference/questionnaires/list-or-find-a-questionnaire) | `GET /v1/fhir/r4/Questionnaire` | List or find a questionnaire |
 | [`readQuestionnaire(id)`](https://docs.haau3.com/api-reference/questionnaires/read-a-questionnaire) | `GET /v1/fhir/r4/Questionnaire/{id}` | Read a questionnaire |
 
-## Plan Benefits
+## Medical Benefits
 
 FHIR InsurancePlan: what a Medicare Advantage or ACA Marketplace plan covers and what a member pays, read from the files CMS publishes. Every plan names the CMS release it was read from. Read a plan by its id, or search by identifier, name, state or county, and check whether the CMS National Provider Directory lists providers in a plan's network.
 
 | Method | Request | What it does |
 |---|---|---|
-| [`searchInsurancePlan(params?)`](https://docs.haau3.com/api-reference/plan-benefits/find-a-plan) | `GET /v1/fhir/r4/InsurancePlan` | Find a plan |
-| [`readInsurancePlan(id)`](https://docs.haau3.com/api-reference/plan-benefits/read-a-plan) | `GET /v1/fhir/r4/InsurancePlan/{id}` | Read a plan |
-| [`checkInsurancePlanNetwork(id, params)`](https://docs.haau3.com/api-reference/plan-benefits/check-providers-against-a-plans-network) | `GET /v1/fhir/r4/InsurancePlan/{id}/$in-network` | Check providers against a plan's network |
-| [`listInsurancePlanCounties(params)`](https://docs.haau3.com/api-reference/plan-benefits/list-a-states-counties) | `GET /v1/fhir/r4/InsurancePlan/$counties` | List a state's counties |
+| [`searchInsurancePlan(params?)`](https://docs.haau3.com/api-reference/medical-benefits/find-a-plan) | `GET /v1/fhir/r4/InsurancePlan` | Find a plan |
+| [`readInsurancePlan(id)`](https://docs.haau3.com/api-reference/medical-benefits/read-a-plan) | `GET /v1/fhir/r4/InsurancePlan/{id}` | Read a plan |
+| [`checkInsurancePlanNetwork(id, params)`](https://docs.haau3.com/api-reference/medical-benefits/check-providers-against-a-plans-network) | `GET /v1/fhir/r4/InsurancePlan/{id}/$in-network` | Check providers against a plan's network |
+| [`listInsurancePlanCounties(params)`](https://docs.haau3.com/api-reference/medical-benefits/list-a-states-counties) | `GET /v1/fhir/r4/InsurancePlan/$counties` | List a state's counties |
 
 ## Pharmacy Benefits
 

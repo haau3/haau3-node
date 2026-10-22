@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "haau3 Platform API",
-    "version": "1.0.0-preview.10",
+    "version": "1.0.0-preview.12",
     "description": "The haau3 platform API is in preview: it may change as we build, usually to add features or improve performance. Endpoints require an API key, sent as `Authorization: Bearer <key>`. Requests without a valid key return 401. Create a key in the dashboard at https://platform.haau3.com; a new organization starts on the free Developer plan. From 2026-11-01 a request past one of its plan's limits (requests a minute on every plan, requests a month on Developer) returns 429 with `Retry-After`. Every error under `/v1/fhir` is a FHIR `OperationOutcome` and every other error an RFC 9457 problem; https://docs.haau3.com/errors lists every status, whether to retry it, and what a method a path does not take answers."
   },
   "servers": [
@@ -38,7 +38,7 @@
       "description": "FHIR Questionnaire, served as its source publishes it. This service holds copies of a curated set and reaches any other questionnaire its source publishes by canonical URL, as well as forms published at their own address under places this service is set up to reach. Read one by id, and build the QuestionnaireResponse in your own application."
     },
     {
-      "name": "Plan Benefits",
+      "name": "Medical Benefits",
       "description": "FHIR InsurancePlan: what a Medicare Advantage or ACA Marketplace plan covers and what a member pays, read from the files CMS publishes. Every plan names the CMS release it was read from. Read a plan by its id, or search by identifier, name, state or county, and check whether the CMS National Provider Directory lists providers in a plan's network."
     },
     {
@@ -2296,14 +2296,14 @@
                         "name": "haau3 platform FHIR API"
                       },
                       "implementation": {
-                        "description": "haau3 platform FHIR R4 API. Four services and two operations are served from this one base: terminology (CodeSystem, ValueSet), the provider directory (Practitioner, PractitionerRole, Organization, OrganizationAffiliation, HealthcareService, Location, Endpoint), questionnaires (Questionnaire), Plan Benefits (InsurancePlan), MedList's reconcile-medications and Pharmacy Benefits' process-message. Note that `/v1/` versions the haau3 platform API contract, not FHIR; the FHIR release is `r4`, and is echoed on every response as the `fhirVersion` media-type parameter.",
+                        "description": "haau3 platform FHIR R4 API. Four services and two operations are served from this one base: terminology (CodeSystem, ValueSet), the provider directory (Practitioner, PractitionerRole, Organization, OrganizationAffiliation, HealthcareService, Location, Endpoint), questionnaires (Questionnaire), Medical Benefits (InsurancePlan), MedList's reconcile-medications and Pharmacy Benefits' process-message. Note that `/v1/` versions the haau3 platform API contract, not FHIR; the FHIR release is `r4`, and is echoed on every response as the `fhirVersion` media-type parameter.",
                         "url": "https://api.haau3.com/v1/fhir/r4"
                       },
                       "copyright": "This material contains content from LOINC (http://loinc.org). LOINC is copyright © Regenstrief Institute, Inc. and the Logical Observation Identifiers Names and Codes (LOINC) Committee and is available at no cost under the license at http://loinc.org/license. LOINC® is a registered United States trademark of Regenstrief Institute, Inc.\n\nThis product uses publicly available data courtesy of the U.S. National Library of Medicine (NLM), National Institutes of Health, Department of Health and Human Services; NLM is not responsible for the product and does not endorse or recommend this or any other product.\n\nCode systems this service holds locally are served from a dated release, named in the version of every answer and in this statement's TerminologyCapabilities. A held release may not reflect the most current data available from its publisher.\n\nFHIR® is the registered trademark of Health Level Seven International and its use here does not constitute endorsement by HL7.",
                       "rest": [
                         {
                           "mode": "server",
-                          "documentation": "All operations accept GET with query parameters and POST with a Parameters resource. Complex inputs — coding, and codeableConcept on the validate-code operations — are accepted on POST only, as the operations framework requires; on GET pass system and code as separate parameters. A codeableConcept validates if ANY of its codings is a member, which fits data whose elements carry a vendor-local coding alongside a standard one; per-coding membership deliberately ignores each coding's display (a wrong label must not veto a right code — display checking is available on the single-coding form). A coding's version is honoured where the operation defines a version parameter (the CodeSystem operations); ValueSet validation always uses the current code-system version and refuses a versioned coding rather than silently ignoring it. A coding whose system disagrees with an explicitly supplied system or url parameter is refused. Value sets and code systems are addressed by canonical url only; instance-level operation paths ([type]/[id]/$operation) are not offered. An expansion is returned whole: displayLanguage, includeDesignations and activeOnly are refused by name on $expand, and filter, count and offset narrow only a value set this service hosts, being refused for one resolved from its own source. A batch Bundle POSTed to the base runs several operations in one round trip; each entry succeeds or fails independently.\n\nProvider directory resources are proxied from the CMS National Provider Directory and served as published, without modification. Search is GET only. Every search parameter is either declared here or refused by name: a parameter this service does not serve is never silently ignored. Where the directory requires a parameter to be sent beside another (`network` on PractitionerRole and HealthcareService), the rule is applied here, before the directory is asked.\n\nA curated set of questionnaires is served from copies vendored at a recorded release of their source, so those forms render the same way on every request. A search that names a canonical URL this service holds no copy of is answered from the source directly, and depends on that source being reachable. A search with no parameters lists the curated set. Search is GET only, and every search parameter is either declared here or refused by name. No operations are served on Questionnaire, and no QuestionnaireResponse is accepted or stored: a completed response is built by the application that collected it and references the questionnaire as `{url}|{version}`.\n\nPlan Benefits (InsurancePlan): what a Medicare Advantage or ACA Marketplace plan covers and what a member pays, read from the files CMS publishes. Each plan conforms to the haau3 Plan Benefits profile (https://haau3.com/fhir/StructureDefinition/haau3-insurance-plan) and to the SBC InsurancePlan profile of the CARIN Digital Insurance Card guide, 2.0.0-ballot, and names the CMS release it was read from.\n\nMedList: POST [base]/$reconcile-medications reconciles one patient's medication records into one clean list, returned as a Bundle of reconciled MedicationRequests with a Provenance for each. The operation receives patient data, so send it only under an executed agreement. Nothing a request carries is stored or logged. It is invoked directly and is not offered inside a batch.\n\nPharmacy Benefits: POST [base]/$process-message answers a pharmacy benefit check of the CARIN Consumer Real-Time Pharmacy Benefit Check: what a medication would cost a member under their coverage (event rtpbc-request), or its price at pharmacies near a ZIP code, without patient details (event rtpbc-request-non-phi). A member's request carries patient data, so send it only under an executed agreement. Nothing a request carries is stored or logged. It is invoked directly and is not offered inside a batch.",
+                          "documentation": "All operations accept GET with query parameters and POST with a Parameters resource. Complex inputs — coding, and codeableConcept on the validate-code operations — are accepted on POST only, as the operations framework requires; on GET pass system and code as separate parameters. A codeableConcept validates if ANY of its codings is a member, which fits data whose elements carry a vendor-local coding alongside a standard one; per-coding membership deliberately ignores each coding's display (a wrong label must not veto a right code — display checking is available on the single-coding form). A coding's version is honoured where the operation defines a version parameter (the CodeSystem operations); ValueSet validation always uses the current code-system version and refuses a versioned coding rather than silently ignoring it. A coding whose system disagrees with an explicitly supplied system or url parameter is refused. Value sets and code systems are addressed by canonical url only; instance-level operation paths ([type]/[id]/$operation) are not offered. An expansion is returned whole: displayLanguage, includeDesignations and activeOnly are refused by name on $expand, and filter, count and offset narrow only a value set this service hosts, being refused for one resolved from its own source. A batch Bundle POSTed to the base runs several operations in one round trip; each entry succeeds or fails independently.\n\nProvider directory resources are proxied from the CMS National Provider Directory and served as published, without modification. Search is GET only. Every search parameter is either declared here or refused by name: a parameter this service does not serve is never silently ignored. Where the directory requires a parameter to be sent beside another (`network` on PractitionerRole and HealthcareService), the rule is applied here, before the directory is asked.\n\nA curated set of questionnaires is served from copies vendored at a recorded release of their source, so those forms render the same way on every request. A search that names a canonical URL this service holds no copy of is answered from the source directly, and depends on that source being reachable. A search with no parameters lists the curated set. Search is GET only, and every search parameter is either declared here or refused by name. No operations are served on Questionnaire, and no QuestionnaireResponse is accepted or stored: a completed response is built by the application that collected it and references the questionnaire as `{url}|{version}`.\n\nMedical Benefits (InsurancePlan): what a Medicare Advantage or ACA Marketplace plan covers and what a member pays, read from the files CMS publishes. Each plan conforms to the haau3 Medical Benefits profile (https://haau3.com/fhir/StructureDefinition/haau3-insurance-plan) and to the SBC InsurancePlan profile of the CARIN Digital Insurance Card guide, 2.0.0-ballot, and names the CMS release it was read from.\n\nMedList: POST [base]/$reconcile-medications reconciles one patient's medication records into one clean list, returned as a Bundle of reconciled MedicationRequests with a Provenance for each. The operation receives patient data, so send it only under an executed agreement. Nothing a request carries is stored or logged. It is invoked directly and is not offered inside a batch.\n\nPharmacy Benefits: POST [base]/$process-message answers a pharmacy benefit check of the CARIN Consumer Real-Time Pharmacy Benefit Check: what a medication would cost a member under their coverage (event rtpbc-request), or its price at pharmacies near a ZIP code, without patient details (event rtpbc-request-non-phi). A member's request carries patient data, so send it only under an executed agreement. Nothing a request carries is stored or logged. It is invoked directly and is not offered inside a batch.",
                           "interaction": [
                             {
                               "code": "batch"
@@ -11352,7 +11352,7 @@
     "/v1/fhir/r4/InsurancePlan": {
       "get": {
         "tags": [
-          "Plan Benefits"
+          "Medical Benefits"
         ],
         "summary": "Find a plan",
         "description": "Search the Medicare Advantage and ACA Marketplace plans being served, by identifier, name, or the state or county a plan is sold in. A search needs at least one of `identifier`, a form of `name`, `coverage-area-state` or `coverage-area-county`; `type` and `sold-to` narrow a search but are not one. Every result is the whole plan, sorted by name and then id, and every page states the total. Follow the `next` link to continue.\n\nA plan sold in only part of a county matches the whole county. `GET /v1/fhir/r4/InsurancePlan/$counties?state=FL` lists a state's counties and their codes.\n\nEvery other parameter is refused by name rather than ignored, so a search never quietly answers a different question than the one asked. `address-state` and `address-postalcode` are refused with a pointer to the coverage-area parameters, because in FHIR R4 they search a plan's contact address.\n\nDrug-only and dental-only plans are not served. An identifier search that finds one answers no plan and an `OperationOutcome` entry saying why.",
@@ -11543,7 +11543,7 @@
                             ],
                             "extension": [
                               {
-                                "url": "https://haau3.com/fhir/StructureDefinition/plan-benefits-source-release",
+                                "url": "https://haau3.com/fhir/StructureDefinition/medical-benefits-source-release",
                                 "extension": [
                                   {
                                     "url": "release",
@@ -11569,7 +11569,7 @@
                                 ]
                               },
                               {
-                                "url": "https://haau3.com/fhir/StructureDefinition/plan-benefits-plan-facts",
+                                "url": "https://haau3.com/fhir/StructureDefinition/medical-benefits-plan-facts",
                                 "extension": [
                                   {
                                     "url": "specialNeeds",
@@ -11873,7 +11873,7 @@
                               {
                                 "extension": [
                                   {
-                                    "url": "https://haau3.com/fhir/StructureDefinition/plan-benefits-additional-benefit",
+                                    "url": "https://haau3.com/fhir/StructureDefinition/medical-benefits-additional-benefit",
                                     "extension": [
                                       {
                                         "url": "category",
@@ -11968,7 +11968,7 @@
                                     ]
                                   },
                                   {
-                                    "url": "https://haau3.com/fhir/StructureDefinition/plan-benefits-additional-benefit",
+                                    "url": "https://haau3.com/fhir/StructureDefinition/medical-benefits-additional-benefit",
                                     "extension": [
                                       {
                                         "url": "category",
@@ -12015,7 +12015,7 @@
                                             "valueCodeableConcept": {
                                               "coding": [
                                                 {
-                                                  "system": "https://haau3.com/fhir/CodeSystem/plan-benefits-cost-qualifier",
+                                                  "system": "https://haau3.com/fhir/CodeSystem/medical-benefits-cost-qualifier",
                                                   "code": "per-day",
                                                   "display": "Per day"
                                                 }
@@ -12075,7 +12075,7 @@
                                     ]
                                   },
                                   {
-                                    "url": "https://haau3.com/fhir/StructureDefinition/plan-benefits-additional-benefit",
+                                    "url": "https://haau3.com/fhir/StructureDefinition/medical-benefits-additional-benefit",
                                     "extension": [
                                       {
                                         "url": "category",
@@ -12190,7 +12190,7 @@
                                     "type": {
                                       "coding": [
                                         {
-                                          "system": "https://haau3.com/fhir/CodeSystem/plan-benefits-general-cost-type",
+                                          "system": "https://haau3.com/fhir/CodeSystem/medical-benefits-general-cost-type",
                                           "code": "monthly-premium",
                                           "display": "Monthly premium"
                                         }
@@ -12206,7 +12206,7 @@
                                     "type": {
                                       "coding": [
                                         {
-                                          "system": "https://haau3.com/fhir/CodeSystem/plan-benefits-general-cost-type",
+                                          "system": "https://haau3.com/fhir/CodeSystem/medical-benefits-general-cost-type",
                                           "code": "part-b-premium-reduction",
                                           "display": "Part B premium reduction"
                                         }
@@ -12218,7 +12218,7 @@
                                   {
                                     "extension": [
                                       {
-                                        "url": "https://haau3.com/fhir/StructureDefinition/plan-benefits-cost-scope",
+                                        "url": "https://haau3.com/fhir/StructureDefinition/medical-benefits-cost-scope",
                                         "extension": [
                                           {
                                             "url": "network",
@@ -12239,7 +12239,7 @@
                                           {
                                             "url": "appliesTo",
                                             "valueCoding": {
-                                              "system": "https://haau3.com/fhir/CodeSystem/plan-benefits-cost-scope",
+                                              "system": "https://haau3.com/fhir/CodeSystem/medical-benefits-cost-scope",
                                               "code": "medical",
                                               "display": "Medical"
                                             }
@@ -12266,7 +12266,7 @@
                                   {
                                     "extension": [
                                       {
-                                        "url": "https://haau3.com/fhir/StructureDefinition/plan-benefits-cost-scope",
+                                        "url": "https://haau3.com/fhir/StructureDefinition/medical-benefits-cost-scope",
                                         "extension": [
                                           {
                                             "url": "network",
@@ -12287,7 +12287,7 @@
                                           {
                                             "url": "appliesTo",
                                             "valueCoding": {
-                                              "system": "https://haau3.com/fhir/CodeSystem/plan-benefits-cost-scope",
+                                              "system": "https://haau3.com/fhir/CodeSystem/medical-benefits-cost-scope",
                                               "code": "medical",
                                               "display": "Medical"
                                             }
@@ -12314,7 +12314,7 @@
                                   {
                                     "extension": [
                                       {
-                                        "url": "https://haau3.com/fhir/StructureDefinition/plan-benefits-cost-scope",
+                                        "url": "https://haau3.com/fhir/StructureDefinition/medical-benefits-cost-scope",
                                         "extension": [
                                           {
                                             "url": "network",
@@ -12335,7 +12335,7 @@
                                           {
                                             "url": "appliesTo",
                                             "valueCoding": {
-                                              "system": "https://haau3.com/fhir/CodeSystem/plan-benefits-cost-scope",
+                                              "system": "https://haau3.com/fhir/CodeSystem/medical-benefits-cost-scope",
                                               "code": "medical",
                                               "display": "Medical"
                                             }
@@ -12358,12 +12358,12 @@
                                   {
                                     "extension": [
                                       {
-                                        "url": "https://haau3.com/fhir/StructureDefinition/plan-benefits-cost-scope",
+                                        "url": "https://haau3.com/fhir/StructureDefinition/medical-benefits-cost-scope",
                                         "extension": [
                                           {
                                             "url": "network",
                                             "valueCoding": {
-                                              "system": "https://haau3.com/fhir/CodeSystem/plan-benefits-cost-scope",
+                                              "system": "https://haau3.com/fhir/CodeSystem/medical-benefits-cost-scope",
                                               "code": "combined",
                                               "display": "In and out of network combined"
                                             }
@@ -12379,7 +12379,7 @@
                                           {
                                             "url": "appliesTo",
                                             "valueCoding": {
-                                              "system": "https://haau3.com/fhir/CodeSystem/plan-benefits-cost-scope",
+                                              "system": "https://haau3.com/fhir/CodeSystem/medical-benefits-cost-scope",
                                               "code": "medical",
                                               "display": "Medical"
                                             }
@@ -12530,7 +12530,7 @@
                                           {
                                             "extension": [
                                               {
-                                                "url": "https://haau3.com/fhir/StructureDefinition/plan-benefits-cost-range",
+                                                "url": "https://haau3.com/fhir/StructureDefinition/medical-benefits-cost-range",
                                                 "valueRange": {
                                                   "low": {
                                                     "value": 0,
@@ -12640,7 +12640,7 @@
                                           {
                                             "extension": [
                                               {
-                                                "url": "https://haau3.com/fhir/StructureDefinition/plan-benefits-cost-range",
+                                                "url": "https://haau3.com/fhir/StructureDefinition/medical-benefits-cost-range",
                                                 "valueRange": {
                                                   "low": {
                                                     "value": 0,
@@ -12671,7 +12671,7 @@
                                               {
                                                 "coding": [
                                                   {
-                                                    "system": "https://haau3.com/fhir/CodeSystem/plan-benefits-cost-qualifier",
+                                                    "system": "https://haau3.com/fhir/CodeSystem/medical-benefits-cost-qualifier",
                                                     "code": "one-price-both-networks",
                                                     "display": "One price in and out of network"
                                                   }
@@ -12698,7 +12698,7 @@
                                           {
                                             "extension": [
                                               {
-                                                "url": "https://haau3.com/fhir/StructureDefinition/plan-benefits-cost-range",
+                                                "url": "https://haau3.com/fhir/StructureDefinition/medical-benefits-cost-range",
                                                 "valueRange": {
                                                   "low": {
                                                     "value": 0,
@@ -12729,7 +12729,7 @@
                                               {
                                                 "coding": [
                                                   {
-                                                    "system": "https://haau3.com/fhir/CodeSystem/plan-benefits-cost-qualifier",
+                                                    "system": "https://haau3.com/fhir/CodeSystem/medical-benefits-cost-qualifier",
                                                     "code": "one-price-both-networks",
                                                     "display": "One price in and out of network"
                                                   }
@@ -12815,7 +12815,7 @@
                                               {
                                                 "coding": [
                                                   {
-                                                    "system": "https://haau3.com/fhir/CodeSystem/plan-benefits-cost-qualifier",
+                                                    "system": "https://haau3.com/fhir/CodeSystem/medical-benefits-cost-qualifier",
                                                     "code": "one-price-both-networks",
                                                     "display": "One price in and out of network"
                                                   }
@@ -12853,7 +12853,7 @@
                                               {
                                                 "coding": [
                                                   {
-                                                    "system": "https://haau3.com/fhir/CodeSystem/plan-benefits-cost-qualifier",
+                                                    "system": "https://haau3.com/fhir/CodeSystem/medical-benefits-cost-qualifier",
                                                     "code": "one-price-both-networks",
                                                     "display": "One price in and out of network"
                                                   }
@@ -12926,7 +12926,7 @@
                                           {
                                             "extension": [
                                               {
-                                                "url": "https://haau3.com/fhir/StructureDefinition/plan-benefits-day-range",
+                                                "url": "https://haau3.com/fhir/StructureDefinition/medical-benefits-day-range",
                                                 "valueRange": {
                                                   "low": {
                                                     "value": 1,
@@ -12957,7 +12957,7 @@
                                               {
                                                 "coding": [
                                                   {
-                                                    "system": "https://haau3.com/fhir/CodeSystem/plan-benefits-cost-qualifier",
+                                                    "system": "https://haau3.com/fhir/CodeSystem/medical-benefits-cost-qualifier",
                                                     "code": "per-day",
                                                     "display": "Per day"
                                                   }
@@ -12983,7 +12983,7 @@
                                           {
                                             "extension": [
                                               {
-                                                "url": "https://haau3.com/fhir/StructureDefinition/plan-benefits-day-range",
+                                                "url": "https://haau3.com/fhir/StructureDefinition/medical-benefits-day-range",
                                                 "valueRange": {
                                                   "low": {
                                                     "value": 6,
@@ -13014,7 +13014,7 @@
                                               {
                                                 "coding": [
                                                   {
-                                                    "system": "https://haau3.com/fhir/CodeSystem/plan-benefits-cost-qualifier",
+                                                    "system": "https://haau3.com/fhir/CodeSystem/medical-benefits-cost-qualifier",
                                                     "code": "per-day",
                                                     "display": "Per day"
                                                   }
@@ -13052,7 +13052,7 @@
                                               {
                                                 "coding": [
                                                   {
-                                                    "system": "https://haau3.com/fhir/CodeSystem/plan-benefits-cost-qualifier",
+                                                    "system": "https://haau3.com/fhir/CodeSystem/medical-benefits-cost-qualifier",
                                                     "code": "per-stay",
                                                     "display": "Per stay"
                                                   }
@@ -13090,7 +13090,7 @@
                                               {
                                                 "coding": [
                                                   {
-                                                    "system": "https://haau3.com/fhir/CodeSystem/plan-benefits-cost-qualifier",
+                                                    "system": "https://haau3.com/fhir/CodeSystem/medical-benefits-cost-qualifier",
                                                     "code": "per-stay",
                                                     "display": "Per stay"
                                                   }
@@ -13152,7 +13152,7 @@
                                           {
                                             "extension": [
                                               {
-                                                "url": "https://haau3.com/fhir/StructureDefinition/plan-benefits-cost-range",
+                                                "url": "https://haau3.com/fhir/StructureDefinition/medical-benefits-cost-range",
                                                 "valueRange": {
                                                   "low": {
                                                     "value": 0,
@@ -13262,7 +13262,7 @@
                                           {
                                             "extension": [
                                               {
-                                                "url": "https://haau3.com/fhir/StructureDefinition/plan-benefits-cost-range",
+                                                "url": "https://haau3.com/fhir/StructureDefinition/medical-benefits-cost-range",
                                                 "valueRange": {
                                                   "low": {
                                                     "value": 0,
@@ -13372,7 +13372,7 @@
                                           {
                                             "extension": [
                                               {
-                                                "url": "https://haau3.com/fhir/StructureDefinition/plan-benefits-cost-range",
+                                                "url": "https://haau3.com/fhir/StructureDefinition/medical-benefits-cost-range",
                                                 "valueRange": {
                                                   "low": {
                                                     "value": 0,
@@ -13572,7 +13572,7 @@
                                           {
                                             "extension": [
                                               {
-                                                "url": "https://haau3.com/fhir/StructureDefinition/plan-benefits-cost-range",
+                                                "url": "https://haau3.com/fhir/StructureDefinition/medical-benefits-cost-range",
                                                 "valueRange": {
                                                   "low": {
                                                     "value": 0,
@@ -13783,7 +13783,7 @@
                                           {
                                             "extension": [
                                               {
-                                                "url": "https://haau3.com/fhir/StructureDefinition/plan-benefits-day-range",
+                                                "url": "https://haau3.com/fhir/StructureDefinition/medical-benefits-day-range",
                                                 "valueRange": {
                                                   "low": {
                                                     "value": 1,
@@ -13814,7 +13814,7 @@
                                               {
                                                 "coding": [
                                                   {
-                                                    "system": "https://haau3.com/fhir/CodeSystem/plan-benefits-cost-qualifier",
+                                                    "system": "https://haau3.com/fhir/CodeSystem/medical-benefits-cost-qualifier",
                                                     "code": "per-day",
                                                     "display": "Per day"
                                                   }
@@ -13840,7 +13840,7 @@
                                           {
                                             "extension": [
                                               {
-                                                "url": "https://haau3.com/fhir/StructureDefinition/plan-benefits-day-range",
+                                                "url": "https://haau3.com/fhir/StructureDefinition/medical-benefits-day-range",
                                                 "valueRange": {
                                                   "low": {
                                                     "value": 21,
@@ -13871,7 +13871,7 @@
                                               {
                                                 "coding": [
                                                   {
-                                                    "system": "https://haau3.com/fhir/CodeSystem/plan-benefits-cost-qualifier",
+                                                    "system": "https://haau3.com/fhir/CodeSystem/medical-benefits-cost-qualifier",
                                                     "code": "per-day",
                                                     "display": "Per day"
                                                   }
@@ -13897,7 +13897,7 @@
                                           {
                                             "extension": [
                                               {
-                                                "url": "https://haau3.com/fhir/StructureDefinition/plan-benefits-day-range",
+                                                "url": "https://haau3.com/fhir/StructureDefinition/medical-benefits-day-range",
                                                 "valueRange": {
                                                   "low": {
                                                     "value": 1,
@@ -13928,7 +13928,7 @@
                                               {
                                                 "coding": [
                                                   {
-                                                    "system": "https://haau3.com/fhir/CodeSystem/plan-benefits-cost-qualifier",
+                                                    "system": "https://haau3.com/fhir/CodeSystem/medical-benefits-cost-qualifier",
                                                     "code": "per-day",
                                                     "display": "Per day"
                                                   }
@@ -13966,7 +13966,7 @@
                                               {
                                                 "coding": [
                                                   {
-                                                    "system": "https://haau3.com/fhir/CodeSystem/plan-benefits-cost-qualifier",
+                                                    "system": "https://haau3.com/fhir/CodeSystem/medical-benefits-cost-qualifier",
                                                     "code": "per-stay",
                                                     "display": "Per stay"
                                                   }
@@ -14149,7 +14149,7 @@
     "/v1/fhir/r4/InsurancePlan/$counties": {
       "get": {
         "tags": [
-          "Plan Benefits"
+          "Medical Benefits"
         ],
         "summary": "List a state's counties",
         "description": "FHIR type-level operation `$counties` on InsurancePlan: the counties and county equivalents of a state, the District of Columbia or a territory, sorted by name, each with the five-digit FIPS code `coverage-area-county` takes. The answer is a `Parameters` resource: one `county` parameter per county, whose `code` part is a Coding in `http://terminology.hl7.org/CodeSystem/FIPS64` with the county's name as its display and whose `state` part is the state's code, then a `source` parameter naming the list: the U.S. Census Bureau's 2020 county codes. It answers whether or not a plan is sold in a county. GET only. Defined by the haau3 implementation guide (`https://haau3.com/fhir/OperationDefinition/InsurancePlan-counties`).",
@@ -15399,10 +15399,10 @@
     "/v1/fhir/r4/InsurancePlan/{id}": {
       "get": {
         "tags": [
-          "Plan Benefits"
+          "Medical Benefits"
         ],
         "summary": "Read a plan",
-        "description": "Read one plan by its id. A Medicare Advantage plan's id is CMS's plan id with the segment in three digits (`H2406-013-000`); a Marketplace plan's is its HIOS plan id with the variant (`19898FL0340001-01`). The plan conforms to the haau3 Plan Benefits profile and to the SBC InsurancePlan profile of the CARIN Digital Insurance Card guide, 2.0.0-ballot, and names the CMS release it was read from.",
+        "description": "Read one plan by its id. A Medicare Advantage plan's id is CMS's plan id with the segment in three digits (`H2406-013-000`); a Marketplace plan's is its HIOS plan id with the variant (`19898FL0340001-01`). The plan conforms to the haau3 Medical Benefits profile and to the SBC InsurancePlan profile of the CARIN Digital Insurance Card guide, 2.0.0-ballot, and names the CMS release it was read from.",
         "operationId": "readInsurancePlan",
         "parameters": [
           {
@@ -15483,7 +15483,7 @@
                       ],
                       "extension": [
                         {
-                          "url": "https://haau3.com/fhir/StructureDefinition/plan-benefits-source-release",
+                          "url": "https://haau3.com/fhir/StructureDefinition/medical-benefits-source-release",
                           "extension": [
                             {
                               "url": "release",
@@ -15509,7 +15509,7 @@
                           ]
                         },
                         {
-                          "url": "https://haau3.com/fhir/StructureDefinition/plan-benefits-plan-facts",
+                          "url": "https://haau3.com/fhir/StructureDefinition/medical-benefits-plan-facts",
                           "extension": [
                             {
                               "url": "specialNeeds",
@@ -15813,7 +15813,7 @@
                         {
                           "extension": [
                             {
-                              "url": "https://haau3.com/fhir/StructureDefinition/plan-benefits-additional-benefit",
+                              "url": "https://haau3.com/fhir/StructureDefinition/medical-benefits-additional-benefit",
                               "extension": [
                                 {
                                   "url": "category",
@@ -15908,7 +15908,7 @@
                               ]
                             },
                             {
-                              "url": "https://haau3.com/fhir/StructureDefinition/plan-benefits-additional-benefit",
+                              "url": "https://haau3.com/fhir/StructureDefinition/medical-benefits-additional-benefit",
                               "extension": [
                                 {
                                   "url": "category",
@@ -15955,7 +15955,7 @@
                                       "valueCodeableConcept": {
                                         "coding": [
                                           {
-                                            "system": "https://haau3.com/fhir/CodeSystem/plan-benefits-cost-qualifier",
+                                            "system": "https://haau3.com/fhir/CodeSystem/medical-benefits-cost-qualifier",
                                             "code": "per-day",
                                             "display": "Per day"
                                           }
@@ -16015,7 +16015,7 @@
                               ]
                             },
                             {
-                              "url": "https://haau3.com/fhir/StructureDefinition/plan-benefits-additional-benefit",
+                              "url": "https://haau3.com/fhir/StructureDefinition/medical-benefits-additional-benefit",
                               "extension": [
                                 {
                                   "url": "category",
@@ -16130,7 +16130,7 @@
                               "type": {
                                 "coding": [
                                   {
-                                    "system": "https://haau3.com/fhir/CodeSystem/plan-benefits-general-cost-type",
+                                    "system": "https://haau3.com/fhir/CodeSystem/medical-benefits-general-cost-type",
                                     "code": "monthly-premium",
                                     "display": "Monthly premium"
                                   }
@@ -16146,7 +16146,7 @@
                               "type": {
                                 "coding": [
                                   {
-                                    "system": "https://haau3.com/fhir/CodeSystem/plan-benefits-general-cost-type",
+                                    "system": "https://haau3.com/fhir/CodeSystem/medical-benefits-general-cost-type",
                                     "code": "part-b-premium-reduction",
                                     "display": "Part B premium reduction"
                                   }
@@ -16158,7 +16158,7 @@
                             {
                               "extension": [
                                 {
-                                  "url": "https://haau3.com/fhir/StructureDefinition/plan-benefits-cost-scope",
+                                  "url": "https://haau3.com/fhir/StructureDefinition/medical-benefits-cost-scope",
                                   "extension": [
                                     {
                                       "url": "network",
@@ -16179,7 +16179,7 @@
                                     {
                                       "url": "appliesTo",
                                       "valueCoding": {
-                                        "system": "https://haau3.com/fhir/CodeSystem/plan-benefits-cost-scope",
+                                        "system": "https://haau3.com/fhir/CodeSystem/medical-benefits-cost-scope",
                                         "code": "medical",
                                         "display": "Medical"
                                       }
@@ -16206,7 +16206,7 @@
                             {
                               "extension": [
                                 {
-                                  "url": "https://haau3.com/fhir/StructureDefinition/plan-benefits-cost-scope",
+                                  "url": "https://haau3.com/fhir/StructureDefinition/medical-benefits-cost-scope",
                                   "extension": [
                                     {
                                       "url": "network",
@@ -16227,7 +16227,7 @@
                                     {
                                       "url": "appliesTo",
                                       "valueCoding": {
-                                        "system": "https://haau3.com/fhir/CodeSystem/plan-benefits-cost-scope",
+                                        "system": "https://haau3.com/fhir/CodeSystem/medical-benefits-cost-scope",
                                         "code": "medical",
                                         "display": "Medical"
                                       }
@@ -16254,7 +16254,7 @@
                             {
                               "extension": [
                                 {
-                                  "url": "https://haau3.com/fhir/StructureDefinition/plan-benefits-cost-scope",
+                                  "url": "https://haau3.com/fhir/StructureDefinition/medical-benefits-cost-scope",
                                   "extension": [
                                     {
                                       "url": "network",
@@ -16275,7 +16275,7 @@
                                     {
                                       "url": "appliesTo",
                                       "valueCoding": {
-                                        "system": "https://haau3.com/fhir/CodeSystem/plan-benefits-cost-scope",
+                                        "system": "https://haau3.com/fhir/CodeSystem/medical-benefits-cost-scope",
                                         "code": "medical",
                                         "display": "Medical"
                                       }
@@ -16298,12 +16298,12 @@
                             {
                               "extension": [
                                 {
-                                  "url": "https://haau3.com/fhir/StructureDefinition/plan-benefits-cost-scope",
+                                  "url": "https://haau3.com/fhir/StructureDefinition/medical-benefits-cost-scope",
                                   "extension": [
                                     {
                                       "url": "network",
                                       "valueCoding": {
-                                        "system": "https://haau3.com/fhir/CodeSystem/plan-benefits-cost-scope",
+                                        "system": "https://haau3.com/fhir/CodeSystem/medical-benefits-cost-scope",
                                         "code": "combined",
                                         "display": "In and out of network combined"
                                       }
@@ -16319,7 +16319,7 @@
                                     {
                                       "url": "appliesTo",
                                       "valueCoding": {
-                                        "system": "https://haau3.com/fhir/CodeSystem/plan-benefits-cost-scope",
+                                        "system": "https://haau3.com/fhir/CodeSystem/medical-benefits-cost-scope",
                                         "code": "medical",
                                         "display": "Medical"
                                       }
@@ -16470,7 +16470,7 @@
                                     {
                                       "extension": [
                                         {
-                                          "url": "https://haau3.com/fhir/StructureDefinition/plan-benefits-cost-range",
+                                          "url": "https://haau3.com/fhir/StructureDefinition/medical-benefits-cost-range",
                                           "valueRange": {
                                             "low": {
                                               "value": 0,
@@ -16580,7 +16580,7 @@
                                     {
                                       "extension": [
                                         {
-                                          "url": "https://haau3.com/fhir/StructureDefinition/plan-benefits-cost-range",
+                                          "url": "https://haau3.com/fhir/StructureDefinition/medical-benefits-cost-range",
                                           "valueRange": {
                                             "low": {
                                               "value": 0,
@@ -16611,7 +16611,7 @@
                                         {
                                           "coding": [
                                             {
-                                              "system": "https://haau3.com/fhir/CodeSystem/plan-benefits-cost-qualifier",
+                                              "system": "https://haau3.com/fhir/CodeSystem/medical-benefits-cost-qualifier",
                                               "code": "one-price-both-networks",
                                               "display": "One price in and out of network"
                                             }
@@ -16638,7 +16638,7 @@
                                     {
                                       "extension": [
                                         {
-                                          "url": "https://haau3.com/fhir/StructureDefinition/plan-benefits-cost-range",
+                                          "url": "https://haau3.com/fhir/StructureDefinition/medical-benefits-cost-range",
                                           "valueRange": {
                                             "low": {
                                               "value": 0,
@@ -16669,7 +16669,7 @@
                                         {
                                           "coding": [
                                             {
-                                              "system": "https://haau3.com/fhir/CodeSystem/plan-benefits-cost-qualifier",
+                                              "system": "https://haau3.com/fhir/CodeSystem/medical-benefits-cost-qualifier",
                                               "code": "one-price-both-networks",
                                               "display": "One price in and out of network"
                                             }
@@ -16755,7 +16755,7 @@
                                         {
                                           "coding": [
                                             {
-                                              "system": "https://haau3.com/fhir/CodeSystem/plan-benefits-cost-qualifier",
+                                              "system": "https://haau3.com/fhir/CodeSystem/medical-benefits-cost-qualifier",
                                               "code": "one-price-both-networks",
                                               "display": "One price in and out of network"
                                             }
@@ -16793,7 +16793,7 @@
                                         {
                                           "coding": [
                                             {
-                                              "system": "https://haau3.com/fhir/CodeSystem/plan-benefits-cost-qualifier",
+                                              "system": "https://haau3.com/fhir/CodeSystem/medical-benefits-cost-qualifier",
                                               "code": "one-price-both-networks",
                                               "display": "One price in and out of network"
                                             }
@@ -16866,7 +16866,7 @@
                                     {
                                       "extension": [
                                         {
-                                          "url": "https://haau3.com/fhir/StructureDefinition/plan-benefits-day-range",
+                                          "url": "https://haau3.com/fhir/StructureDefinition/medical-benefits-day-range",
                                           "valueRange": {
                                             "low": {
                                               "value": 1,
@@ -16897,7 +16897,7 @@
                                         {
                                           "coding": [
                                             {
-                                              "system": "https://haau3.com/fhir/CodeSystem/plan-benefits-cost-qualifier",
+                                              "system": "https://haau3.com/fhir/CodeSystem/medical-benefits-cost-qualifier",
                                               "code": "per-day",
                                               "display": "Per day"
                                             }
@@ -16923,7 +16923,7 @@
                                     {
                                       "extension": [
                                         {
-                                          "url": "https://haau3.com/fhir/StructureDefinition/plan-benefits-day-range",
+                                          "url": "https://haau3.com/fhir/StructureDefinition/medical-benefits-day-range",
                                           "valueRange": {
                                             "low": {
                                               "value": 6,
@@ -16954,7 +16954,7 @@
                                         {
                                           "coding": [
                                             {
-                                              "system": "https://haau3.com/fhir/CodeSystem/plan-benefits-cost-qualifier",
+                                              "system": "https://haau3.com/fhir/CodeSystem/medical-benefits-cost-qualifier",
                                               "code": "per-day",
                                               "display": "Per day"
                                             }
@@ -16992,7 +16992,7 @@
                                         {
                                           "coding": [
                                             {
-                                              "system": "https://haau3.com/fhir/CodeSystem/plan-benefits-cost-qualifier",
+                                              "system": "https://haau3.com/fhir/CodeSystem/medical-benefits-cost-qualifier",
                                               "code": "per-stay",
                                               "display": "Per stay"
                                             }
@@ -17030,7 +17030,7 @@
                                         {
                                           "coding": [
                                             {
-                                              "system": "https://haau3.com/fhir/CodeSystem/plan-benefits-cost-qualifier",
+                                              "system": "https://haau3.com/fhir/CodeSystem/medical-benefits-cost-qualifier",
                                               "code": "per-stay",
                                               "display": "Per stay"
                                             }
@@ -17092,7 +17092,7 @@
                                     {
                                       "extension": [
                                         {
-                                          "url": "https://haau3.com/fhir/StructureDefinition/plan-benefits-cost-range",
+                                          "url": "https://haau3.com/fhir/StructureDefinition/medical-benefits-cost-range",
                                           "valueRange": {
                                             "low": {
                                               "value": 0,
@@ -17202,7 +17202,7 @@
                                     {
                                       "extension": [
                                         {
-                                          "url": "https://haau3.com/fhir/StructureDefinition/plan-benefits-cost-range",
+                                          "url": "https://haau3.com/fhir/StructureDefinition/medical-benefits-cost-range",
                                           "valueRange": {
                                             "low": {
                                               "value": 0,
@@ -17312,7 +17312,7 @@
                                     {
                                       "extension": [
                                         {
-                                          "url": "https://haau3.com/fhir/StructureDefinition/plan-benefits-cost-range",
+                                          "url": "https://haau3.com/fhir/StructureDefinition/medical-benefits-cost-range",
                                           "valueRange": {
                                             "low": {
                                               "value": 0,
@@ -17512,7 +17512,7 @@
                                     {
                                       "extension": [
                                         {
-                                          "url": "https://haau3.com/fhir/StructureDefinition/plan-benefits-cost-range",
+                                          "url": "https://haau3.com/fhir/StructureDefinition/medical-benefits-cost-range",
                                           "valueRange": {
                                             "low": {
                                               "value": 0,
@@ -17723,7 +17723,7 @@
                                     {
                                       "extension": [
                                         {
-                                          "url": "https://haau3.com/fhir/StructureDefinition/plan-benefits-day-range",
+                                          "url": "https://haau3.com/fhir/StructureDefinition/medical-benefits-day-range",
                                           "valueRange": {
                                             "low": {
                                               "value": 1,
@@ -17754,7 +17754,7 @@
                                         {
                                           "coding": [
                                             {
-                                              "system": "https://haau3.com/fhir/CodeSystem/plan-benefits-cost-qualifier",
+                                              "system": "https://haau3.com/fhir/CodeSystem/medical-benefits-cost-qualifier",
                                               "code": "per-day",
                                               "display": "Per day"
                                             }
@@ -17780,7 +17780,7 @@
                                     {
                                       "extension": [
                                         {
-                                          "url": "https://haau3.com/fhir/StructureDefinition/plan-benefits-day-range",
+                                          "url": "https://haau3.com/fhir/StructureDefinition/medical-benefits-day-range",
                                           "valueRange": {
                                             "low": {
                                               "value": 21,
@@ -17811,7 +17811,7 @@
                                         {
                                           "coding": [
                                             {
-                                              "system": "https://haau3.com/fhir/CodeSystem/plan-benefits-cost-qualifier",
+                                              "system": "https://haau3.com/fhir/CodeSystem/medical-benefits-cost-qualifier",
                                               "code": "per-day",
                                               "display": "Per day"
                                             }
@@ -17837,7 +17837,7 @@
                                     {
                                       "extension": [
                                         {
-                                          "url": "https://haau3.com/fhir/StructureDefinition/plan-benefits-day-range",
+                                          "url": "https://haau3.com/fhir/StructureDefinition/medical-benefits-day-range",
                                           "valueRange": {
                                             "low": {
                                               "value": 1,
@@ -17868,7 +17868,7 @@
                                         {
                                           "coding": [
                                             {
-                                              "system": "https://haau3.com/fhir/CodeSystem/plan-benefits-cost-qualifier",
+                                              "system": "https://haau3.com/fhir/CodeSystem/medical-benefits-cost-qualifier",
                                               "code": "per-day",
                                               "display": "Per day"
                                             }
@@ -17906,7 +17906,7 @@
                                         {
                                           "coding": [
                                             {
-                                              "system": "https://haau3.com/fhir/CodeSystem/plan-benefits-cost-qualifier",
+                                              "system": "https://haau3.com/fhir/CodeSystem/medical-benefits-cost-qualifier",
                                               "code": "per-stay",
                                               "display": "Per stay"
                                             }
@@ -18065,7 +18065,7 @@
     "/v1/fhir/r4/InsurancePlan/{id}/$in-network": {
       "get": {
         "tags": [
-          "Plan Benefits"
+          "Medical Benefits"
         ],
         "summary": "Check providers against a plan's network",
         "description": "FHIR instance-level operation `$in-network` on InsurancePlan: for each NPI, whether the CMS National Provider Directory lists the provider in a network this plan names, for the plan's year. The answer is a `Parameters` resource: the `plan`; the directory's `data-date`; one `network` per network checked, with the number of organizations it lists; a `reason` when there is no network data; a Marketplace plan's own `directory`; one `provider` per NPI, in the order sent, with its `status` (`in-network`, `not-found`, `not-in-directory` or `no-network-data`) and, when listed, `evidence` references to the directory's records on this base; then a `source` when the directory was asked. `not-found` never means out of network: the directory's network data is incomplete, and a listing is not a statement of a contract. All or nothing: a lookup that fails fails the whole answer. GET only. Defined by the haau3 implementation guide (`https://haau3.com/fhir/OperationDefinition/InsurancePlan-in-network`).",
@@ -18160,7 +18160,7 @@
                             {
                               "name": "status",
                               "valueCoding": {
-                                "system": "https://haau3.com/fhir/CodeSystem/plan-benefits-network-status",
+                                "system": "https://haau3.com/fhir/CodeSystem/medical-benefits-network-status",
                                 "code": "in-network",
                                 "display": "In network"
                               }
@@ -18186,7 +18186,7 @@
                             {
                               "name": "status",
                               "valueCoding": {
-                                "system": "https://haau3.com/fhir/CodeSystem/plan-benefits-network-status",
+                                "system": "https://haau3.com/fhir/CodeSystem/medical-benefits-network-status",
                                 "code": "not-in-directory",
                                 "display": "Not in the directory"
                               }
@@ -18330,9 +18330,25 @@
           "Pharmacy Benefits"
         ],
         "summary": "Check what a medication costs (pharmacy benefit check)",
-        "description": "FHIR system-level operation `$process-message`, as the CARIN Consumer Real-Time Pharmacy Benefit Check (STU2 ballot, `2.0.0-ballot`) specifies. Not yet open to customers: while its price sources are being licensed, every request from a customer's organization, with or without patient details, is refused with `403` `forbidden`. POST a FHIR `Bundle` of type `message` whose first entry is a MessageHeader with one of two events. `rtpbc-request-non-phi` asks for a medication's price without patient details: a Claim naming the product (an NDC of 11 digits with no dashes, or an RxNorm code) and the quantity, with the patient and the coverage masked, and a pharmacy, up to three ZIP codes, or both. It is answered by price sources: Cost Plus Drugs (its mail order and the Team Cuban Card) and ClixRx. `rtpbc-request` asks what a medication would cost a member under their coverage: the member's Patient and Coverage, with the payer's identifier in `payor.identifier`, the prescription and its prescriber, and a pharmacy. The answer is a `message` Bundle whose MessageHeader answers the request's, with one ClaimResponse that carries either prices and coverage in `item` or the reason there are none in `error`, and for a member's request the request's Patient as it was sent. With prices, `item` is the lowest price at a pharmacy near the ZIP codes or at the pharmacy named, every price is also an `addItem` alternative naming its pharmacy by an Organization in the Bundle and its price source in `programCode`, from `https://haau3.com/fhir/CodeSystem/pharmacy-benefits-price-source`, and `processNote` says where each price came from, when, and which free discount card pays it. Each price repeats the request's product coding, which CARIN requires to carry a display: an RxNorm code sent without one is answered with the display haau3's RxNorm release gives it, and an NDC needs its display sent with it. A check no connected source can answer carries `no-responder-for-coverage`, `no-price-source` or `source-not-available-to-caller` from `https://haau3.com/fhir/CodeSystem/pharmacy-benefits-processing-code`. A price is an estimate; the pharmacy confirms the price. A member's request receives patient data, so send it only under an executed agreement. Nothing a request carries is stored or logged, apart from the request's ids, and every answer is sent with `Cache-Control: no-store`. The operation takes no parameters and is not offered inside a batch. The contract is published at https://fhir.haau3.com/pharmacy-benefits.html.",
+        "description": "FHIR system-level operation `$process-message`, as the CARIN Consumer Real-Time Pharmacy Benefit Check (STU2 ballot, `2.0.0-ballot`) specifies. Not yet open to customers: while its price sources are being licensed, every request from a customer's organization, with or without patient details, is refused with `403` `forbidden`. POST a FHIR `Bundle` of type `message` whose first entry is a MessageHeader with one of two events. `rtpbc-request-non-phi` asks for a medication's price without patient details: a Claim naming the product (an NDC of 11 digits with no dashes, or an RxNorm code) and the quantity, with the patient and the coverage masked, and a pharmacy, up to three ZIP codes, or both. It is answered by price sources: Cost Plus Drugs (its mail order and the Team Cuban Card) and ClixRx. `rtpbc-request` asks what a medication would cost a member under their coverage: the member's Patient and Coverage, with the payer's identifier in `payor.identifier`, the prescription and its prescriber, and a pharmacy. It is answered by the member's insurer, found by the payer's Payer ID: a `payor.identifier` whose `type` is `payerid` from `http://hl7.org/fhir/us/carin-bb/CodeSystem/C4BBIdentifierType`. An insurer that answers only with the member's own authorization is sent the access token from the member's login with that insurer, in the `Payer-Authorization` header, for that one request; it is never stored, logged or sent anywhere else. No insurer is connected yet. The answer is a `message` Bundle whose MessageHeader answers the request's, with one ClaimResponse that carries either prices and coverage in `item` or the reason there are none in `error`, and for a member's request the request's Patient as it was sent. With prices, `item` is the lowest price at a pharmacy near the ZIP codes or at the pharmacy named, every price is also an `addItem` alternative naming its pharmacy by an Organization in the Bundle and its price source in `programCode`, from `https://haau3.com/fhir/CodeSystem/pharmacy-benefits-price-source`, and `processNote` says where each price came from, when, and which free discount card pays it. Each price repeats the request's product coding, which CARIN requires to carry a display: an RxNorm code sent without one is answered with the display haau3's RxNorm release gives it, and an NDC needs its display sent with it. A check no connected source can answer carries `no-responder-for-coverage`, `no-price-source` or `source-not-available-to-caller` from `https://haau3.com/fhir/CodeSystem/pharmacy-benefits-processing-code`, and a member's request to an insurer that needs the member's authorization carries `payer-authorization-required` when none was sent and `payer-authorization-rejected` when the insurer refused it. A price is an estimate; the pharmacy confirms the price. A member's request receives patient data, so send it only under an executed agreement. Nothing a request carries is stored or logged, apart from the request's ids, and every answer is sent with `Cache-Control: no-store`. The operation takes no query parameters and is not offered inside a batch. The contract is published at https://fhir.haau3.com/pharmacy-benefits.html.",
         "operationId": "processMessage",
         "x-haau3-batchable": false,
+        "parameters": [
+          {
+            "name": "Payer-Authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 4096,
+              "pattern": "^[Bb][Ee][Aa][Rr][Ee][Rr] +[A-Za-z0-9\\-._~+/]+=*$"
+            },
+            "description": "A member's own authorization at their insurer, for a member's request (event `rtpbc-request`) to an insurer that answers only with it: `Bearer` and the access token your app obtained from the member's login with that insurer, as an `Authorization` header carries one. It is forwarded once, to that insurer, for this request, and is never stored, logged or sent anywhere else. Without it, such a request is answered `payer-authorization-required`; a token the insurer refuses is answered `payer-authorization-rejected`. A request without patient details that carries it is refused."
+          },
+          {
+            "$ref": "#/components/parameters/XRequestId"
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -19281,7 +19297,7 @@
             }
           },
           "400": {
-            "description": "The request was refused, before any source was asked: a query parameter (the operation takes none), a body that is not a `message` Bundle (a Parameters resource is refused by name), an event other than the two above (coded `not-supported`), a list over its cap (coded `too-long`: 20 entries, 10 codings on a product, 3 ZIP codes, 10 identifiers on a pharmacy, 20 coverage classes), an element the CARIN profiles require that is missing, a reference that names no entry in the Bundle, a product with no NDC or RxNorm code, a ZIP code that is not five digits or ZIP+4, a request without patient details that names its patient or coverage, or a member's request with no Coverage or no payer identifier. The OperationOutcome names the element by its FHIRPath, never a value sent.",
+            "description": "The request was refused, before any source was asked: a query parameter (the operation takes none), a body that is not a `message` Bundle (a Parameters resource is refused by name), an event other than the two above (coded `not-supported`), a list over its cap (coded `too-long`: 20 entries, 10 codings on a product, 3 ZIP codes, 10 identifiers on a pharmacy, 20 coverage classes), an element the CARIN profiles require that is missing, a reference that names no entry in the Bundle, a product with no NDC or RxNorm code, a ZIP code that is not five digits or ZIP+4, a request without patient details that names its patient or coverage, a member's request with no Coverage or no payer identifier, a `Payer-Authorization` that is not `Bearer` and a token or is over 4,096 characters (coded `invalid` or `too-long`), or a `Payer-Authorization` sent with a request without patient details (coded `business-rule`), which no price source ever receives. The OperationOutcome names the element by its FHIRPath, or the header by its name, never a value sent.",
             "content": {
               "application/fhir+json": {
                 "schema": {
@@ -19367,7 +19383,7 @@
             "$ref": "#/components/responses/FhirServerError"
           },
           "503": {
-            "description": "No price was returned, and a price source asked did not answer in time or answered with an error, so a later request may be answered. Coded `source-unavailable` in `issue.details.coding`, with `Retry-After`. A source's own words are never repeated. It is also the answer when the API key could not be checked just now, with `Retry-After`.",
+            "description": "No price was returned, and a price source asked did not answer in time or answered with an error, or the member's insurer did not, so a later request may be answered. Coded `source-unavailable` in `issue.details.coding`, with `Retry-After`. A source's own words are never repeated. It is also the answer when the API key could not be checked just now, with `Retry-After`.",
             "content": {
               "application/fhir+json": {
                 "schema": {
@@ -19391,12 +19407,7 @@
               }
             }
           }
-        },
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/XRequestId"
-          }
-        ]
+        }
       }
     },
     "/v1/fhir/r4/$reconcile-medications": {
