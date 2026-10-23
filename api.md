@@ -9,6 +9,9 @@ takes the per-call options (`{ timeout, maxRetries, signal, correlationId, heade
 argument. Every method's answer can be awaited as it is, or with `.withResponse()` for its request id
 and timing too.
 
+An operation that declares a header takes it as one more option, named from the header and checked
+before sending: `processMessage` takes `payerAuthorization`, sent as `Payer-Authorization`.
+
 `batch()` sends several of these as one request, each with its own answer or error. It takes
 every operation on the FHIR base except `fhirBatch`, `processMessage` and `reconcileMedications`: 29 of the
 37. See the README's "Several requests in one".

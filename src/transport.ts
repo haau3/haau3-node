@@ -67,6 +67,52 @@ export interface RequestOptions {
 }
 
 /**
+ * The names of {@link RequestOptions}, which the option for a header an operation declares must not
+ * shadow (scripts/generate.ts). Every name is listed, or this file does not compile.
+ */
+export const CALL_OPTIONS = ["timeout", "maxRetries", "signal", "correlationId", "headers", "fetchOptions"] as const satisfies readonly (keyof RequestOptions)[];
+export type EveryCallOptionListed = Exclude<keyof RequestOptions, (typeof CALL_OPTIONS)[number]> extends never ? true : never;
+const everyCallOptionListed: EveryCallOptionListed = true;
+void everyCallOptionListed;
+
+/**
+ * A header parameter an operation declares, sent from the call's option of the same name in
+ * camelCase, and checked against the parameter's schema before sending.
+ */
+interface DeclaredHeader {
+  /** The header, as the spec names it. */
+  name: string;
+  /** The option it is sent from. */
+  option: string;
+  maxLength?: number;
+  pattern?: string;
+}
+
+/**
+ * The headers an operation declares, from the call's options: each one set is checked against its
+ * schema and sent, lower-cased. A value the API would refuse is refused here, before anything is
+ * sent, and the message names the option, never the value: a header such as `Payer-Authorization`
+ * carries a credential.
+ */
+function declaredHeaders(call: OperationCall, options: RequestOptions): Record<string, string> {
+  const headers: Record<string, string> = {};
+  for (const header of call.declared ?? []) {
+    const value: unknown = (options as Record<string, unknown>)[header.option];
+    if (value === undefined) continue;
+    const notSent = `${call.method} ${call.path} was not sent: ${header.option}`;
+    if (typeof value !== "string") throw new Haau3Error(`${notSent} must be a string.`);
+    if (header.maxLength !== undefined && value.length > header.maxLength) {
+      throw new Haau3Error(`${notSent} is longer than the ${header.maxLength} characters the API takes in ${header.name}.`);
+    }
+    if (header.pattern !== undefined && !new RegExp(header.pattern).test(value)) {
+      throw new Haau3Error(`${notSent} is not in the form the API takes in ${header.name}, which the option's description gives.`);
+    }
+    headers[header.name.toLowerCase()] = value;
+  }
+  return headers;
+}
+
+/**
  * The form the API takes for your own request id: a UUID in its usual text form, any version, as the
  * spec's `X-Request-Id` parameter declares (`format: uuid`).
  */
@@ -102,6 +148,8 @@ interface OperationCall {
   body?: unknown;
   /** The FHIR resource types the operation answers with, from the spec. Unset for other answers. */
   expects?: readonly string[];
+  /** The header parameters the operation declares, each sent from an option of the call's own. */
+  declared?: readonly DeclaredHeader[];
 }
 
 interface Sent {
@@ -468,12 +516,14 @@ export abstract class Transport {
     // A URL that cannot be made rejects the call rather than throwing at it. The request itself
     // starts now, as the call is made, so an abort right after it reaches the fetch.
     let url: URL;
+    let declared: Record<string, string>;
     try {
       url = this.#url(path, call.query as Record<string, QueryValue>);
+      declared = declaredHeaders(call, options);
     } catch (error) {
       return new APIPromise<T>(Promise.reject(error));
     }
-    return new APIPromise(this.respond<T>(call.method, url, call.body, options, call.path, call.expects));
+    return new APIPromise(this.respond<T>(call.method, url, call.body, options, call.path, call.expects, declared));
   }
 
   /** Sends a request and returns its answer only. See {@link Transport.respond}. */
@@ -500,8 +550,9 @@ export abstract class Transport {
     options: RequestOptions,
     label: string,
     expects?: readonly string[],
+    declared?: Record<string, string>,
   ): Promise<WithResponse<T>> {
-    const sent = await this.#send(method, url, body, options, label);
+    const sent = await this.#send(method, url, body, options, label, declared);
     const { response, text, attempts, durationMs } = sent;
     const status = response.status;
     const requestId = response.headers.get("x-request-id") ?? undefined;
@@ -542,6 +593,7 @@ export abstract class Transport {
     body: unknown,
     options: RequestOptions,
     label: string,
+    declared: Record<string, string> = {},
   ): Promise<Sent> {
     // The path after the base's own, so a baseURL with a path of its own still asks for FHIR JSON.
     const basePath = new URL(this.baseURL).pathname.replace(/\/$/, "");
@@ -558,6 +610,8 @@ export abstract class Transport {
       headers["content-type"] = fhir ? FHIR_JSON : "application/json";
     }
     for (const [name, value] of Object.entries(options.headers ?? {})) headers[name.toLowerCase()] = value;
+    // A header the operation declares is sent from its own option, over the same header in `headers`.
+    Object.assign(headers, declared);
     if (options.correlationId !== undefined) {
       if (!UUID.test(options.correlationId)) {
         throw new Haau3Error(
