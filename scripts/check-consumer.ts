@@ -26,8 +26,8 @@ const overlay = JSON.parse(readFileSync(join(root, "openapi", "code-samples.json
 const samples = overlay.actions.map((action, i) => ({ file: `samples/sample-${i + 1}.mts`, source: action.update["x-codeSamples"][0]!.source }));
 
 // A README block uses names the reader already has: the client from "Authenticate", an id, a list of
-// codes, a patient's records, a pharmacy benefit check's message. Each is declared before the block,
-// unless the block makes its own.
+// codes, a patient's records, a pharmacy benefit check's message, a member's access token. Each is
+// declared before the block, unless the block makes its own.
 const makes = (block: string, name: string) =>
   new RegExp(`\\b(const|let)\\s+(${name}\\b|\\{[^}]*\\b${name}\\b[^}]*\\})`).test(block);
 const GIVEN: [string, string][] = [
@@ -38,6 +38,7 @@ const GIVEN: [string, string][] = [
   ["first", "Fhir4.Bundle"],
   ["records", "Fhir4.Bundle"],
   ["message", "Fhir4.Bundle"],
+  ["accessToken", "string"],
 ];
 const readme = readFileSync(join(root, "README.md"), "utf8");
 const readmeBlocks = [...readme.matchAll(/```ts\n([\s\S]*?)```/g)].map((match, i) => {
