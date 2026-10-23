@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.11](https://github.com/haau3/haau3-node/compare/v0.2.10...v0.2.11) (2026-10-23)
+
+
+### Features
+
+* a header an operation declares is an option of its own ([#35](https://github.com/haau3/haau3-node/issues/35)) ([0273f26](https://github.com/haau3/haau3-node/commit/0273f266a0b4d6429ef512817539c2c1fdf5acd2))
+* the API's spec at 1.0.0-preview.12 ([#32](https://github.com/haau3/haau3-node/issues/32)) ([c85f9c8](https://github.com/haau3/haau3-node/commit/c85f9c82e905f944aa47a81f07fc304f8330f82b))
+
 ## [0.2.10](https://github.com/haau3/haau3-node/compare/v0.2.9...v0.2.10) (2026-10-21)
 
 
