@@ -2,7 +2,7 @@ export { Haau3 } from "./client.js";
 export { APIPromise, type ResponseMeta, type WithResponse } from "./api-promise.js";
 export { AuthError, ForbiddenError, Haau3Error, NoAnswerError, RefusedError, type Haau3ErrorJSON, type NoAnswerReason } from "./errors.js";
 export type { ClientOptions, FetchOptions, QueryValue, RawRequest, RawResponse, RequestOptions } from "./transport.js";
-export type { BodyOf, OperationId, QueryOf, ResponseOf } from "./operations.js";
+export type { BodyOf, HeaderOf, OperationId, QueryOf, ResponseOf } from "./operations.js";
 export type { BatchEntry, BatchResult, BatchResults } from "./batch.js";
 export type { ResolveOptions, ResourceOf, ResourceType } from "./bundles.js";
 export type { BatchBuilder } from "./generated/batch.js";

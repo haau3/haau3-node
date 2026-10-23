@@ -11,7 +11,9 @@
 // - types.ts: the public names. Each operation's query parameters as `<OperationId>Params`, and every
 //   component that is not a FHIR resource (Scheduling's records and answers, Problem) by its own
 //   name. A caller never writes `components["schemas"][...]`, so the generator can change without a
-//   breaking change.
+//   breaking change. An operation that declares a header parameter gets `<OperationId>Options`:
+//   every call's options and one more per header, named from it (`Payer-Authorization` is
+//   `payerAuthorization`), which the client checks against the parameter's schema before sending.
 //
 // - openapi/code-samples.json: a TypeScript sample for every operation, as an OpenAPI Overlay that
 //   adds `x-codeSamples` to the spec, so a documentation site can show a call beside each operation.
@@ -25,6 +27,7 @@
 import { readFile, writeFile } from "node:fs/promises";
 import openapiTS, { astToString } from "openapi-typescript";
 import ts from "typescript";
+import { CALL_OPTIONS } from "../src/transport.js";
 
 const SPEC = new URL("../openapi/openapi.json", import.meta.url);
 const OUT = new URL("../src/generated/", import.meta.url);
@@ -63,6 +66,17 @@ await writeFile(new URL("openapi.ts", OUT), HEADER("Types for every path, operat
 
 // --- the operations -----------------------------------------------------------------------------
 
+/** A header parameter an operation declares, sent from an option of the call's own. */
+interface HeaderParam {
+  /** The header, as the spec names it. */
+  name: string;
+  /** The option it is sent from: the header's name in camelCase. */
+  option: string;
+  description: string;
+  maxLength?: number;
+  pattern?: string;
+}
+
 interface Operation {
   id: string;
   method: "GET" | "POST";
@@ -76,6 +90,8 @@ interface Operation {
   hasQuery: boolean;
   queryRequired: boolean;
   hasBody: boolean;
+  /** The optional header parameters, each an option of the call's own. */
+  headers: HeaderParam[];
   fhir: boolean;
   /** The FHIR resource types a success answers with, from its 200 schema. Empty for other answers. */
   expects: string[];
@@ -123,6 +139,39 @@ function docsUrl(tag: string, summary: string): string {
   return seen === 0 ? base : `${base}-${seen}`;
 }
 
+/** A header's name as an option: `Payer-Authorization` is `payerAuthorization`. */
+const optionName = (header: string) =>
+  header
+    .split("-")
+    .map((part, i) => (i === 0 ? part.toLowerCase() : part.charAt(0).toUpperCase() + part.slice(1).toLowerCase()))
+    .join("");
+
+/**
+ * An operation's optional header parameters. A required one, or a parameter in a cookie, stops the
+ * generator: a generated method could not complete such a call.
+ */
+function headerParams(id: string, params: Json[]): HeaderParam[] {
+  const headers: HeaderParam[] = [];
+  for (const p of params) {
+    if (p.in !== "header") {
+      if (p.in !== "path" && p.in !== "query") throw new Error(`${id}: a parameter in ${p.in}, which the generator does not send.`);
+      continue;
+    }
+    if (p.required) throw new Error(`${id}: the required header ${p.name}, which a generated method cannot complete without.`);
+    const option = optionName(p.name);
+    if ((CALL_OPTIONS as readonly string[]).includes(option)) throw new Error(`${id}: the header ${p.name} would be the option ${option}, which every call already has.`);
+    if (p.schema?.type !== "string") throw new Error(`${id}: the header ${p.name} is not a string, the only kind the generator sends.`);
+    headers.push({
+      name: p.name,
+      option,
+      description: p.description ?? "",
+      ...(typeof p.schema.maxLength === "number" ? { maxLength: p.schema.maxLength } : {}),
+      ...(typeof p.schema.pattern === "string" ? { pattern: p.schema.pattern } : {}),
+    });
+  }
+  return headers;
+}
+
 const operations: Operation[] = [];
 for (const [path, item] of Object.entries(spec.paths as Record<string, Json>)) {
   for (const method of ["get", "post"] as const) {
@@ -142,6 +191,7 @@ for (const [path, item] of Object.entries(spec.paths as Record<string, Json>)) {
       hasQuery: query.length > 0,
       queryRequired: query.some((p) => p.required),
       hasBody: Boolean(op.requestBody),
+      headers: headerParams(op.operationId, params),
       fhir: path.startsWith("/v1/fhir/"),
       expects: expectedTypes(op),
       raw: op,
@@ -151,6 +201,20 @@ for (const [path, item] of Object.entries(spec.paths as Record<string, Json>)) {
 operations.sort((a, b) => a.id.localeCompare(b.id));
 
 const pascal = (id: string) => id[0]!.toUpperCase() + id.slice(1);
+
+/** The options type an operation's method takes: its own when it declares a header. */
+const optionsType = (op: Operation) => (op.headers.length ? `${pascal(op.id)}Options` : "RequestOptions");
+
+/** What the client checks a declared header against, as the call passes it. */
+const declared = (op: Operation) =>
+  JSON.stringify(
+    op.headers.map((h) => ({
+      name: h.name,
+      option: h.option,
+      ...(h.maxLength === undefined ? {} : { maxLength: h.maxLength }),
+      ...(h.pattern === undefined ? {} : { pattern: h.pattern }),
+    })),
+  );
 
 /** A doc comment from the spec's own words, which are already published. */
 function docComment(op: Operation): string {
@@ -167,7 +231,7 @@ for (const op of operations) {
   for (const name of op.pathParams) args.push(`${name}: string`);
   if (op.hasQuery) args.push(`params${op.queryRequired ? "" : "?"}: ${pascal(op.id)}Params`);
   if (op.hasBody) args.push(`body: BodyOf<"${op.id}">`);
-  args.push("options?: RequestOptions");
+  args.push(`options?: ${optionsType(op)}`);
   const call = [
     `method: "${op.method}"`,
     `path: ${JSON.stringify(op.path)}`,
@@ -175,6 +239,7 @@ for (const op of operations) {
     op.hasQuery ? "query: params" : undefined,
     op.hasBody ? "body" : undefined,
     op.expects.length ? `expects: ${JSON.stringify(op.expects)}` : undefined,
+    op.headers.length ? `declared: ${declared(op)}` : undefined,
   ].filter(Boolean);
   methodLines.push(
     docComment(op),
@@ -191,8 +256,8 @@ import type { RequestOptions } from "../transport.js";
 import { Transport } from "../transport.js";
 import type {
 ${operations
-  .filter((op) => op.hasQuery)
-  .map((op) => `  ${pascal(op.id)}Params,`)
+  .flatMap((op) => [op.hasQuery ? `  ${pascal(op.id)}Params,` : undefined, op.headers.length ? `  ${pascal(op.id)}Options,` : undefined])
+  .filter(Boolean)
   .join("\n")}
 } from "./types.js";
 
@@ -223,6 +288,10 @@ if (!batchOperation) throw new Error("The spec has no batch at POST /v1/fhir/r4.
 const refusedInABatch = operations.filter((op) => op.raw[BATCHABLE] === false).map((op) => op.id);
 const notInABatch = [batchOperation.id, ...refusedInABatch];
 const batchable = operations.filter((op) => op.path.startsWith("/v1/fhir/r4/") && op.raw[BATCHABLE] !== false);
+for (const op of batchable) {
+  // A batch entry is one request inside the batch's body, which carries no headers of its own.
+  if (op.headers.length) throw new Error(`${op.id} declares the header ${op.headers[0]!.name} and can go in a batch, whose entries carry no headers.`);
+}
 
 /** `a`, `b` and `c`, in code font. */
 const named = (ids: readonly string[]) => {
@@ -283,7 +352,23 @@ const ownComponents = Object.keys(schemas)
   .filter((name) => !fhirType(schemas[name]))
   .sort();
 
-const types = `${HEADER("The public type names.")}import type { QueryOf } from "../operations.js";
+/** A doc comment's lines for one option, from the parameter's own words. */
+function optionComment(header: HeaderParam): string {
+  const limit = header.maxLength === undefined ? "" : `, at most ${header.maxLength} characters`;
+  const text = [
+    header.description,
+    `Sent as \`${header.name}\`. Checked against the form the API takes for it${limit}, before sending; a value it does not take is refused without being repeated, and this option wins over a \`${header.name}\` in \`headers\`.`,
+  ]
+    .filter(Boolean)
+    .join("\n\n")
+    .replaceAll("*/", "*\\/");
+  return ["  /**", ...text.split("\n").map((line) => (line ? `   * ${line}` : "   *")), "   */"].join("\n");
+}
+
+const withHeaders = operations.filter((op) => op.headers.length);
+
+const types = `${HEADER("The public type names.")}import type { HeaderOf, QueryOf } from "../operations.js";
+import type { RequestOptions } from "../transport.js";
 import type { components } from "./openapi.js";
 
 ${ownComponents.map((name) => `export type ${name} = components["schemas"]["${name}"];`).join("\n")}
@@ -291,6 +376,17 @@ ${ownComponents.map((name) => `export type ${name} = components["schemas"]["${na
 ${operations
   .filter((op) => op.hasQuery)
   .map((op) => `/** The query parameters of \`${op.id}\`. */\nexport type ${pascal(op.id)}Params = QueryOf<"${op.id}">;`)
+  .join("\n")}
+${withHeaders
+  .map((op) =>
+    [
+      "",
+      `/** The options of one \`${op.id}\` call: every call's, and the header${op.headers.length === 1 ? "" : "s"} it declares. */`,
+      `export interface ${pascal(op.id)}Options extends RequestOptions {`,
+      ...op.headers.map((h) => `${optionComment(h)}\n  ${h.option}?: HeaderOf<"${op.id}">[${JSON.stringify(h.name)}];`),
+      "}",
+    ].join("\n"),
+  )
   .join("\n")}
 `;
 await writeFile(new URL("types.ts", OUT), types);
@@ -303,6 +399,13 @@ function signature(op: Operation): string {
   if (op.hasQuery) args.push(op.queryRequired ? "params" : "params?");
   if (op.hasBody) args.push("body");
   return `${op.id}(${args.join(", ")})`;
+}
+
+/** What api.md says of the options an operation's declared headers add. */
+function headerOptionsSentence(): string {
+  if (!withHeaders.length) return "";
+  const each = withHeaders.flatMap((op) => op.headers.map((h) => `\`${op.id}\` takes \`${h.option}\`, sent as \`${h.name}\``));
+  return `\nAn operation that declares a header takes it as one more option, named from the header and checked\nbefore sending: ${each.join("; ")}.\n`;
 }
 
 const tagOrder = ((spec.tags ?? []) as Json[]).map((t) => t.name as string);
@@ -330,7 +433,7 @@ exchange. \`params\` is the query parameters as one object, \`body\` the request
 takes the per-call options (\`{ timeout, maxRetries, signal, correlationId, headers, fetchOptions }\`) as its last
 argument. Every method's answer can be awaited as it is, or with \`.withResponse()\` for its request id
 and timing too.
-
+${headerOptionsSentence()}
 \`batch()\` sends several of these as one request, each with its own answer or error. It takes
 every operation on the FHIR base except ${named(notInABatch)}: ${batchable.length} of the
 ${operations.length}. See the README's "Several requests in one".

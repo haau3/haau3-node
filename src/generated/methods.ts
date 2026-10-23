@@ -13,6 +13,7 @@ import type {
   ListInsurancePlanCountiesParams,
   ListServiceTypesParams,
   ListSpecialtiesParams,
+  ProcessMessageOptions,
   SearchEndpointParams,
   SearchHealthcareServiceParams,
   SearchInsurancePlanParams,
@@ -158,8 +159,8 @@ export abstract class Operations extends Transport {
    *
    * `POST /v1/fhir/r4/$process-message`
    */
-  processMessage(body: BodyOf<"processMessage">, options?: RequestOptions): APIPromise<ResponseOf<"processMessage">> {
-    return this.operation<ResponseOf<"processMessage">>({ method: "POST", path: "/v1/fhir/r4/$process-message", body, expects: ["Bundle"] }, options);
+  processMessage(body: BodyOf<"processMessage">, options?: ProcessMessageOptions): APIPromise<ResponseOf<"processMessage">> {
+    return this.operation<ResponseOf<"processMessage">>({ method: "POST", path: "/v1/fhir/r4/$process-message", body, expects: ["Bundle"], declared: [{"name":"Payer-Authorization","option":"payerAuthorization","maxLength":4096,"pattern":"^[Bb][Ee][Aa][Rr][Ee][Rr] +[A-Za-z0-9\\-._~+/]+=*$"}] }, options);
   }
 
   /**

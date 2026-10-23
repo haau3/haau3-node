@@ -9,6 +9,10 @@ type ParametersOf<Op extends OperationId> = operations[Op]["parameters"];
 export type QueryOf<Op extends OperationId> =
   ParametersOf<Op> extends { query?: infer Query } ? NonNullable<Query> : never;
 
+/** An operation's header parameters. */
+export type HeaderOf<Op extends OperationId> =
+  ParametersOf<Op> extends { header?: infer Header } ? NonNullable<Header> : never;
+
 /** An operation's request body. */
 export type BodyOf<Op extends OperationId> = operations[Op] extends {
   requestBody: { content: infer Content };

@@ -110,6 +110,16 @@ argument, for that call only:
 await haau3.searchSlots({ state: "MA" }, { timeout: 10_000, maxRetries: 0 });
 ```
 
+An operation that declares a header of its own takes it as one more option, named from the header
+and typed from the spec. `processMessage` takes `payerAuthorization`, sent as `Payer-Authorization`:
+a member's own authorization at their insurer, `Bearer` and the access token your app got from the
+member's login there. The SDK checks it against the form the API takes before sending, refuses one
+the API would not take without repeating it, and holds it nowhere after the call.
+
+```ts
+const checked = await haau3.processMessage(message, { payerAuthorization: `Bearer ${accessToken}` });
+```
+
 `fetchOptions` passes anything your runtime's `fetch` takes, on the client or on one call: a proxy
 `dispatcher` from undici in Node, Cloudflare's `cf`, Next.js's `next`, `keepalive`. The SDK's own
 method, headers, body, signal and redirect always win.
