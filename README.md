@@ -3,7 +3,7 @@
 The TypeScript SDK for the [haau3 platform API](https://docs.haau3.com), as typed calls:
 
 - **Scheduling:** open appointment slots from many SMART Scheduling Links publishers, in one search.
-- **Plan Benefits:** Medicare Advantage and ACA Marketplace plans as FHIR `InsurancePlan`,
+- **Medical Benefits:** Medicare Advantage and ACA Marketplace plans as FHIR `InsurancePlan`,
   searchable by state or county, and which providers are in a plan's network.
 - **MedList:** one reconciled medication list from one patient's FHIR medication records.
 
@@ -61,7 +61,7 @@ const glucose = await haau3.codeSystemLookup({ system: "http://loinc.org", code:
 // Questionnaires: a form by its id, such as the PHQ-9.
 const phq9 = await haau3.readQuestionnaire("44249-1");
 
-// Plan Benefits: a Medicare Advantage or ACA Marketplace plan, and which providers are in its network.
+// Medical Benefits: a Medicare Advantage or ACA Marketplace plan, and which providers are in its network.
 const plan = await haau3.readInsurancePlan("H2406-013-000");
 const network = await haau3.checkInsurancePlanNetwork("H3359-038-000", { npi: ["1518929058"] });
 
