@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.14](https://github.com/haau3/haau3-node/compare/v0.2.13...v0.2.14) (2026-10-28)
+
+
+### Features
+
+* a 403 says why, and every answer and error carries its status text ([#44](https://github.com/haau3/haau3-node/issues/44)) ([77cd904](https://github.com/haau3/haau3-node/commit/77cd904a19c0d57839f0a7c67cc8a303f7474955))
+* the API's spec at 1.0.0-preview.16 ([#42](https://github.com/haau3/haau3-node/issues/42)) ([6c358d7](https://github.com/haau3/haau3-node/commit/6c358d7aa2844c3d04735d82d03f4ea1b1b000c8))
+
 ## [0.2.13](https://github.com/haau3/haau3-node/compare/v0.2.12...v0.2.13) (2026-10-28)
 
 
