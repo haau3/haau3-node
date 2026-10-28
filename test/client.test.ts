@@ -215,3 +215,25 @@ describe("request()", () => {
     expect(received[0]!.url.pathname).toBe("/v1/fhir/r4/InsurancePlan/H3359-038-000/$in-network");
   });
 });
+
+describe("the FHIR bases", () => {
+  // The API reads a path equal to or under /v1/fhir or /v1/sandbox/fhir as FHIR, and nothing else.
+  const headersAt = async (path: string, baseURL?: string) => {
+    const { fetch, received } = fakeFetch(() => fhirAnswer({ resourceType: "Bundle" }));
+    await new Haau3({ apiKey: KEY, fetch, ...(baseURL ? { baseURL } : {}) }).request({ method: "POST", path, body: { resourceType: "Bundle" } });
+    return { accept: received[0]!.headers.accept, contentType: received[0]!.headers["content-type"] };
+  };
+
+  it.each(["/v1/sandbox/fhir/r4/$process-message", "/v1/sandbox/fhir", "/v1/fhir/r4/$process-message", "/v1/fhir"])(
+    "asks for and sends FHIR JSON at %s, under a baseURL with a path of its own too",
+    async (path) => {
+      const fhir = { accept: "application/fhir+json", contentType: "application/fhir+json" };
+      expect(await headersAt(path)).toEqual(fhir);
+      expect(await headersAt(path, "https://proxy.example.test/api/")).toEqual(fhir);
+    },
+  );
+
+  it.each(["/v1/sandbox", "/v1/sandbox/fhirish", "/v1/scheduling/slots"])("asks for and sends plain JSON at %s (the control)", async (path) => {
+    expect(await headersAt(path)).toEqual({ accept: "application/json", contentType: "application/json" });
+  });
+});

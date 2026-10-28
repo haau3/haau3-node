@@ -92,7 +92,6 @@ interface Operation {
   hasBody: boolean;
   /** The optional header parameters, each an option of the call's own. */
   headers: HeaderParam[];
-  fhir: boolean;
   /** The FHIR resource types a success answers with, from its 200 schema. Empty for other answers. */
   expects: string[];
   /** The operation as the spec writes it, for its example request. */
@@ -192,7 +191,6 @@ for (const [path, item] of Object.entries(spec.paths as Record<string, Json>)) {
       queryRequired: query.some((p) => p.required),
       hasBody: Boolean(op.requestBody),
       headers: headerParams(op.operationId, params),
-      fhir: path.startsWith("/v1/fhir/"),
       expects: expectedTypes(op),
       raw: op,
     });

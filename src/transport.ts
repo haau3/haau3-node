@@ -165,6 +165,12 @@ const DEFAULT_MAX_RETRIES = 1;
 /** The longest `Retry-After` the client waits out. A longer one fails at once and says when. */
 const LONGEST_WAIT_SECONDS = 60;
 const FHIR_JSON = "application/fhir+json";
+/**
+ * The FHIR bases: production's, and the Sandbox's, which serves the same paths with synthetic data.
+ * A path equal to or under either speaks FHIR, as the API reads it.
+ */
+const FHIR_BASES = ["/v1/fhir", "/v1/sandbox/fhir"];
+const speaksFHIR = (path: string) => FHIR_BASES.some((base) => path === base || path.startsWith(`${base}/`));
 
 /**
  * The runtime the SDK runs on, as the User-Agent names it: `node 24`, `bun 1.3.2`, `deno 2.5.6`.
@@ -598,7 +604,7 @@ export abstract class Transport {
     // The path after the base's own, so a baseURL with a path of its own still asks for FHIR JSON.
     const basePath = new URL(this.baseURL).pathname.replace(/\/$/, "");
     const path = basePath && url.pathname.startsWith(basePath) ? url.pathname.slice(basePath.length) : url.pathname;
-    const fhir = path.startsWith("/v1/fhir/") || path === "/v1/fhir";
+    const fhir = speaksFHIR(path);
     const headers: Record<string, string> = {
       accept: fhir ? FHIR_JSON : "application/json",
       authorization: `Bearer ${this.#apiKey}`,

@@ -95,7 +95,7 @@ beforeAll(async () => {
     if (operation.id === "fhirBatch") continue;
     answers.set(exampleRequestKey(operation), {
       body: firstExample(operation.op.responses["200"].content),
-      fhir: operation.path.startsWith("/v1/fhir/"),
+      fhir: "application/fhir+json" in operation.op.responses["200"].content,
     });
   }
   const batch = operations.find((o) => o.id === "fhirBatch")!;
