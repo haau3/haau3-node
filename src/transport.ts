@@ -224,6 +224,7 @@ export const statusTextOf = (status: number, sent?: string) => sent || STATUS_TE
 const FORBIDDEN_REASONS: Record<string, string> = {
   "test-key-outside-sandbox": "this is a test key, which works only in the Sandbox",
   "live-key-in-sandbox": "this is a live key, which does not work in the Sandbox",
+  "phi-agreement-required": "its organization may not send patient data, and not every resource in this request is labelled as test data",
 };
 const FORBIDDEN_GENERAL = "the API key was accepted, and its organization may not make this request";
 

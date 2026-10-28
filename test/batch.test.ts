@@ -2,7 +2,7 @@
 // judged as the call alone is.
 import { inspect } from "node:util";
 import { describe, expect, it } from "vitest";
-import { AuthError, Haau3, Haau3Error, NoAnswerError, RefusedError } from "../src/index.js";
+import { AuthError, ForbiddenError, Haau3, Haau3Error, NoAnswerError, RefusedError } from "../src/index.js";
 import { BatchBuilder } from "../src/generated/batch.js";
 import { KEY, fakeFetch, fhirAnswer, spec, type Received } from "./helpers.js";
 
@@ -175,9 +175,15 @@ describe("the batch as a whole", () => {
     }
   });
 
-  it("throws as any call does: a refused key, a refused batch", async () => {
+  it("throws as any call does: a refused key, a refused organization, a refused batch", async () => {
     const refusedKey = fakeFetch(() => fhirAnswer(outcome("key"), 401));
     await expect(new Haau3({ apiKey: KEY, fetch: refusedKey.fetch }).batch((b) => [b.codeSystemLookup({ system: "s", code: "c" })])).rejects.toBeInstanceOf(AuthError);
+    const forbidden = fakeFetch(() => fhirAnswer(outcome("not yet open"), 403));
+    const refusal = await new Haau3({ apiKey: KEY, fetch: forbidden.fetch })
+      .batch((b) => [b.codeSystemLookup({ system: "s", code: "c" })])
+      .catch((e: unknown) => e);
+    expect(refusal).toBeInstanceOf(ForbiddenError);
+    expect(refusal).not.toBeInstanceOf(AuthError);
     const tooLong = fakeFetch(() => fhirAnswer(outcome("too long"), 400));
     await expect(new Haau3({ apiKey: KEY, fetch: tooLong.fetch }).batch((b) => [b.codeSystemLookup({ system: "s", code: "c" })])).rejects.toMatchObject({
       name: "RefusedError",

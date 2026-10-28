@@ -123,14 +123,14 @@ export interface Timing {
 }
 
 /**
- * The API refused the request because of the key. A 401 means the key itself: none was sent, it is
- * not one the API knows, or it was revoked. A 403 is a {@link ForbiddenError}, this class's subclass:
- * the key was accepted, and it may not make this request, as its `code` says when the API names why.
+ * The API did not accept the key (401): none was sent, it is not one the API knows, or it was
+ * revoked. A 403 is never this error: the key was accepted, and the answer is a
+ * {@link ForbiddenError}.
  */
 export class AuthError extends Haau3Error {
   override name = "AuthError";
   readonly status: number;
-  /** The status's text: the answer's own, or the standard one (`"Unauthorized"`, `"Forbidden"`). */
+  /** The status's text: the answer's own, or the standard one (`"Unauthorized"`). */
   readonly statusText: string;
   /** How many attempts were made. */
   readonly attempts: number;
@@ -157,20 +157,37 @@ export class AuthError extends Haau3Error {
  *
  * - `test-key-outside-sandbox`: a test key works only in the Sandbox. Send a live key.
  * - `live-key-in-sandbox`: a live key does not work in the Sandbox. Send a test key.
- * - `phi-agreement-required`: patient data sent without the agreement and plan it needs.
+ * - `phi-agreement-required`: the organization may not send patient data, and not every resource in
+ *   the request is labelled as test data.
  *
  * Without a code, the key's organization may not make the request, or the operation is not yet open
- * to it; `outcome` (or `problem`) says why, in the API's words. A subclass of {@link AuthError}, so
- * code that catches `AuthError` still catches it.
+ * to it; `outcome` (or `problem`) says why, in the API's words. Not an {@link AuthError}, which is a
+ * key the API did not accept (401).
  */
-export class ForbiddenError extends AuthError {
+export class ForbiddenError extends Haau3Error {
   override name = "ForbiddenError";
+  readonly status: number;
+  /** The status's text: the answer's own, or the standard one (`"Forbidden"`). */
+  readonly statusText: string;
   /** The API's code for why, from its `api-error` code system, when it names one. */
   readonly code: string | undefined;
+  /** How many attempts were made. */
+  readonly attempts: number;
+  /** Milliseconds from the first attempt to the answer. */
+  readonly durationMs: number | undefined;
+  /** The OperationOutcome the FHIR base answered with. Not enumerable, so it is never printed. */
+  declare readonly outcome?: OperationOutcome;
+  /** The problem the other services answered with. Not enumerable, so it is never printed. */
+  declare readonly problem?: Problem;
 
   constructor(message: string, status: number, requestId?: string, body?: AnswerBody, timing?: Timing) {
-    super(message, status, requestId, body, timing);
+    super(message, requestId, { correlationId: timing?.correlationId });
+    this.status = status;
+    this.statusText = timing?.statusText ?? "";
     this.code = apiErrorCode(body);
+    this.attempts = timing?.attempts ?? 1;
+    this.durationMs = timing?.durationMs;
+    attachBody(this, body);
   }
 }
 

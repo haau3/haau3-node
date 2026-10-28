@@ -147,7 +147,7 @@ export class Haau3 extends Operations {
    *
    * Each entry is checked as the call alone is, and fails alone: its result is `{ ok: false, error }`
    * and the others still answer. An entry that fails is not retried. The batch itself is retried,
-   * and throws, as any call does: an {@link AuthError} (a {@link ForbiddenError} for a 403), a {@link NoAnswerError} when no answer came
+   * and throws, as any call does: an {@link AuthError} for a 401, a {@link ForbiddenError} for a 403, a {@link NoAnswerError} when no answer came
    * back, a {@link RefusedError} when the API refused the whole batch. The API takes up to 100
    * entries in up to 1 MiB, and gives a batch 60 seconds; a larger batch is refused, so send several.
    * The operations the spec marks `x-haau3-batchable: false` cannot go in a batch; api.md names them.
