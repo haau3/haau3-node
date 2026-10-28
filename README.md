@@ -146,8 +146,7 @@ A retry waits a short, growing interval, or what the API's `Retry-After` header 
 
 ## Errors
 
-Every error is a `Haau3Error`, with the `requestId` the API answered with. There are three kinds,
-and `AuthError` has a subclass for a 403:
+Every error is a `Haau3Error`, with the `requestId` the API answered with. There are four kinds:
 
 ```ts
 import { AuthError, ForbiddenError, NoAnswerError, RefusedError } from "@haau3/sdk";
@@ -172,11 +171,12 @@ try {
 }
 ```
 
-`ForbiddenError` extends `AuthError`, so test for it first, as above. A 403 never means the key is
-wrong: there is nothing to rotate. Its `code` says why when the API names it, and its message says
-the same in words. A test key works only in the Sandbox (`test-key-outside-sandbox`: send a live
-key), and a live key does not work there (`live-key-in-sandbox`: send a test key). Without a code,
-the body says what the organization may not do.
+A 403 is a `ForbiddenError`, never an `AuthError`: the key was accepted, so there is nothing to
+rotate. Its `code` says why when the API names it, and its message says the same in words. A test
+key works only in the Sandbox (`test-key-outside-sandbox`: send a live key), and a live key does not
+work there (`live-key-in-sandbox`: send a test key). `phi-agreement-required` means the organization
+may not send patient data, and not every resource in the request is labelled as test data. Without
+a code, the body says what the organization may not do.
 
 No answer is never reported as an empty result, and an empty result is never an error. An error's
 message never includes the body the API answered with, and the body (`outcome` or `problem`) is
