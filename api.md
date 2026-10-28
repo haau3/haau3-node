@@ -2,7 +2,7 @@
 
 # API reference
 
-Every operation of the haau3 platform API (`1.0.0-preview.15`) is a method on `Haau3`, named by its
+Every operation of the haau3 platform API (`1.0.0-preview.16`) is a method on `Haau3`, named by its
 operationId. Each links to its page on docs.haau3.com, which shows its parameters and an example
 exchange. `params` is the query parameters as one object, `body` the request body, and every method
 takes the per-call options (`{ timeout, maxRetries, signal, correlationId, headers, fetchOptions }`) as its last
@@ -111,7 +111,7 @@ One reconciled medication list from one patient's FHIR medication records, as US
 
 ## Sandbox
 
-The FHIR base without production behind it, to build and test against: the same paths at `/v1/sandbox/fhir/r4`, answered with synthetic data that always gives the same answer. Its first service is the CARIN Consumer Real-Time Pharmacy Benefit Check, answered by Example Health Plan, a test insurer. The same API keys work, and each request counts like any other. Send test members only, never a real person.
+The FHIR base without production behind it, to build and test against: the same paths at `/v1/sandbox/fhir/r4`, answered with synthetic data that always gives the same answer. Its first service is the CARIN Consumer Real-Time Pharmacy Benefit Check, answered by Example Health Plan, a test insurer. It takes a test key (`haau3_sk_test_…`), made on the API keys page, and each request counts like any other. Send test members only, never a real person.
 
 | Method | Request | What it does |
 |---|---|---|
