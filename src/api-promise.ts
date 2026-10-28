@@ -12,6 +12,8 @@ export interface ResponseMeta {
   /** How many attempts were made. */
   attempts: number;
   status: number;
+  /** The status's text: the answer's own (`"Not Found"`), or the standard one when it sent none, as HTTP/2 answers do. */
+  statusText: string;
   headers: Headers;
 }
 

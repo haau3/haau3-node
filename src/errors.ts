@@ -23,6 +23,8 @@ export interface Haau3ErrorJSON {
   name: string;
   message: string;
   status?: number;
+  statusText?: string;
+  code?: string;
   reason?: NoAnswerReason;
   retryAfter?: number;
   attempts?: number;
@@ -33,7 +35,18 @@ export interface Haau3ErrorJSON {
 }
 
 /** The fields {@link Haau3Error.toJSON} copies when they are set, in this order. */
-const LOGGED = ["status", "reason", "retryAfter", "attempts", "durationMs", "requestId", "correlationId", "detail"] as const;
+const LOGGED = [
+  "status",
+  "statusText",
+  "code",
+  "reason",
+  "retryAfter",
+  "attempts",
+  "durationMs",
+  "requestId",
+  "correlationId",
+  "detail",
+] as const;
 
 /** What every error this package throws has. */
 export class Haau3Error extends Error {
@@ -80,21 +93,45 @@ function attachBody(error: Haau3Error, body: AnswerBody | undefined): void {
 /** An error body as the SDK read it: an OperationOutcome under the FHIR base, a Problem elsewhere. */
 export type AnswerBody = { kind: "outcome"; value: OperationOutcome } | { kind: "problem"; value: Problem };
 
-/** How long an answered request took, in how many attempts, and the correlation id it came back with. */
+/** The code system the API names its own reasons in, inside an OperationOutcome's `details.coding`. */
+export const API_ERROR_SYSTEM = "https://haau3.com/fhir/CodeSystem/api-error";
+
+/**
+ * The API's own code for why it refused a request, when it names one: the `api-error` coding of an
+ * OperationOutcome's first issue that has one, or a problem's `code`. A code, never words, so it is
+ * safe to log.
+ */
+export function apiErrorCode(body: AnswerBody | undefined): string | undefined {
+  if (!body) return undefined;
+  if (body.kind === "problem") return typeof body.value.code === "string" ? body.value.code : undefined;
+  for (const issue of body.value.issue ?? []) {
+    const coding = issue.details?.coding?.find((c) => c.system === API_ERROR_SYSTEM && typeof c.code === "string");
+    if (coding) return coding.code;
+  }
+  return undefined;
+}
+
+/**
+ * How long an answered request took, in how many attempts, the correlation id it came back with,
+ * and its status's text.
+ */
 export interface Timing {
   attempts: number;
   durationMs: number;
   correlationId?: string | undefined;
+  statusText?: string | undefined;
 }
 
 /**
  * The API refused the request because of the key. A 401 means the key itself: none was sent, it is
  * not one the API knows, or it was revoked. A 403 is a {@link ForbiddenError}, this class's subclass:
- * the key was accepted, and its organization may not make the request.
+ * the key was accepted, and it may not make this request, as its `code` says when the API names why.
  */
 export class AuthError extends Haau3Error {
   override name = "AuthError";
   readonly status: number;
+  /** The status's text: the answer's own, or the standard one (`"Unauthorized"`, `"Forbidden"`). */
+  readonly statusText: string;
   /** How many attempts were made. */
   readonly attempts: number;
   /** Milliseconds from the first attempt to the answer. */
@@ -107,6 +144,7 @@ export class AuthError extends Haau3Error {
   constructor(message: string, status: number, requestId?: string, body?: AnswerBody, timing?: Timing) {
     super(message, requestId, { correlationId: timing?.correlationId });
     this.status = status;
+    this.statusText = timing?.statusText ?? "";
     this.attempts = timing?.attempts ?? 1;
     this.durationMs = timing?.durationMs;
     attachBody(this, body);
@@ -114,13 +152,26 @@ export class AuthError extends Haau3Error {
 }
 
 /**
- * The API accepted the key and refused the request for the key's organization (403): an operation
- * the organization may not use, or one not yet open to it. The key itself is fine, so there is
- * nothing to rotate; `outcome` (or `problem`) says why, in the API's words. A subclass of
- * {@link AuthError}, so code that catches `AuthError` still catches it.
+ * The API accepted the key and refused the request (403). The key itself is real, so there is
+ * nothing to rotate. `code` says why when the API names it, and the message says it in words:
+ *
+ * - `test-key-outside-sandbox`: a test key works only in the Sandbox. Send a live key.
+ * - `live-key-in-sandbox`: a live key does not work in the Sandbox. Send a test key.
+ * - `phi-agreement-required`: patient data sent without the agreement and plan it needs.
+ *
+ * Without a code, the key's organization may not make the request, or the operation is not yet open
+ * to it; `outcome` (or `problem`) says why, in the API's words. A subclass of {@link AuthError}, so
+ * code that catches `AuthError` still catches it.
  */
 export class ForbiddenError extends AuthError {
   override name = "ForbiddenError";
+  /** The API's code for why, from its `api-error` code system, when it names one. */
+  readonly code: string | undefined;
+
+  constructor(message: string, status: number, requestId?: string, body?: AnswerBody, timing?: Timing) {
+    super(message, status, requestId, body, timing);
+    this.code = apiErrorCode(body);
+  }
 }
 
 /**
@@ -131,6 +182,8 @@ export class ForbiddenError extends AuthError {
 export class RefusedError extends Haau3Error {
   override name = "RefusedError";
   readonly status: number;
+  /** The status's text: the answer's own, or the standard one (`"Not Found"`). */
+  readonly statusText: string;
   /** How many attempts were made. */
   readonly attempts: number;
   /** Milliseconds from the first attempt to the answer. */
@@ -143,6 +196,7 @@ export class RefusedError extends Haau3Error {
   constructor(message: string, status: number, requestId?: string, body?: AnswerBody, timing?: Timing) {
     super(message, requestId, { correlationId: timing?.correlationId });
     this.status = status;
+    this.statusText = timing?.statusText ?? "";
     this.attempts = timing?.attempts ?? 1;
     this.durationMs = timing?.durationMs;
     attachBody(this, body);
@@ -158,6 +212,8 @@ export class NoAnswerError extends Haau3Error {
   readonly reason: NoAnswerReason;
   /** The last status the API answered with, when it answered at all. */
   readonly status: number | undefined;
+  /** That status's text, the answer's own or the standard one, when it answered at all. */
+  readonly statusText: string | undefined;
   /** Seconds to wait before trying again, when the API said. */
   readonly retryAfter: number | undefined;
   /** How many attempts were made. */
@@ -182,6 +238,7 @@ export class NoAnswerError extends Haau3Error {
       attempts: number;
       durationMs?: number;
       status?: number;
+      statusText?: string | undefined;
       retryAfter?: number;
       requestId?: string;
       correlationId?: string | undefined;
@@ -193,6 +250,7 @@ export class NoAnswerError extends Haau3Error {
     super(message, details.requestId, { cause: details.cause, correlationId: details.correlationId });
     this.reason = details.reason;
     this.status = details.status;
+    this.statusText = details.status === undefined ? undefined : details.statusText;
     this.retryAfter = details.retryAfter;
     this.attempts = details.attempts;
     this.durationMs = details.durationMs;

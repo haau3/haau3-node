@@ -163,7 +163,8 @@ try {
     error.retryAfter; // seconds, when the API said
     error.detail; // for a timeout or a network failure: what failed, such as "ECONNREFUSED" or "TimeoutError"
   } else if (error instanceof ForbiddenError) {
-    // 403: the key was accepted, and its organization may not make this request
+    // 403: the key was accepted, and it may not make this request
+    error.code; // why, when the API names it: "test-key-outside-sandbox", "live-key-in-sandbox", "phi-agreement-required"
     error.outcome; // why, in the API's words
   } else if (error instanceof AuthError) {
     // 401: the key was missing, unknown or revoked
@@ -172,12 +173,15 @@ try {
 ```
 
 `ForbiddenError` extends `AuthError`, so test for it first, as above. A 403 never means the key is
-wrong: there is nothing to rotate, and the body says what the organization may not do.
+wrong: there is nothing to rotate. Its `code` says why when the API names it, and its message says
+the same in words. A test key works only in the Sandbox (`test-key-outside-sandbox`: send a live
+key), and a live key does not work there (`live-key-in-sandbox`: send a test key). Without a code,
+the body says what the organization may not do.
 
 No answer is never reported as an empty result, and an empty result is never an error. An error's
 message never includes the body the API answered with, and the body (`outcome` or `problem`) is
-never printed when the error is logged. Every error the API answered carries `attempts` and
-`durationMs` too.
+never printed when the error is logged. Every error the API answered carries `attempts`,
+`durationMs` and `statusText` too.
 
 A FHIR answer is checked against the resource types its operation answers with. Anything else, a
 `Bundle` where an `InsurancePlan` was asked for, say, is a `NoAnswerError` with reason
@@ -196,6 +200,9 @@ timing that came with it, in the same names `request()` uses:
 ```ts
 const { data: plan, requestId, durationMs, attempts } = await haau3.readInsurancePlan(id).withResponse();
 ```
+
+It carries `status` and `statusText` too: the answer's own text, or the standard one (`"OK"`) when it
+came with none, as HTTP/2 answers do.
 
 Quote the `requestId` when you ask for help: it finds the request in the API's own logs.
 
