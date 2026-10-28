@@ -1,4 +1,4 @@
-// The three kinds of error, and the rule that no body the API answered with is ever printed.
+// The four kinds of error, and the rule that no body the API answered with is ever printed.
 import { inspect } from "node:util";
 import { describe, expect, it } from "vitest";
 import { AuthError, ForbiddenError, Haau3, Haau3Error, NoAnswerError, RefusedError } from "../src/index.js";
@@ -21,20 +21,24 @@ function printed(error: unknown): string {
   return [inspect(error, { depth: 10 }), String(error), e.message, e.stack ?? "", JSON.stringify(error)].join("\n");
 }
 
-describe("the three kinds", () => {
-  it("answers 401 and 403 with AuthError, carrying the outcome", async () => {
-    for (const status of [401, 403]) {
+describe("the four kinds", () => {
+  it("answers 401 with AuthError and 403 with ForbiddenError, each carrying the outcome", async () => {
+    for (const [status, kind] of [[401, AuthError], [403, ForbiddenError]] as const) {
       const error = await failWith(() => fhirAnswer(outcome("key"), status)).readInsurancePlan("x").catch((e: unknown) => e);
-      expect(error).toBeInstanceOf(AuthError);
+      expect(error).toBeInstanceOf(kind);
       expect(error).toBeInstanceOf(Haau3Error);
       expect(error).toMatchObject({ status, requestId: "6b1f3c2e-4d5a-4b6c-8d7e-9f0a1b2c3d4e" });
-      expect((error as AuthError).outcome?.issue[0]?.diagnostics).toBe("key");
+      expect((error as AuthError | ForbiddenError).outcome?.issue[0]?.diagnostics).toBe("key");
     }
   });
 
   it("answers 403 with ForbiddenError, which says the key was accepted", async () => {
     const error = (await failWith(() => fhirAnswer(outcome("not yet open"), 403)).readInsurancePlan("x").catch((e: unknown) => e)) as ForbiddenError;
     expect(error).toBeInstanceOf(ForbiddenError);
+    expect(error).toBeInstanceOf(Haau3Error);
+    // A 403 is not a key the API did not accept, so code that catches AuthError to rotate a key
+    // never catches it.
+    expect(error).not.toBeInstanceOf(AuthError);
     expect(error.name).toBe("ForbiddenError");
     expect(error.status).toBe(403);
     expect(error.message).toBe("GET /v1/fhir/r4/InsurancePlan/{id} was refused: the API key was accepted, and its organization may not make this request (403).");
@@ -118,7 +122,7 @@ describe("a body is readable and never printed", () => {
     const none = await failWith(() => fhirAnswer(outcome(PATIENT), 503)).readInsurancePlan("x").catch((e: unknown) => e);
     expect(forbidden).toBeInstanceOf(ForbiddenError);
     for (const error of [auth, forbidden, none]) {
-      expect((error as AuthError).outcome?.issue[0]?.diagnostics).toBe(PATIENT);
+      expect((error as AuthError | ForbiddenError | NoAnswerError).outcome?.issue[0]?.diagnostics).toBe(PATIENT);
       expect(printed(error)).not.toContain("Jane");
     }
   });
@@ -185,11 +189,25 @@ describe("a 403's code", () => {
     expect(error.message).toBe("GET /v1/scheduling/slots was refused: this is a test key, which works only in the Sandbox (403).");
   });
 
-  it("carries a code it has no sentence for, under the general message", async () => {
+  it("names patient data not all labelled as test data, and never as a refused key", async () => {
     const error = (await failWith(() => fhirAnswer(coded("phi-agreement-required"), 403))
+      .reconcileMedications({ resourceType: "Bundle", type: "collection", entry: [] })
+      .catch((e: unknown) => e)) as ForbiddenError;
+    expect(error).toBeInstanceOf(ForbiddenError);
+    expect(error).not.toBeInstanceOf(AuthError);
+    expect(error.code).toBe("phi-agreement-required");
+    expect(error.message).toBe(
+      "POST /v1/fhir/r4/$reconcile-medications was refused: its organization may not send patient data, and not every resource in this request is labelled as test data (403).",
+    );
+    expect(error.message).not.toContain("the API's own words");
+    expect(error.toJSON()).toMatchObject({ name: "ForbiddenError", status: 403, code: "phi-agreement-required" });
+  });
+
+  it("carries a code it has no sentence for, under the general message", async () => {
+    const error = (await failWith(() => fhirAnswer(coded("a-code-from-a-later-version"), 403))
       .readInsurancePlan("x")
       .catch((e: unknown) => e)) as ForbiddenError;
-    expect(error.code).toBe("phi-agreement-required");
+    expect(error.code).toBe("a-code-from-a-later-version");
     expect(error.message).toBe(
       "GET /v1/fhir/r4/InsurancePlan/{id} was refused: the API key was accepted, and its organization may not make this request (403).",
     );
