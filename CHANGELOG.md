@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.3.0](https://github.com/haau3/haau3-node/compare/v0.2.14...v0.3.0) (2026-10-28)
+
+
+### ⚠ BREAKING CHANGES
+
+* a 403 is a ForbiddenError of its own, beside AuthError, which is a 401 only ([#46](https://github.com/haau3/haau3-node/issues/46))
+
+### Features
+
+* a 403 is a ForbiddenError of its own, beside AuthError, which is a 401 only ([#46](https://github.com/haau3/haau3-node/issues/46)) ([546a44b](https://github.com/haau3/haau3-node/commit/546a44bee32faa9a56e3f8ab0e13365eb05a2413))
+* a record written inline in a request's Bundle or Parameters is typed as the resource it is ([#45](https://github.com/haau3/haau3-node/issues/45)) ([71591fb](https://github.com/haau3/haau3-node/commit/71591fb5f0e719f2076c12ef1477d8675baeeb32))
+* markAsTestData labels a request and every resource in it as test data ([#47](https://github.com/haau3/haau3-node/issues/47)) ([3f403bc](https://github.com/haau3/haau3-node/commit/3f403bc24a12d46ad5bd7cf850c860cc4d7edb42))
+
 ## [0.2.14](https://github.com/haau3/haau3-node/compare/v0.2.13...v0.2.14) (2026-10-28)
 
 
