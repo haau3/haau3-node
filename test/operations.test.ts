@@ -13,6 +13,10 @@ interface Case {
   hasQuery: boolean;
   body: unknown;
   answer: unknown;
+  /** The media type the spec gives the answer, which the call asks for. */
+  answers: string;
+  /** The media type the spec gives the body, which the call sends it as. */
+  sends: string | undefined;
 }
 
 const firstExample = (content: Record<string, any> | undefined) => {
@@ -39,6 +43,8 @@ for (const [path, item] of Object.entries(spec.paths)) {
       hasQuery: query.length > 0,
       body: firstExample(op.requestBody?.content),
       answer: firstExample(op.responses["200"].content),
+      answers: Object.keys(op.responses["200"].content)[0]!,
+      sends: op.requestBody ? Object.keys(op.requestBody.content)[0] : undefined,
     });
   }
 }
@@ -69,8 +75,7 @@ describe("the operations", () => {
   });
 
   it.each(cases)("$operationId sends its example request and returns its example answer", async (c) => {
-    const fhir = c.path.startsWith("/v1/fhir/");
-    const { fetch, received } = fakeFetch(() => (fhir ? fhirAnswer(c.answer) : answer(c.answer)));
+    const { fetch, received } = fakeFetch(() => (c.answers === "application/fhir+json" ? fhirAnswer(c.answer) : answer(c.answer)));
     const haau3 = new Haau3({ apiKey: KEY, fetch });
 
     const args: unknown[] = [...c.pathValues];
@@ -98,12 +103,12 @@ describe("the operations", () => {
     );
     expect(request!.headers.authorization).toBe(`Bearer ${KEY}`);
     expect(request!.headers["user-agent"]).toBe(`haau3-node/${VERSION} (node ${process.versions.node.split(".")[0]})`);
-    expect(request!.headers.accept).toBe(fhir ? "application/fhir+json" : "application/json");
+    expect(request!.headers.accept).toBe(c.answers);
     if (c.body === undefined) {
       expect(request!.body).toBeUndefined();
     } else {
       expect(JSON.parse(request!.body!)).toEqual(c.body);
-      expect(request!.headers["content-type"]).toBe("application/fhir+json");
+      expect(request!.headers["content-type"]).toBe(c.sends);
     }
   });
 });
