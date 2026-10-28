@@ -756,6 +756,11 @@ export interface components {
              * @example urn:uuid:0b6f2d4e-8c1a-4e3b-9f5d-2a7c6e1b4d90
              */
             instance: string;
+            /**
+             * @description On a 403: why, as a code from `https://haau3.com/fhir/CodeSystem/api-error`, the same one an OperationOutcome carries in `issue.details.coding`.
+             * @example test-key-outside-sandbox
+             */
+            code?: string;
             /** @description On a 400: one entry per parameter that is not valid. */
             issues?: components["schemas"]["ProblemIssue"][];
         };
@@ -1116,6 +1121,45 @@ export interface components {
                 "application/fhir+json": components["schemas"]["OperationOutcome"];
             };
         };
+        /** @description A test key (`haau3_sk_test_…`) works only in the Sandbox, so one sent here is refused before the request runs: coded `forbidden`, with `test-key-outside-sandbox` from `https://haau3.com/fhir/CodeSystem/api-error` in `issue.details.coding`. Send a live key. */
+        FhirForbiddenTestKey: {
+            headers: {
+                /** @description Sent when the API key works only in the other mode: `Bearer realm="api.haau3.com", error="insufficient_scope"`. */
+                "WWW-Authenticate"?: string;
+                "X-Request-Id": components["headers"]["XRequestId"];
+                "X-Correlation-Id": components["headers"]["XCorrelationId"];
+                [name: string]: unknown;
+            };
+            content: {
+                "application/fhir+json": components["schemas"]["OperationOutcome"];
+            };
+        };
+        /** @description A test key (`haau3_sk_test_…`) works only in the Sandbox, so one sent here is refused before the request runs, with the problem's `code` `test-key-outside-sandbox`. Send a live key. */
+        ProblemForbiddenTestKey: {
+            headers: {
+                /** @description Sent when the API key works only in the other mode: `Bearer realm="api.haau3.com", error="insufficient_scope"`. */
+                "WWW-Authenticate"?: string;
+                "X-Request-Id": components["headers"]["XRequestId"];
+                "X-Correlation-Id": components["headers"]["XCorrelationId"];
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description A live key (`haau3_sk_live_…`) does not work in the Sandbox, so one sent here is refused before the request runs: coded `forbidden`, with `live-key-in-sandbox` from `https://haau3.com/fhir/CodeSystem/api-error` in `issue.details.coding`. Send a test key. */
+        FhirForbiddenLiveKey: {
+            headers: {
+                /** @description Sent when the API key works only in the other mode: `Bearer realm="api.haau3.com", error="insufficient_scope"`. */
+                "WWW-Authenticate"?: string;
+                "X-Request-Id": components["headers"]["XRequestId"];
+                "X-Correlation-Id": components["headers"]["XCorrelationId"];
+                [name: string]: unknown;
+            };
+            content: {
+                "application/fhir+json": components["schemas"]["OperationOutcome"];
+            };
+        };
     };
     parameters: {
         /** @description An id of your own for this request, as a UUID. It comes back in the `X-Correlation-Id` header and is kept with haau3's record of the request. Any value that is not a UUID is ignored. See https://docs.haau3.com/errors#request-ids. */
@@ -1204,6 +1248,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["ProblemUnauthorized"];
+            403: components["responses"]["ProblemForbiddenTestKey"];
             406: components["responses"]["ProblemNotAcceptable"];
             429: components["responses"]["ProblemTooManyRequests"];
             500: components["responses"]["ProblemServerError"];
@@ -1296,6 +1341,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["ProblemUnauthorized"];
+            403: components["responses"]["ProblemForbiddenTestKey"];
             406: components["responses"]["ProblemNotAcceptable"];
             429: components["responses"]["ProblemTooManyRequests"];
             500: components["responses"]["ProblemServerError"];
@@ -1349,6 +1395,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["ProblemUnauthorized"];
+            403: components["responses"]["ProblemForbiddenTestKey"];
             406: components["responses"]["ProblemNotAcceptable"];
             429: components["responses"]["ProblemTooManyRequests"];
             500: components["responses"]["ProblemServerError"];
@@ -1405,6 +1452,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["ProblemUnauthorized"];
+            403: components["responses"]["ProblemForbiddenTestKey"];
             406: components["responses"]["ProblemNotAcceptable"];
             429: components["responses"]["ProblemTooManyRequests"];
             500: components["responses"]["ProblemServerError"];
@@ -1461,6 +1509,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["ProblemUnauthorized"];
+            403: components["responses"]["ProblemForbiddenTestKey"];
             406: components["responses"]["ProblemNotAcceptable"];
             429: components["responses"]["ProblemTooManyRequests"];
             500: components["responses"]["ProblemServerError"];
@@ -1534,6 +1583,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["FhirUnauthorized"];
+            403: components["responses"]["FhirForbiddenTestKey"];
             406: components["responses"]["FhirNotAcceptable"];
             429: components["responses"]["FhirTooManyRequests"];
             500: components["responses"]["FhirServerError"];
@@ -1579,6 +1629,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["FhirUnauthorized"];
+            403: components["responses"]["FhirForbiddenTestKey"];
             406: components["responses"]["FhirNotAcceptable"];
             /** @description The request body is over 1 MiB, the most this base reads from one request. Send a large batch as several smaller ones. */
             413: {
@@ -1654,6 +1705,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["FhirUnauthorized"];
+            403: components["responses"]["FhirForbiddenTestKey"];
             /** @description The code system is not served here, or the code was not found. The `OperationOutcome` says which, and why: an unrecognised system, a system we are not licensed to serve, and a genuinely missing code are different answers. */
             404: {
                 headers: {
@@ -1755,6 +1807,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["FhirUnauthorized"];
+            403: components["responses"]["FhirForbiddenTestKey"];
             /** @description The code system is not served here, or the code was not found. The `OperationOutcome` says which, and why: an unrecognised system, a system we are not licensed to serve, and a genuinely missing code are different answers. */
             404: {
                 headers: {
@@ -1883,6 +1936,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["FhirUnauthorized"];
+            403: components["responses"]["FhirForbiddenTestKey"];
             /** @description The code system is not served here, or the code was not found. The `OperationOutcome` says which, and why: an unrecognised system, a system we are not licensed to serve, and a genuinely missing code are different answers. */
             404: {
                 headers: {
@@ -1984,6 +2038,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["FhirUnauthorized"];
+            403: components["responses"]["FhirForbiddenTestKey"];
             /** @description The code system is not served here, or the code was not found. The `OperationOutcome` says which, and why: an unrecognised system, a system we are not licensed to serve, and a genuinely missing code are different answers. */
             404: {
                 headers: {
@@ -2111,6 +2166,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["FhirUnauthorized"];
+            403: components["responses"]["FhirForbiddenTestKey"];
             /** @description The code system is not served here, or the code was not found. The `OperationOutcome` says which, and why: an unrecognised system, a system we are not licensed to serve, and a genuinely missing code are different answers. */
             404: {
                 headers: {
@@ -2212,6 +2268,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["FhirUnauthorized"];
+            403: components["responses"]["FhirForbiddenTestKey"];
             /** @description The code system is not served here, or the code was not found. The `OperationOutcome` says which, and why: an unrecognised system, a system we are not licensed to serve, and a genuinely missing code are different answers. */
             404: {
                 headers: {
@@ -2343,6 +2400,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["FhirUnauthorized"];
+            403: components["responses"]["FhirForbiddenTestKey"];
             /** @description The code system is not served here, or the code was not found. The `OperationOutcome` says which, and why: an unrecognised system, a system we are not licensed to serve, and a genuinely missing code are different answers. */
             404: {
                 headers: {
@@ -2444,6 +2502,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["FhirUnauthorized"];
+            403: components["responses"]["FhirForbiddenTestKey"];
             /** @description The code system is not served here, or the code was not found. The `OperationOutcome` says which, and why: an unrecognised system, a system we are not licensed to serve, and a genuinely missing code are different answers. */
             404: {
                 headers: {
@@ -2581,6 +2640,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["FhirUnauthorized"];
+            403: components["responses"]["FhirForbiddenTestKey"];
             /** @description No such resource, or no such interaction on this base. */
             404: {
                 headers: {
@@ -2673,6 +2733,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["FhirUnauthorized"];
+            403: components["responses"]["FhirForbiddenTestKey"];
             /** @description No such resource, or no such interaction on this base. */
             404: {
                 headers: {
@@ -2794,6 +2855,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["FhirUnauthorized"];
+            403: components["responses"]["FhirForbiddenTestKey"];
             /** @description No such resource, or no such interaction on this base. */
             404: {
                 headers: {
@@ -2886,6 +2948,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["FhirUnauthorized"];
+            403: components["responses"]["FhirForbiddenTestKey"];
             /** @description No such resource, or no such interaction on this base. */
             404: {
                 headers: {
@@ -3007,6 +3070,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["FhirUnauthorized"];
+            403: components["responses"]["FhirForbiddenTestKey"];
             /** @description No such resource, or no such interaction on this base. */
             404: {
                 headers: {
@@ -3099,6 +3163,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["FhirUnauthorized"];
+            403: components["responses"]["FhirForbiddenTestKey"];
             /** @description No such resource, or no such interaction on this base. */
             404: {
                 headers: {
@@ -3210,6 +3275,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["FhirUnauthorized"];
+            403: components["responses"]["FhirForbiddenTestKey"];
             /** @description No such resource, or no such interaction on this base. */
             404: {
                 headers: {
@@ -3302,6 +3368,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["FhirUnauthorized"];
+            403: components["responses"]["FhirForbiddenTestKey"];
             /** @description No such resource, or no such interaction on this base. */
             404: {
                 headers: {
@@ -3427,6 +3494,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["FhirUnauthorized"];
+            403: components["responses"]["FhirForbiddenTestKey"];
             /** @description No such resource, or no such interaction on this base. */
             404: {
                 headers: {
@@ -3530,6 +3598,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["FhirUnauthorized"];
+            403: components["responses"]["FhirForbiddenTestKey"];
             /** @description No such resource, or no such interaction on this base. */
             404: {
                 headers: {
@@ -3647,6 +3716,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["FhirUnauthorized"];
+            403: components["responses"]["FhirForbiddenTestKey"];
             /** @description No such resource, or no such interaction on this base. */
             404: {
                 headers: {
@@ -3739,6 +3809,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["FhirUnauthorized"];
+            403: components["responses"]["FhirForbiddenTestKey"];
             /** @description No such resource, or no such interaction on this base. */
             404: {
                 headers: {
@@ -3850,6 +3921,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["FhirUnauthorized"];
+            403: components["responses"]["FhirForbiddenTestKey"];
             /** @description No such resource, or no such interaction on this base. */
             404: {
                 headers: {
@@ -3942,6 +4014,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["FhirUnauthorized"];
+            403: components["responses"]["FhirForbiddenTestKey"];
             /** @description No such resource, or no such interaction on this base. */
             404: {
                 headers: {
@@ -4036,6 +4109,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["FhirUnauthorized"];
+            403: components["responses"]["FhirForbiddenTestKey"];
             406: components["responses"]["FhirNotAcceptable"];
             429: components["responses"]["FhirTooManyRequests"];
             500: components["responses"]["FhirServerError"];
@@ -4117,6 +4191,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["FhirUnauthorized"];
+            403: components["responses"]["FhirForbiddenTestKey"];
             /** @description Neither this service nor its source publishes a questionnaire with that id. */
             404: {
                 headers: {
@@ -4227,6 +4302,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["FhirUnauthorized"];
+            403: components["responses"]["FhirForbiddenTestKey"];
             /** @description No such interaction on this base. */
             404: {
                 headers: {
@@ -4330,6 +4406,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["FhirUnauthorized"];
+            403: components["responses"]["FhirForbiddenTestKey"];
             /** @description No state, district or territory has this code. */
             404: {
                 headers: {
@@ -4388,6 +4465,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["FhirUnauthorized"];
+            403: components["responses"]["FhirForbiddenTestKey"];
             /** @description No plan with that id is in the releases being served, or the plan is held but is not a medical plan. The `OperationOutcome` says which. */
             404: {
                 headers: {
@@ -4489,6 +4567,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["FhirUnauthorized"];
+            403: components["responses"]["FhirForbiddenTestKey"];
             /** @description No plan with that id is in the releases being served, or the plan is held but is not a medical plan. The `OperationOutcome` says which. */
             404: {
                 headers: {
@@ -4581,9 +4660,11 @@ export interface operations {
                 };
             };
             401: components["responses"]["FhirUnauthorized"];
-            /** @description Refused before the operation runs, coded `forbidden`, for one of two reasons. Not yet open to customers: while its price sources are being licensed, every request from a customer's organization is refused, with or without patient details, before its body is read. Or a member's request from an organization without both a business associate agreement (BAA) with haau3 in force and the Team or Scale plan that is not test data marked as such, the request and every resource in it labelled with the `meta.security` coding `HTEST` from `http://terminology.hl7.org/CodeSystem/v3-ActReason`: coded `phi-agreement-required` from `https://haau3.com/fhir/CodeSystem/api-error` in `issue.details.coding`, and a request labelled only in part names the first resources without the label in `expression`. */
+            /** @description Refused before the operation runs, coded `forbidden`, for one of two reasons. Not yet open to customers: while its price sources are being licensed, every request from a customer's organization is refused, with or without patient details, before its body is read. Or a member's request from an organization without both a business associate agreement (BAA) with haau3 in force and the Team or Scale plan that is not test data marked as such, the request and every resource in it labelled with the `meta.security` coding `HTEST` from `http://terminology.hl7.org/CodeSystem/v3-ActReason`: coded `phi-agreement-required` from `https://haau3.com/fhir/CodeSystem/api-error` in `issue.details.coding`, and a request labelled only in part names the first resources without the label in `expression`. A test key (`haau3_sk_test_…`) works only in the Sandbox, so one sent here is refused before the request runs: coded `forbidden`, with `test-key-outside-sandbox` from `https://haau3.com/fhir/CodeSystem/api-error` in `issue.details.coding`. Send a live key. */
             403: {
                 headers: {
+                    /** @description Sent when the API key works only in the other mode: `Bearer realm="api.haau3.com", error="insufficient_scope"`. */
+                    "WWW-Authenticate"?: string;
                     "X-Request-Id": components["headers"]["XRequestId"];
                     "X-Correlation-Id": components["headers"]["XCorrelationId"];
                     [name: string]: unknown;
@@ -4661,9 +4742,11 @@ export interface operations {
                 };
             };
             401: components["responses"]["FhirUnauthorized"];
-            /** @description Real patient data from an organization without both a business associate agreement (BAA) with haau3 in force and the Team or Scale plan, refused before the operation runs: the request is not test data marked as such, the request and every resource in it labelled with the `meta.security` coding `HTEST` from `http://terminology.hl7.org/CodeSystem/v3-ActReason`. Coded `forbidden`, with `phi-agreement-required` from `https://haau3.com/fhir/CodeSystem/api-error` in `issue.details.coding`; a request labelled only in part names the first resources without the label in `expression`. */
+            /** @description Real patient data from an organization without both a business associate agreement (BAA) with haau3 in force and the Team or Scale plan, refused before the operation runs: the request is not test data marked as such, the request and every resource in it labelled with the `meta.security` coding `HTEST` from `http://terminology.hl7.org/CodeSystem/v3-ActReason`. Coded `forbidden`, with `phi-agreement-required` from `https://haau3.com/fhir/CodeSystem/api-error` in `issue.details.coding`; a request labelled only in part names the first resources without the label in `expression`. A test key (`haau3_sk_test_…`) works only in the Sandbox, so one sent here is refused before the request runs: coded `forbidden`, with `test-key-outside-sandbox` from `https://haau3.com/fhir/CodeSystem/api-error` in `issue.details.coding`. Send a live key. */
             403: {
                 headers: {
+                    /** @description Sent when the API key works only in the other mode: `Bearer realm="api.haau3.com", error="insufficient_scope"`. */
+                    "WWW-Authenticate"?: string;
                     "X-Request-Id": components["headers"]["XRequestId"];
                     "X-Correlation-Id": components["headers"]["XCorrelationId"];
                     [name: string]: unknown;
@@ -4763,6 +4846,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["FhirUnauthorized"];
+            403: components["responses"]["FhirForbiddenLiveKey"];
             406: components["responses"]["FhirNotAcceptable"];
             /** @description The request body is over 1 MiB. */
             413: {
