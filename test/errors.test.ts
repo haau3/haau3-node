@@ -134,3 +134,117 @@ describe("a body is readable and never printed", () => {
     expect(printed(error)).not.toContain(KEY);
   });
 });
+
+// A 403 names its reason when the API names it by a code of its own: in an OperationOutcome's
+// `api-error` coding on a FHIR base, or in a problem's `code` elsewhere. The message says it in
+// words chosen by the code, never the body's.
+describe("a 403's code", () => {
+  const API_ERROR = "https://haau3.com/fhir/CodeSystem/api-error";
+  const coded = (code: string, system = API_ERROR) => ({
+    resourceType: "OperationOutcome",
+    issue: [{ severity: "error", code: "forbidden", details: { coding: [{ system, code }], text: "the API's own words" } }],
+  });
+  const bundle = { resourceType: "Bundle", type: "message", entry: [] } as never;
+
+  it("names a test key outside the Sandbox, from the outcome's coding", async () => {
+    const error = (await failWith(() => fhirAnswer(coded("test-key-outside-sandbox"), 403))
+      .readInsurancePlan("x")
+      .catch((e: unknown) => e)) as ForbiddenError;
+    expect(error).toBeInstanceOf(ForbiddenError);
+    expect(error.code).toBe("test-key-outside-sandbox");
+    expect(error.message).toBe(
+      "GET /v1/fhir/r4/InsurancePlan/{id} was refused: this is a test key, which works only in the Sandbox (403).",
+    );
+    expect(error.message).not.toContain("the API's own words");
+    expect(error.toJSON()).toMatchObject({ name: "ForbiddenError", status: 403, code: "test-key-outside-sandbox" });
+  });
+
+  it("names a live key in the Sandbox", async () => {
+    const error = (await failWith(() => fhirAnswer(coded("live-key-in-sandbox"), 403))
+      .sandboxProcessMessage(bundle)
+      .catch((e: unknown) => e)) as ForbiddenError;
+    expect(error.code).toBe("live-key-in-sandbox");
+    expect(error.message).toBe(
+      "POST /v1/sandbox/fhir/r4/$process-message was refused: this is a live key, which does not work in the Sandbox (403).",
+    );
+  });
+
+  it("reads the code from a problem off the FHIR bases", async () => {
+    const problem = {
+      type: "https://docs.haau3.com/errors#forbidden",
+      title: "Forbidden",
+      status: 403,
+      detail: "d",
+      instance: "urn:uuid:x",
+      code: "test-key-outside-sandbox",
+    };
+    const error = (await failWith(() => answer(problem, 403, {}, "application/problem+json"))
+      .searchSlots({ state: "MA" })
+      .catch((e: unknown) => e)) as ForbiddenError;
+    expect(error.code).toBe("test-key-outside-sandbox");
+    expect(error.message).toBe("GET /v1/scheduling/slots was refused: this is a test key, which works only in the Sandbox (403).");
+  });
+
+  it("carries a code it has no sentence for, under the general message", async () => {
+    const error = (await failWith(() => fhirAnswer(coded("phi-agreement-required"), 403))
+      .readInsurancePlan("x")
+      .catch((e: unknown) => e)) as ForbiddenError;
+    expect(error.code).toBe("phi-agreement-required");
+    expect(error.message).toBe(
+      "GET /v1/fhir/r4/InsurancePlan/{id} was refused: the API key was accepted, and its organization may not make this request (403).",
+    );
+  });
+
+  // Negative controls: no code, and a code from another system, are not the API's reason.
+  it("has no code when the API names none, or names one in another system", async () => {
+    for (const body of [outcome("not yet open"), coded("test-key-outside-sandbox", "http://example.org/other")]) {
+      const error = (await failWith(() => fhirAnswer(body, 403)).readInsurancePlan("x").catch((e: unknown) => e)) as ForbiddenError;
+      expect(error.code).toBeUndefined();
+      expect(error.message).toMatch(/the API key was accepted, and its organization may not make this request \(403\)\.$/);
+    }
+  });
+});
+
+// Every answer and every error the API answered carries its status's text: the answer's own, or the
+// standard one when it came with none, as HTTP/2 answers do.
+describe("status text", () => {
+  const plan = { resourceType: "InsurancePlan", id: "H2406-013-000" };
+  const withText = (body: unknown, status: number, statusText: string) =>
+    new Response(JSON.stringify(body), { status, statusText, headers: { "content-type": "application/fhir+json" } });
+
+  it("is on a typed call's answer: the standard text when the answer has none, its own when it has", async () => {
+    const standard = await failWith(() => fhirAnswer(plan)).readInsurancePlan("x").withResponse();
+    expect(standard.status).toBe(200);
+    expect(standard.statusText).toBe("OK");
+    const own = await failWith(() => withText(plan, 200, "Fine")).readInsurancePlan("x").withResponse();
+    expect(own.statusText).toBe("Fine");
+  });
+
+  it("is on each error the API answered", async () => {
+    const auth = (await failWith(() => fhirAnswer(outcome("key"), 401)).readInsurancePlan("x").catch((e: unknown) => e)) as AuthError;
+    const forbidden = (await failWith(() => fhirAnswer(outcome("no"), 403)).readInsurancePlan("x").catch((e: unknown) => e)) as ForbiddenError;
+    const refused = (await failWith(() => withText(outcome("no"), 404, "Nothing Here"))
+      .readInsurancePlan("x")
+      .catch((e: unknown) => e)) as RefusedError;
+    const none = (await failWith(() => fhirAnswer(outcome("down"), 503)).readInsurancePlan("x").catch((e: unknown) => e)) as NoAnswerError;
+    expect([auth.statusText, forbidden.statusText, refused.statusText, none.statusText]).toEqual([
+      "Unauthorized",
+      "Forbidden",
+      "Nothing Here",
+      "Service Unavailable",
+    ]);
+    expect(none.toJSON()).toMatchObject({ status: 503, statusText: "Service Unavailable" });
+  });
+
+  // Negative control: a request that got no answer has no status, so no status text either.
+  it("is unset when no answer came", async () => {
+    const fetch = (async () => {
+      throw new TypeError("fetch failed");
+    }) as typeof globalThis.fetch;
+    const error = (await new Haau3({ apiKey: KEY, maxRetries: 0, fetch }).readInsurancePlan("x").catch((e: unknown) => e)) as NoAnswerError;
+    expect(error.reason).toBe("network");
+    expect(error.status).toBeUndefined();
+    expect(error.statusText).toBeUndefined();
+    expect(error.toJSON()).not.toHaveProperty("statusText");
+  });
+});
