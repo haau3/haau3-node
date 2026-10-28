@@ -158,7 +158,7 @@ export class AuthError extends Haau3Error {
  * - `test-key-outside-sandbox`: a test key works only in the Sandbox. Send a live key.
  * - `live-key-in-sandbox`: a live key does not work in the Sandbox. Send a test key.
  * - `phi-agreement-required`: the organization may not send patient data, and not every resource in
- *   the request is labelled as test data.
+ *   the request is labelled as test data. `markAsTestData` labels made-up data.
  *
  * Without a code, the key's organization may not make the request, or the operation is not yet open
  * to it; `outcome` (or `problem`) says why, in the API's words. Not an {@link AuthError}, which is a

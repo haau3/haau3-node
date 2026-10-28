@@ -1,6 +1,6 @@
 // Compiled against the packed package by scripts/check-consumer.ts, under each TypeScript version
 // customers use (5.9, 6.0, 7.0), as CommonJS. consumer.mts is the same as ES modules.
-import { AuthError, ForbiddenError, Haau3, NoAnswerError, RefusedError, type fhir4, type NoAnswerReason } from "@haau3/sdk";
+import { AuthError, ForbiddenError, Haau3, markAsTestData, NoAnswerError, RefusedError, type fhir4, type NoAnswerReason } from "@haau3/sdk";
 import type { SchedulingProviderLocation, SchedulingSlot, SearchInsurancePlanParams } from "@haau3/sdk";
 import type { BatchResult, BodyOf, Haau3ErrorJSON, QueryOf, ResponseOf } from "@haau3/sdk";
 
@@ -10,6 +10,8 @@ export async function tour(): Promise<void> {
   const plan: fhir4.InsurancePlan = await haau3.readInsurancePlan("H2406-013-000");
   const params: SearchInsurancePlanParams = { "coverage-area-state": "NC", _count: 10 };
   const plans: fhir4.Bundle = await haau3.searchInsurancePlan(params);
+  const marked: fhir4.Bundle = markAsTestData(plans);
+  void marked;
   for await (const page of haau3.pages(plans)) {
     const ids: (string | undefined)[] = (page.entry ?? []).map((entry) => entry.resource?.id);
     void ids;
