@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.2.13](https://github.com/haau3/haau3-node/compare/v0.2.12...v0.2.13) (2026-10-28)
+
+
+### Features
+
+* the API's spec at 1.0.0-preview.15 ([#39](https://github.com/haau3/haau3-node/issues/39)) ([678ff93](https://github.com/haau3/haau3-node/commit/678ff93018eed5555b0bdd49d82c286e408ddb38))
+
+
+### Bug Fixes
+
+* a call to the Sandbox's FHIR base sends and asks for FHIR JSON ([#40](https://github.com/haau3/haau3-node/issues/40)) ([733b116](https://github.com/haau3/haau3-node/commit/733b1160fe2ab373d865562f50911a2a7042abcc))
+
 ## [0.2.12](https://github.com/haau3/haau3-node/compare/v0.2.11...v0.2.12) (2026-10-26)
 
 
