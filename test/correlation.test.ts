@@ -91,6 +91,7 @@ describe("toJSON", () => {
       name: "RefusedError",
       message: "GET /v1/fhir/r4/InsurancePlan/{id} was refused (404).",
       status: 404,
+      statusText: "Not Found",
       attempts: 1,
       durationMs: error.durationMs,
       requestId: "6b1f3c2e-4d5a-4b6c-8d7e-9f0a1b2c3d4e",

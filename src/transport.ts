@@ -1,6 +1,15 @@
 import type { OperationOutcome } from "fhir/r4.js";
 import { APIPromise, type ResponseMeta, type WithResponse } from "./api-promise.js";
-import { AuthError, ForbiddenError, Haau3Error, NoAnswerError, RefusedError, type AnswerBody, type NoAnswerReason } from "./errors.js";
+import {
+  AuthError,
+  ForbiddenError,
+  Haau3Error,
+  NoAnswerError,
+  RefusedError,
+  apiErrorCode,
+  type AnswerBody,
+  type NoAnswerReason,
+} from "./errors.js";
 import type { Problem } from "./generated/types.js";
 import { VERSION } from "./version.js";
 
@@ -133,8 +142,6 @@ export interface RawRequest extends RequestOptions {
 
 /** What the API answered, whatever its status. */
 export interface RawResponse extends ResponseMeta {
-  /** The status's text: the answer's own (`"Not Found"`), or the standard one when it sent none. */
-  statusText: string;
   /** The body, parsed when it is JSON, else its text. */
   body: unknown;
 }
@@ -206,6 +213,19 @@ const STATUS_TEXT: Record<number, string> = {
   451: "Unavailable For Legal Reasons", 500: "Internal Server Error", 501: "Not Implemented",
   502: "Bad Gateway", 503: "Service Unavailable", 504: "Gateway Timeout", 505: "HTTP Version Not Supported",
 };
+
+/** A status's text: the one the answer came with, else the standard one, else none. */
+export const statusTextOf = (status: number, sent?: string) => sent || STATUS_TEXT[status] || "";
+
+/**
+ * Why the API refused a request with a 403, in the words of each message: the reasons the API names
+ * by a code of its own. Any other 403, or one without a code, keeps the general sentence.
+ */
+const FORBIDDEN_REASONS: Record<string, string> = {
+  "test-key-outside-sandbox": "this is a test key, which works only in the Sandbox",
+  "live-key-in-sandbox": "this is a live key, which does not work in the Sandbox",
+};
+const FORBIDDEN_GENERAL = "the API key was accepted, and its organization may not make this request";
 
 /**
  * What failed, safe to log: the system's code for it (`ECONNREFUSED`, `ENOTFOUND`, `UND_ERR_SOCKET`,
@@ -362,6 +382,8 @@ export interface AnswerContext {
   requestId: string | undefined;
   /** The `X-Correlation-Id` the answer came back with. */
   correlationId?: string | undefined;
+  /** The status's text the answer came with; unset or empty means the standard one. */
+  statusText?: string | undefined;
   attempts: number;
   durationMs: number;
   /** Seconds from the answer's `Retry-After`, when it had one. */
@@ -389,7 +411,7 @@ export function judge<T>(
   context: AnswerContext,
 ): { ok: true; data: T } | { ok: false; error: AuthError | ForbiddenError | RefusedError | NoAnswerError } {
   const { requestId, attempts, durationMs, expects } = context;
-  const timing = { attempts, durationMs, correlationId: context.correlationId };
+  const timing = { attempts, durationMs, correlationId: context.correlationId, statusText: statusTextOf(status, context.statusText) };
   if (status >= 200 && status < 300) {
     if (body === undefined) {
       return {
@@ -419,15 +441,11 @@ export function judge<T>(
     };
   }
   if (status === 403 && !context.entry) {
+    const code = apiErrorCode(errorBody);
+    const why = (code !== undefined && FORBIDDEN_REASONS[code]) || FORBIDDEN_GENERAL;
     return {
       ok: false,
-      error: new ForbiddenError(
-        `${name} was refused: the API key was accepted, and its organization may not make this request (403).`,
-        status,
-        requestId,
-        errorBody,
-        timing,
-      ),
+      error: new ForbiddenError(`${name} was refused: ${why} (403).`, status, requestId, errorBody, timing),
     };
   }
   if (status === 429 || status >= 500) {
@@ -500,7 +518,7 @@ export abstract class Transport {
     const sent = await this.#send(request.method, url, request.body, request, url.pathname);
     return {
       status: sent.response.status,
-      statusText: sent.response.statusText || STATUS_TEXT[sent.response.status] || "",
+      statusText: statusTextOf(sent.response.status, sent.response.statusText),
       headers: sent.response.headers,
       body: parseBody(sent.text, sent.response.headers.get("content-type")) ?? sent.text,
       requestId: sent.response.headers.get("x-request-id") ?? undefined,
@@ -566,6 +584,7 @@ export abstract class Transport {
     const verdict = judge<T>(`${method} ${label}`, status, parseBody(text, response.headers.get("content-type")), {
       requestId,
       correlationId,
+      statusText: response.statusText,
       attempts,
       durationMs,
       retryAfter: retryAfterSeconds(response.headers),
@@ -573,7 +592,8 @@ export abstract class Transport {
       missing: "a body that is not JSON",
     });
     if (!verdict.ok) throw verdict.error;
-    return { data: verdict.data, requestId, correlationId, durationMs, attempts, status, headers: response.headers };
+    const statusText = statusTextOf(status, response.statusText);
+    return { data: verdict.data, requestId, correlationId, durationMs, attempts, status, statusText, headers: response.headers };
   }
 
   /** A URL on this client's base, refusing any other host so the key is never sent to one. */
