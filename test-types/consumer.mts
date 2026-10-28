@@ -1,6 +1,6 @@
 // Compiled against the packed package by scripts/check-consumer.ts, under each TypeScript version
 // customers use (5.9, 6.0, 7.0), as ES modules. consumer.cts is the same as CommonJS.
-import { AuthError, ForbiddenError, Haau3, NoAnswerError, RefusedError, type fhir4, type NoAnswerReason } from "@haau3/sdk";
+import { AuthError, ForbiddenError, Haau3, markAsTestData, NoAnswerError, RefusedError, type fhir4, type NoAnswerReason } from "@haau3/sdk";
 import type { SchedulingProviderLocation, SchedulingSlot, SearchInsurancePlanParams } from "@haau3/sdk";
 import type { BatchResult, BodyOf, Haau3ErrorJSON, QueryOf, ResponseOf } from "@haau3/sdk";
 
@@ -96,6 +96,11 @@ export async function tour(): Promise<void> {
   const asParameters: fhir4.Parameters = counties;
   const reconciled: fhir4.Bundle = await haau3.reconcileMedications(records);
   void [reconciled, await haau3.reconcileMedications(asParameters)];
+  // Test data: what goes in is what comes out, so a call takes it as it takes the original.
+  const marked: fhir4.Bundle = markAsTestData(records);
+  void [await haau3.reconcileMedications(marked), await haau3.reconcileMedications(markAsTestData(asParameters))];
+  // @ts-expect-error Only a FHIR resource can be labelled.
+  void markAsTestData({ entry: [] });
   // @ts-expect-error Any other resource is not a body MedList takes.
   void haau3.reconcileMedications(plan);
 
