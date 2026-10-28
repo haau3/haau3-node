@@ -72,6 +72,10 @@ const checked = await haau3.processMessage(message);
 // MedList: one reconciled medication list from one patient's FHIR medication records. It receives
 // patient data, so send it only under an executed agreement.
 const list = await haau3.reconcileMedications(records);
+
+// Sandbox: the same pharmacy benefit check at /v1/sandbox/fhir/r4, where a test insurer answers
+// with synthetic data for its test members only (https://docs.haau3.com/sandbox/example-health-plan).
+const sandboxChecked = await haau3.sandboxProcessMessage(sandboxMessage);
 ```
 
 Every method, grouped by service, with its request and a link to its page on docs.haau3.com, is in
