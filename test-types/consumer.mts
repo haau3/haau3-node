@@ -98,6 +98,38 @@ export async function tour(): Promise<void> {
   void [reconciled, await haau3.reconcileMedications(asParameters)];
   // @ts-expect-error Any other resource is not a body MedList takes.
   void haau3.reconcileMedications(plan);
+  // A record written inline is checked as the resource it is, with no cast: a message's MessageHeader,
+  // and MedList's records in a Parameters' Bundle.
+  void haau3.processMessage({
+    resourceType: "Bundle",
+    type: "message",
+    entry: [{ resource: { resourceType: "MessageHeader", eventCoding: { code: "rtpbc-request-non-phi" }, source: { endpoint: "urn:example" } } }],
+  });
+  void haau3.reconcileMedications({
+    resourceType: "Parameters",
+    parameter: [
+      {
+        name: "bundle",
+        resource: {
+          resourceType: "Bundle",
+          type: "collection",
+          entry: [{ resource: { resourceType: "MedicationRequest", status: "active", intent: "order", subject: { reference: "Patient/p" } } }],
+        },
+      },
+    ],
+  });
+  void haau3.processMessage({
+    resourceType: "Bundle",
+    type: "message",
+    // @ts-expect-error A misspelt field is an error, as it is in the record's own type.
+    entry: [{ resource: { resourceType: "MessageHeader", eventCodin: { code: "x" }, source: { endpoint: "urn:example" } } }],
+  });
+  void haau3.reconcileMedications({
+    resourceType: "Bundle",
+    type: "collection",
+    // @ts-expect-error A value outside a coded field's set is an error.
+    entry: [{ resource: { resourceType: "MedicationRequest", status: "not-a-status", intent: "order", subject: { reference: "Patient/p" } } }],
+  });
 
   // @ts-expect-error `state` is required.
   await haau3.listInsurancePlanCounties({});
