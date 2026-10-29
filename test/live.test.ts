@@ -2,13 +2,54 @@
 //
 //   HAAU3_LIVE_TEST=1 HAAU3_API_KEY=haau3_sk_... pnpm test test/live.test.ts
 //
-// CI never sets either, so it never runs there.
+// CI never sets either, so it never runs there. The calls below are the API's services outside the
+// Sandbox, so they skip on a test key (`haau3_sk_test_`), whose calls test/samples.test.ts makes. The
+// patient-data cases need a live key (`haau3_sk_live_`) from an organization with no agreement on
+// file, which is refused real patient data.
+import type { Bundle, Resource } from "fhir/r4.js";
 import { describe, expect, it } from "vitest";
-import { Haau3, RefusedError } from "../src/index.js";
+import { ForbiddenError, Haau3, markAsTestData, RefusedError } from "../src/index.js";
+import { spec } from "./helpers.js";
 
 const live = process.env.HAAU3_LIVE_TEST === "1" && Boolean(process.env.HAAU3_API_KEY);
+const key = process.env.HAAU3_API_KEY ?? "";
+const testKey = key.startsWith("haau3_sk_test_");
+const liveKey = key.startsWith("haau3_sk_live_");
 
-describe.skipIf(!live)("the production API", () => {
+/** A copy with every `HTEST` label taken off, so made-up records read as real patient data. */
+function withoutTestLabels<T>(value: T): T {
+  if (Array.isArray(value)) return value.map(withoutTestLabels) as T;
+  if (!value || typeof value !== "object") return value;
+  const copy = Object.fromEntries(Object.entries(value).map(([k, v]) => [k, withoutTestLabels(v)])) as Record<string, any>;
+  if (Array.isArray(copy.meta?.security)) {
+    const security = copy.meta.security.filter((c: { code?: string }) => c.code !== "HTEST");
+    copy.meta = { ...copy.meta, security };
+    if (security.length === 0) delete copy.meta.security;
+    if (Object.keys(copy.meta).length === 0) delete copy.meta;
+  }
+  return copy as T;
+}
+
+describe.skipIf(!live || !liveKey)("patient data on the production API, without an agreement", () => {
+  const haau3 = live ? new Haau3() : (undefined as never);
+  // MedList's example request from the spec: made-up records, here with their test-data labels off.
+  const media = (spec.paths["/v1/fhir/r4/$reconcile-medications"] as any).post.requestBody.content["application/fhir+json"];
+  const records = withoutTestLabels(Object.values(media.examples as Record<string, { value: Bundle }>)[0]!.value);
+
+  it("answers made-up records that markAsTestData labels", async () => {
+    expect(JSON.stringify(records)).not.toContain("HTEST");
+    const list = await haau3.reconcileMedications(markAsTestData(records as Resource as Bundle));
+    expect(list.resourceType).toBe("Bundle");
+  });
+
+  it("refuses the same records unlabelled, with a ForbiddenError naming the agreement", async () => {
+    const refused = await haau3.reconcileMedications(records).catch((error: unknown) => error);
+    expect(refused).toBeInstanceOf(ForbiddenError);
+    expect((refused as ForbiddenError).code).toBe("phi-agreement-required");
+  });
+});
+
+describe.skipIf(!live || testKey)("the production API", () => {
   const haau3 = live ? new Haau3() : (undefined as never);
 
   it("answers a Scheduling search", async () => {
