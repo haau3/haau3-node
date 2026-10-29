@@ -76,7 +76,7 @@ function exampleRequestKey({ method, path, op }: Operation): string {
 function expectedOutput({ id, op }: Operation): string {
   const answer = firstExample(op.responses["200"].content);
   if (id === "fhirBatch") return answer.entry.map((e: Json) => String(Number.parseInt(e.response.status, 10))).join("\n");
-  if (id === "fhirMetadata") return answer.resourceType;
+  if (id === "fhirMetadata" || answer.resourceType === "CapabilityStatement") return answer.resourceType;
   if (answer.resourceType === "Bundle") return String(answer.entry?.length ?? 0);
   if (answer.resourceType === "Parameters") return answer.parameter.map((p: Json) => p.name).join("\n");
   if (answer.resourceType) return answer.id;

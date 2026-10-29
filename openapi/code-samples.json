@@ -457,7 +457,7 @@
           {
             "lang": "typescript",
             "label": "TypeScript",
-            "source": "import { Haau3 } from \"@haau3/sdk\";\n\nconst haau3 = new Haau3(); // reads HAAU3_API_KEY\nconst capabilityStatement = await haau3.sandboxMetadata();\nconsole.log(capabilityStatement.id);\n"
+            "source": "import { Haau3 } from \"@haau3/sdk\";\n\nconst haau3 = new Haau3(); // reads HAAU3_API_KEY\nconst capabilityStatement = await haau3.sandboxMetadata();\nconsole.log(capabilityStatement.resourceType);\n"
           }
         ]
       }

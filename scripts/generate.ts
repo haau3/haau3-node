@@ -514,11 +514,12 @@ function answerName(op: Operation): string {
 
 /**
  * The one line that shows what came back: a resource's id, how many entries a Bundle holds, the
- * name of each output parameter, a search's total, or how many records a list holds.
+ * name of each output parameter, a search's total, or how many records a list holds. A
+ * CapabilityStatement, which a base's `metadata` answers without an id, prints its resource type.
  */
 function printLine(op: Operation, name: string): string {
-  if (op.expects.length > 1) return `console.log(${name}.resourceType);`;
   const type = op.expects[0];
+  if (op.expects.length > 1 || type === "CapabilityStatement") return `console.log(${name}.resourceType);`;
   if (type === "Bundle") return `console.log(${name}.entry?.length ?? 0);`;
   if (type === "Parameters") return `for (const parameter of ${name}.parameter ?? []) console.log(parameter.name);`;
   if (type) return `console.log(${name}.id);`;
