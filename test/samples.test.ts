@@ -1,6 +1,17 @@
 // The code samples in openapi/code-samples.json, one per operation, each run as it is written: a
 // program of its own, with HAAU3_BASE_URL pointing at a stand-in API that answers only the
 // operation's example request, exactly as the spec writes it, and refuses anything else.
+//
+// Against the production API too, on a real key, when asked, as test/live.test.ts is:
+//
+//   HAAU3_LIVE_TEST=1 HAAU3_API_KEY=haau3_sk_... pnpm test test/samples.test.ts
+//
+// There each sample runs with no address set, as a customer runs it, one at a time. What it must
+// do is set by the key's mode, read from its prefix: a live key (`haau3_sk_live_`) is answered
+// everywhere but the Sandbox and refused there, a test key (`haau3_sk_test_`) the reverse, each
+// refusal a ForbiddenError with its code. The live key comes from an organization with no agreement
+// on file, which Pharmacy Benefits refuses, since it is not yet open. A key with neither prefix
+// works on both bases, and its run leaves Pharmacy Benefits out. CI sets neither variable.
 import { execFile } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer, type Server } from "node:http";
@@ -153,7 +164,11 @@ const SRC = new URL("../src/index.ts", import.meta.url).pathname;
  * Runs one sample as a program of its own, as a customer would, with `@haau3/sdk` resolving to this
  * repository's source. A sample whose body nests resources reads it from request.json where it runs.
  */
-function run(source: string, files: Record<string, string> = {}): Promise<{ code: number; stdout: string; stderr: string }> {
+function run(
+  source: string,
+  files: Record<string, string> = {},
+  env: Record<string, string> = { HAAU3_API_KEY: KEY, HAAU3_BASE_URL: baseURL },
+): Promise<{ code: number; stdout: string; stderr: string }> {
   const dir = mkdtempSync(join(tmpdir(), "sdk-sample-"));
   writeFileSync(join(dir, "sample.mts"), source);
   writeFileSync(
@@ -165,7 +180,7 @@ function run(source: string, files: Record<string, string> = {}): Promise<{ code
     execFile(
       TSX,
       ["sample.mts"],
-      { cwd: dir, env: { PATH: process.env.PATH, HAAU3_API_KEY: KEY, HAAU3_BASE_URL: baseURL }, timeout: 30_000 },
+      { cwd: dir, env: { PATH: process.env.PATH, ...env }, timeout: 30_000 },
       (error, stdout, stderr) => {
         rmSync(dir, { recursive: true, force: true });
         resolve({ code: error ? ((error as { code?: number }).code ?? 1) : 0, stdout, stderr });
@@ -224,4 +239,35 @@ describe("each sample, run as written", () => {
     expect(result.code).not.toBe(0);
     expect(result.stderr).toContain("RefusedError");
   });
+});
+
+const live = process.env.HAAU3_LIVE_TEST === "1" && Boolean(process.env.HAAU3_API_KEY);
+const liveKey = process.env.HAAU3_API_KEY ?? "";
+const keyMode = liveKey.startsWith("haau3_sk_live_") ? "live" : liveKey.startsWith("haau3_sk_test_") ? "test" : "either";
+
+/** What a sample must do on this key: answer, or be refused with this code (null for none); undefined when it is not run. */
+function onThisKey({ id, path }: Operation): { answers: true } | { refused: string | null } | undefined {
+  const sandbox = path.startsWith("/v1/sandbox/");
+  if (keyMode === "test" && !sandbox) return { refused: "test-key-outside-sandbox" };
+  if (keyMode === "live" && sandbox) return { refused: "live-key-in-sandbox" };
+  if (id === "processMessage") return keyMode === "live" ? { refused: null } : undefined;
+  return { answers: true };
+}
+
+describe.skipIf(!live)("each sample, run against the production API", () => {
+  for (const operation of operations) {
+    const expected = onThisKey(operation);
+    it.skipIf(expected === undefined)(`${operation.id}, on a ${keyMode} key`, async () => {
+      const result = await run(sampleOf(operation), requestFile(operation), { HAAU3_API_KEY: liveKey });
+      if (expected && "answers" in expected) {
+        expect(result.stderr).toBe("");
+        expect(result.code).toBe(0);
+        expect(result.stdout.trim()).not.toBe("");
+      } else {
+        expect(result.code).not.toBe(0);
+        expect(result.stderr).toContain("ForbiddenError");
+        expect(result.stderr).toContain(expected?.refused ? `code: '${expected.refused}'` : "code: undefined");
+      }
+    }, 60_000);
+  }
 });
