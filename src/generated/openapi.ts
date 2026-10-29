@@ -713,6 +713,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/sandbox/fhir/r4/metadata": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The Sandbox's capability statement
+         * @description FHIR `[base]/metadata` at the Sandbox's FHIR base, `/v1/sandbox/fhir/r4`. Returns the Sandbox's own `CapabilityStatement`, which says what the Sandbox serves: today the pharmacy benefit check, `$process-message`, as CARIN's responder (STU2 ballot, `2.0.0-ballot`), receiving a member's request. It takes no parameters.
+         */
+        get: operations["sandboxMetadata"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/sandbox/fhir/r4/$process-message": {
         parameters: {
             query?: never;
@@ -3423,20 +3443,26 @@ export interface operations {
     searchHealthcareService: {
         parameters: {
             query?: {
-                /**
-                 * @description The services offered at one location. Give a Location id, `Location/{id}`, or the `fullUrl` this service returned. An address on another server is refused.
-                 * @example Location-ba334cb2-a0f9-4147-ab31-1c5af4ab9a4d
-                 */
+                /** @description The services offered at one location. Give a Location id, `Location/{id}`, or the `fullUrl` this service returned. An address on another server is refused. */
                 location?: string;
                 /** @description The services the directory lists in one insurance network. Cannot be used on its own: send it beside `location`. A search that breaks this rule is refused before the directory is asked. Give a Organization id, `Organization/{id}`, or the `fullUrl` this service returned. An address on another server is refused. */
                 network?: string;
-                /** @description `pharm`, bare or as `http://terminology.hl7.org/CodeSystem/ndh-healthcare-service-category|pharm`: every pharmacy, of any kind. Starts a pharmacy search, as `specialty` does. A pharmacy search needs `location.address-state` with `location.address-postalcode` or `location.address-city`, or one pharmacy's `organization` or `organization.identifier`; `name` narrows it. */
+                /**
+                 * @description `pharm`, bare or as `http://terminology.hl7.org/CodeSystem/ndh-healthcare-service-category|pharm`: every pharmacy, of any kind. Starts a pharmacy search, as `specialty` does. A pharmacy search needs `location.address-state` with `location.address-postalcode` or `location.address-city`, or one pharmacy's `organization` or `organization.identifier`; `name` narrows it.
+                 * @example pharm
+                 */
                 "service-category"?: string;
                 /** @description A NUCC pharmacy code, bare or as `http://nucc.org/provider-taxonomy|{code}`, or several separated by commas to find pharmacies of any of those kinds: for example `3336C0003X` (community or retail) or `3336M0002X` (mail order). Starts a pharmacy search. A pharmacy may carry only the general code 333600000X or only a specific one, so send `333600000X,3336C0003X` to find either, or `service-category=pharm` for every kind. Only pharmacy codes (333600000X, 3336C0002X, 3336C0003X, 3336C0004X, 3336H0001X, 3336I0012X, 3336L0003X, 3336M0002X, 3336M0003X, 3336N0007X, 3336S0011X) are served. A pharmacy search needs `location.address-state` with `location.address-postalcode` or `location.address-city`, or one pharmacy's `organization` or `organization.identifier`; `name` narrows it. */
                 specialty?: string;
-                /** @description A pharmacy search's state: the two-letter code of the state the pharmacy's store is in. Required, with a ZIP code or a city, unless the search names one pharmacy. */
+                /**
+                 * @description A pharmacy search's state: the two-letter code of the state the pharmacy's store is in. Required, with a ZIP code or a city, unless the search names one pharmacy.
+                 * @example FL
+                 */
                 "location.address-state"?: string;
-                /** @description Narrows a pharmacy search to stores whose ZIP code starts with this: a ZIP code, or its first two or more digits. Send it with `location.address-state`. */
+                /**
+                 * @description Narrows a pharmacy search to stores whose ZIP code starts with this: a ZIP code, or its first two or more digits. Send it with `location.address-state`.
+                 * @example 33131
+                 */
                 "location.address-postalcode"?: string;
                 /** @description Narrows a pharmacy search to stores in a city whose name starts with this, so `Miami` also finds Miami Beach. Two or more letters. Send it with `location.address-state`. */
                 "location.address-city"?: string;
@@ -3778,7 +3804,7 @@ export interface operations {
             path: {
                 /**
                  * @description The resource id, as returned by a search on this service. Ids are opaque: they are not constructed from an NPI or any other identifier.
-                 * @example Location-26e6731f-5e6a-48e4-aa2f-9f4c40cf402b
+                 * @example Location-5e79e878-cef0-4a63-a41c-b77cfd3f8062
                  */
                 id: string;
             };
@@ -4805,6 +4831,65 @@ export interface operations {
                     "application/fhir+json": components["schemas"]["OperationOutcome"];
                 };
             };
+        };
+    };
+    sandboxMetadata: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description An id of your own for this request, as a UUID. It comes back in the `X-Correlation-Id` header and is kept with haau3's record of the request. Any value that is not a UUID is ignored. See https://docs.haau3.com/errors#request-ids. */
+                "X-Request-Id"?: components["parameters"]["XRequestId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The Sandbox's FHIR `CapabilityStatement`. */
+            200: {
+                headers: {
+                    /** @description `private, max-age=300`: keep this answer up to five minutes. */
+                    "Cache-Control"?: string;
+                    /** @description Send it back in `If-None-Match` to get a `304` when nothing has changed. */
+                    ETag?: string;
+                    "X-Request-Id": components["headers"]["XRequestId"];
+                    "X-Correlation-Id": components["headers"]["XCorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/fhir+json": components["schemas"]["CapabilityStatement"];
+                };
+            };
+            /** @description Not modified: the `ETag` sent in `If-None-Match` still matches, so the copy you hold is current. No body. */
+            304: {
+                headers: {
+                    /** @description `private, max-age=300`: keep this answer up to five minutes. */
+                    "Cache-Control"?: string;
+                    /** @description Send it back in `If-None-Match` to get a `304` when nothing has changed. */
+                    ETag?: string;
+                    "X-Request-Id": components["headers"]["XRequestId"];
+                    "X-Correlation-Id": components["headers"]["XCorrelationId"];
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Two different FHIR versions were named in one request, or a query parameter was sent: `metadata` takes none on this base. */
+            400: {
+                headers: {
+                    "X-Request-Id": components["headers"]["XRequestId"];
+                    "X-Correlation-Id": components["headers"]["XCorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/fhir+json": components["schemas"]["OperationOutcome"];
+                };
+            };
+            401: components["responses"]["FhirUnauthorized"];
+            403: components["responses"]["FhirForbiddenLiveKey"];
+            406: components["responses"]["FhirNotAcceptable"];
+            429: components["responses"]["FhirTooManyRequests"];
+            500: components["responses"]["FhirServerError"];
+            503: components["responses"]["FhirUnavailable"];
         };
     };
     sandboxProcessMessage: {

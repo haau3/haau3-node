@@ -2,7 +2,7 @@
   "overlay": "1.2.0",
   "info": {
     "title": "TypeScript samples for every operation of the haau3 platform API",
-    "version": "1.0.0-preview.16"
+    "version": "1.0.0-preview.18"
   },
   "extends": "https://api.haau3.com/openapi.json",
   "actions": [
@@ -289,7 +289,7 @@
           {
             "lang": "typescript",
             "label": "TypeScript",
-            "source": "import { Haau3 } from \"@haau3/sdk\";\n\nconst haau3 = new Haau3(); // reads HAAU3_API_KEY\nconst bundle = await haau3.searchHealthcareService({\n  location: \"Location-ba334cb2-a0f9-4147-ab31-1c5af4ab9a4d\",\n  _count: 2,\n});\nconsole.log(bundle.entry?.length ?? 0);\n"
+            "source": "import { Haau3 } from \"@haau3/sdk\";\n\nconst haau3 = new Haau3(); // reads HAAU3_API_KEY\nconst bundle = await haau3.searchHealthcareService({\n  \"service-category\": \"pharm\",\n  \"location.address-state\": \"FL\",\n  \"location.address-postalcode\": \"33131\",\n  _count: 2,\n});\nconsole.log(bundle.entry?.length ?? 0);\n"
           }
         ]
       }
@@ -325,7 +325,7 @@
           {
             "lang": "typescript",
             "label": "TypeScript",
-            "source": "import { Haau3 } from \"@haau3/sdk\";\n\nconst haau3 = new Haau3(); // reads HAAU3_API_KEY\nconst location = await haau3.readLocation(\"Location-26e6731f-5e6a-48e4-aa2f-9f4c40cf402b\");\nconsole.log(location.id);\n"
+            "source": "import { Haau3 } from \"@haau3/sdk\";\n\nconst haau3 = new Haau3(); // reads HAAU3_API_KEY\nconst location = await haau3.readLocation(\"Location-5e79e878-cef0-4a63-a41c-b77cfd3f8062\");\nconsole.log(location.id);\n"
           }
         ]
       }
@@ -446,6 +446,18 @@
             "lang": "typescript",
             "label": "TypeScript",
             "source": "import { readFile } from \"node:fs/promises\";\nimport { Haau3, type fhir4 } from \"@haau3/sdk\";\n\nconst haau3 = new Haau3(); // reads HAAU3_API_KEY\n// request.json holds one patient's medication records, as a Bundle.\nconst body: fhir4.Bundle = JSON.parse(await readFile(\"request.json\", \"utf8\"));\nconst bundle = await haau3.reconcileMedications(body);\nconsole.log(bundle.entry?.length ?? 0);\n"
+          }
+        ]
+      }
+    },
+    {
+      "target": "$.paths['/v1/sandbox/fhir/r4/metadata'].get",
+      "update": {
+        "x-codeSamples": [
+          {
+            "lang": "typescript",
+            "label": "TypeScript",
+            "source": "import { Haau3 } from \"@haau3/sdk\";\n\nconst haau3 = new Haau3(); // reads HAAU3_API_KEY\nconst capabilityStatement = await haau3.sandboxMetadata();\nconsole.log(capabilityStatement.resourceType);\n"
           }
         ]
       }
