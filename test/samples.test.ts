@@ -263,6 +263,8 @@ describe.skipIf(!live)("each sample, run against the production API", () => {
         expect(result.stderr).toBe("");
         expect(result.code).toBe(0);
         expect(result.stdout.trim()).not.toBe("");
+        // A search that finds nothing still answers: its example found something, so this must too.
+        if (expectedOutput(operation) !== "0") expect(result.stdout.trim()).not.toBe("0");
       } else {
         expect(result.code).not.toBe(0);
         expect(result.stderr).toContain("ForbiddenError");
