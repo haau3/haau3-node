@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.4](https://github.com/haau3/haau3-node/compare/v0.3.3...v0.3.4) (2026-10-31)
+
+
+### Features
+
+* structureDosageRequest() builds a $structure-dosage request, and the readers are plain functions too ([#57](https://github.com/haau3/haau3-node/issues/57)) ([1109eb3](https://github.com/haau3/haau3-node/commit/1109eb398d09c7de51ee0a622d0939c722476c35))
+
 ## [0.3.3](https://github.com/haau3/haau3-node/compare/v0.3.2...v0.3.3) (2026-10-31)
 
 
