@@ -254,6 +254,15 @@ export class BatchBuilder {
   }
 
   /**
+   * Structure a prescription's directions as a FHIR Dosage, as one entry of a batch. Called as `Haau3.structureDosage` is.
+   *
+   * `POST /v1/fhir/r4/$structure-dosage`
+   */
+  structureDosage(body: BodyOf<"structureDosage">): BatchEntry<ResponseOf<"structureDosage">> {
+    return entry<ResponseOf<"structureDosage">>({ method: "POST", path: "/v1/fhir/r4/$structure-dosage", body, expects: ["Parameters"] });
+  }
+
+  /**
    * Expand a value set, as one entry of a batch. Called as `Haau3.valueSetExpand` is.
    *
    * `GET /v1/fhir/r4/ValueSet/$expand`

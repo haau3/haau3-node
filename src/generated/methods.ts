@@ -451,6 +451,17 @@ export abstract class Operations extends Transport {
   }
 
   /**
+   * Structure a prescription's directions as a FHIR Dosage
+   *
+   * FHIR system-level operation `$structure-dosage`. POST a Parameters resource with one `text` part, a prescription's directions as written, at most 1,000 characters, and optionally one `medication` part, the medication's codings as a CodeableConcept (RxNorm or NDC). The answer is a Parameters resource with one `dosage` part: a FHIR Dosage conforming to haau3 Structured Dosage, whose `text` is the directions exactly as sent and whose dose and unit, route, method, timing and as-needed elements are coded where the words support them, in SNOMED CT (Global Patient Set concepts only), NCIt and UCUM. Nothing is invented: an element the directions do not support is absent. Anything a person should check is a review flag on the Dosage, an extension with a code from `https://haau3.com/fhir/CodeSystem/structured-sig-review-flag` and, when the flag is about words, those words. Every Dosage names the engine and vocabulary versions it was written under, and the RxNorm release when the medication's code was looked up. With an RxNorm code, the product's dose form checks the dose's unit and the route, and supplies either when the directions name none, each flagged. Send the directions and the medication's codings only, never a patient's name or identifiers. Nothing a request carries is stored or logged, apart from the request's ids, and every answer is sent with `Cache-Control: no-store`. The operation takes no query parameters, and may be sent inside a batch, one request per entry. The contract is published at https://fhir.haau3.com/OperationDefinition-structure-dosage.html.
+   *
+   * `POST /v1/fhir/r4/$structure-dosage`
+   */
+  structureDosage(body: BodyOf<"structureDosage">, options?: RequestOptions): APIPromise<ResponseOf<"structureDosage">> {
+    return this.operation<ResponseOf<"structureDosage">>({ method: "POST", path: "/v1/fhir/r4/$structure-dosage", body, expects: ["Parameters"] }, options);
+  }
+
+  /**
    * Expand a value set
    *
    * FHIR `ValueSet/$expand`. Expands a value set canonical to its member codes, with a text filter and paging (`count=0` returns the total only). On the RxNorm value sets this service holds, the filter searches by name and is required, and the matches come ranked, best first, with `expansion.total` the number of matches.

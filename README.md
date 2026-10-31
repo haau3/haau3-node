@@ -74,6 +74,13 @@ const checked = await haau3.processMessage(message);
 // every plan, and markAsTestData labels a request and every resource in it. Label only made-up data.
 const list = await haau3.reconcileMedications(records);
 
+// Structured Sig: a prescription's free-text directions as a FHIR Dosage, each element coded where the
+// words support it and a review flag on anything to check. Send the directions, never a patient.
+const structured = await haau3.structureDosage({
+  resourceType: "Parameters",
+  parameter: [{ name: "text", valueString: "Take 1 tablet by mouth twice daily" }],
+});
+
 // Sandbox: the same pharmacy benefit check at /v1/sandbox/fhir/r4, where a test insurer answers
 // with synthetic data for its test members only (https://docs.haau3.com/sandbox/example-health-plan).
 const sandboxChecked = await haau3.sandboxProcessMessage(sandboxMessage);

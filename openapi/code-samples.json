@@ -2,7 +2,7 @@
   "overlay": "1.2.0",
   "info": {
     "title": "TypeScript samples for every operation of the haau3 platform API",
-    "version": "1.0.0-preview.19"
+    "version": "1.0.0-preview.20"
   },
   "extends": "https://api.haau3.com/openapi.json",
   "actions": [
@@ -446,6 +446,18 @@
             "lang": "typescript",
             "label": "TypeScript",
             "source": "import { readFile } from \"node:fs/promises\";\nimport { Haau3, type fhir4 } from \"@haau3/sdk\";\n\nconst haau3 = new Haau3(); // reads HAAU3_API_KEY\n// request.json holds one patient's medication records, as a Bundle.\nconst body: fhir4.Bundle = JSON.parse(await readFile(\"request.json\", \"utf8\"));\nconst bundle = await haau3.reconcileMedications(body);\nconsole.log(bundle.entry?.length ?? 0);\n"
+          }
+        ]
+      }
+    },
+    {
+      "target": "$.paths['/v1/fhir/r4/$structure-dosage'].post",
+      "update": {
+        "x-codeSamples": [
+          {
+            "lang": "typescript",
+            "label": "TypeScript",
+            "source": "import { Haau3 } from \"@haau3/sdk\";\n\nconst haau3 = new Haau3(); // reads HAAU3_API_KEY\nconst parameters = await haau3.structureDosage({\n  resourceType: \"Parameters\",\n  parameter: [\n    { name: \"text\", valueString: \"Instill 2 drops in the affected ear twice daily\" },\n    {\n      valueCodeableConcept: {\n        coding: [\n          {\n            code: \"1923428\",\n            system: \"http://www.nlm.nih.gov/research/umls/rxnorm\",\n            display: \"timolol 2.5 MG/ML Ophthalmic Solution\",\n          },\n        ],\n      },\n      name: \"medication\",\n    },\n  ],\n});\nfor (const parameter of parameters.parameter ?? []) console.log(parameter.name);\n"
           }
         ]
       }

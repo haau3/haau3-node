@@ -2,7 +2,7 @@
 
 # API reference
 
-Every operation of the haau3 platform API (`1.0.0-preview.19`) is a method on `Haau3`, named by its
+Every operation of the haau3 platform API (`1.0.0-preview.20`) is a method on `Haau3`, named by its
 operationId. Each links to its page on docs.haau3.com, which shows its parameters and an example
 exchange. `params` is the query parameters as one object, `body` the request body, and every method
 takes the per-call options (`{ timeout, maxRetries, signal, correlationId, headers, fetchOptions }`) as its last
@@ -13,8 +13,8 @@ An operation that declares a header takes it as one more option, named from the 
 before sending: `processMessage` takes `payerAuthorization`, sent as `Payer-Authorization`.
 
 `batch()` sends several of these as one request, each with its own answer or error. It takes
-every operation on the FHIR base except `fhirBatch`, `processMessage` and `reconcileMedications`: 29 of the
-39. See the README's "Several requests in one".
+every operation on the FHIR base except `fhirBatch`, `processMessage` and `reconcileMedications`: 30 of the
+40. See the README's "Several requests in one".
 
 ## Scheduling
 
@@ -108,6 +108,14 @@ One reconciled medication list from one patient's FHIR medication records, as US
 | Method | Request | What it does |
 |---|---|---|
 | [`reconcileMedications(body)`](https://docs.haau3.com/api-reference/medlist/reconcile-one-patients-medication-records) | `POST /v1/fhir/r4/$reconcile-medications` | Reconcile one patient's medication records |
+
+## Structured Sig
+
+A prescription's free-text directions as a FHIR Dosage: the dose, unit, route, method and timing coded in SNOMED CT, NCIt and UCUM where the words support them, the directions kept verbatim, and a review flag on anything a person should check. It takes the directions and the medication's codings, never a patient.
+
+| Method | Request | What it does |
+|---|---|---|
+| [`structureDosage(body)`](https://docs.haau3.com/api-reference/structured-sig/structure-a-prescriptions-directions-as-a-fhir-dosage) | `POST /v1/fhir/r4/$structure-dosage` | Structure a prescription's directions as a FHIR Dosage |
 
 ## Sandbox
 
