@@ -272,6 +272,36 @@ that resource as `from`, and otherwise is the one entry whose address ends in th
 is found in `from`'s `contained`. It is `undefined` when the page does not hold the resource, and
 throws when two entries could be the one meant or the resource is not of `type`.
 
+## Reading a Parameters answer
+
+FHIR operations answer with a `Parameters` resource whose parts are named: `$lookup`'s `display` and
+`property` parts, `$structure-dosage`'s `dosage` part. `parameters()` gives every part with a name and
+`parameter()` the one, both with no request, as FHIR's own SDKs read one (Firely's `Get` and
+`GetSingleValue`, HAPI's `ParametersUtil`). A part holds its value in the `value[x]` its operation
+names. `parameter()` throws when two parts share the name.
+
+```ts
+const lookup = await haau3.codeSystemLookup({ system: "http://loinc.org", code: "2345-7" });
+console.log(haau3.parameter(lookup, "display")?.valueString);
+```
+
+Structured Sig answers with one `dosage` part, a FHIR `Dosage`, and writes on it a review flag for
+anything a person should check. `reviewFlags()` reads each flag's code, display and the words of the
+directions it is about, and the versions the Dosage names:
+
+```ts
+const answer = await haau3.structureDosage({
+  resourceType: "Parameters",
+  parameter: [{ name: "text", valueString: "Instill 2 drops in the affected ear twice daily" }],
+});
+const dosage = haau3.parameter(answer, "dosage")?.valueDosage;
+if (dosage) {
+  const review = haau3.reviewFlags(dosage);
+  for (const flag of review.flags) console.log(flag.code, flag.display, flag.words);
+  console.log(review.engineVersion, review.vocabularyVersion, review.rxnormRelease);
+}
+```
+
 ## Several requests in one
 
 `batch()` sends several operations of the FHIR base as one request. The function you pass gets a
