@@ -8,7 +8,7 @@
 // file, which is refused real patient data.
 import type { Bundle, Resource } from "fhir/r4.js";
 import { describe, expect, it } from "vitest";
-import { ForbiddenError, Haau3, markAsTestData, RefusedError } from "../src/index.js";
+import { ForbiddenError, Haau3, markAsTestData, parameter, RefusedError, reviewFlags, RXNORM_SYSTEM, structureDosageRequest } from "../src/index.js";
 import { spec } from "./helpers.js";
 
 const live = process.env.HAAU3_LIVE_TEST === "1" && Boolean(process.env.HAAU3_API_KEY);
@@ -67,6 +67,16 @@ describe.skipIf(!live || testKey)("the production API", () => {
   it("looks up a code", async () => {
     const answer = await haau3.codeSystemLookup({ system: "http://loinc.org", code: "2345-7" });
     expect(answer.resourceType).toBe("Parameters");
+  });
+
+  it("structures a sig built with structureDosageRequest, and reads its review flag", async () => {
+    const text = "Instill 2 drops in the affected ear twice daily";
+    const answer = await haau3.structureDosage(
+      structureDosageRequest({ text, medication: { coding: [{ system: RXNORM_SYSTEM, code: "1923428" }] } }),
+    );
+    const dosage = parameter(answer, "dosage")?.valueDosage;
+    expect(dosage?.text).toBe(text);
+    expect(reviewFlags(dosage!).flags.map((flag) => flag.code)).toEqual(["route-form-mismatch"]);
   });
 
   it("pages a search to a second page", async () => {

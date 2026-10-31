@@ -1,10 +1,11 @@
 // parameters(), parameter() and reviewFlags(): a Parameters answer's named parts, and the review flags
-// on a structured Dosage, with no request. Read from the spec's own example of $structure-dosage's
+// on a structured Dosage, with no request, as client methods and as plain functions; and
+// structureDosageRequest(), the request $structure-dosage takes. Read from the spec's own example of $structure-dosage's
 // answer, so a change to that answer's shape fails here.
 import type { Dosage, Parameters } from "fhir/r4.js";
-import { describe, expect, it } from "vitest";
-import { Haau3, Haau3Error } from "../src/index.js";
-import { fakeFetch, KEY, spec } from "./helpers.js";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { Haau3, Haau3Error, NDC_SYSTEM, parameter, parameters, reviewFlags, RXNORM_SYSTEM, structureDosageRequest } from "../src/index.js";
+import { fakeFetch, fhirAnswer, KEY, spec } from "./helpers.js";
 
 const examples = spec.paths["/v1/fhir/r4/$structure-dosage"]!.post.responses["200"].content["application/fhir+json"].examples;
 const answer = (Object.values(examples) as Array<{ value: Parameters }>)[0]!.value;
@@ -67,5 +68,81 @@ describe("reviewFlags()", () => {
       ],
     };
     expect(haau3.reviewFlags(dosage).flags).toEqual([{ code: "as-directed", display: "As directed", words: undefined }]);
+  });
+});
+
+describe("the plain functions", () => {
+  const dosage = (Object.values(examples) as Array<{ value: Parameters }>)[0]!.value.parameter![0]!.valueDosage!;
+
+  it("read what the client's methods read, with no client", () => {
+    const { haau3 } = client();
+    expect(parameters(answer, "dosage")).toEqual(haau3.parameters(answer, "dosage"));
+    expect(parameter(answer, "dosage")).toEqual(haau3.parameter(answer, "dosage"));
+    expect(reviewFlags(dosage)).toEqual(haau3.reviewFlags(dosage));
+    const two: Parameters = { resourceType: "Parameters", parameter: [{ name: "property" }, { name: "property" }] };
+    expect(() => parameter(two, "property")).toThrow(Haau3Error);
+  });
+
+  describe("in a browser, where the client refuses to start", () => {
+    beforeEach(() => {
+      vi.stubGlobal("window", {});
+      vi.stubGlobal("document", {});
+      vi.stubGlobal("navigator", { userAgent: "Mozilla/5.0 (Macintosh) Chrome/141.0" });
+    });
+    afterEach(() => vi.unstubAllGlobals());
+
+    it("the client refuses (the control)", () => {
+      expect(() => new Haau3({ apiKey: KEY })).toThrow(/server only/);
+    });
+
+    it("the functions read a stored answer and build a request", () => {
+      expect(reviewFlags(parameter(answer, "dosage")!.valueDosage!).flags.map((flag) => flag.code)).toEqual(["route-form-mismatch"]);
+      expect(structureDosageRequest({ text: "Take 1 tablet daily" }).parameter).toHaveLength(1);
+    });
+  });
+});
+
+describe("structureDosageRequest()", () => {
+  const requestExamples = spec.paths["/v1/fhir/r4/$structure-dosage"]!.post.requestBody.content["application/fhir+json"].examples;
+  const exampleRequest = (Object.values(requestExamples) as Array<{ value: Parameters }>)[0]!.value;
+
+  it("builds the spec's own example request from its directions and medication", () => {
+    const text = exampleRequest.parameter!.find((part) => part.name === "text")!.valueString!;
+    const medication = exampleRequest.parameter!.find((part) => part.name === "medication")!.valueCodeableConcept!;
+    expect(medication.coding![0]!.system).toBe(RXNORM_SYSTEM);
+    expect(structureDosageRequest({ text, medication })).toEqual({ ...exampleRequest, id: undefined });
+  });
+
+  it("sends a text part alone when there is no medication", () => {
+    expect(structureDosageRequest({ text: "Take 1 tablet by mouth twice daily" })).toEqual({
+      resourceType: "Parameters",
+      parameter: [{ name: "text", valueString: "Take 1 tablet by mouth twice daily" }],
+    });
+  });
+
+  it("keeps every coding of the medication, an NDC included", () => {
+    const medication = { coding: [{ system: NDC_SYSTEM, code: "0378-0018-01" }, { system: RXNORM_SYSTEM, code: "197361" }] };
+    expect(structureDosageRequest({ text: "Take 1 tablet daily", medication }).parameter![1]).toEqual({ name: "medication", valueCodeableConcept: medication });
+  });
+
+  it("checks nothing: the API's refusals are the one rule", () => {
+    expect(structureDosageRequest({ text: "" }).parameter).toEqual([{ name: "text", valueString: "" }]);
+  });
+
+  it("is what structureDosage sends, alone and as a batch entry", async () => {
+    const body = structureDosageRequest({ text: "Take 1 tablet by mouth twice daily" });
+    const { fetch, received } = fakeFetch((request) =>
+      request.url.pathname.endsWith("$structure-dosage")
+        ? fhirAnswer(answer)
+        : fhirAnswer({ resourceType: "Bundle", type: "batch-response", entry: [{ response: { status: "200" }, resource: answer }] }),
+    );
+    const haau3 = new Haau3({ apiKey: KEY, fetch });
+    await haau3.structureDosage(body);
+    const [entry] = await haau3.batch((b) => [b.structureDosage(body)]);
+    expect(JSON.parse(received[0]!.body!)).toEqual(body);
+    const batch = JSON.parse(received[1]!.body!) as { entry: Array<{ request: { url: string }; resource: unknown }> };
+    expect(batch.entry[0]!.request.url).toBe("$structure-dosage");
+    expect(batch.entry[0]!.resource).toEqual(body);
+    expect(entry!.ok).toBe(true);
   });
 });
