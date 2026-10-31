@@ -49,6 +49,8 @@ exported as `fhir4` (`import type { fhir4 } from "@haau3/sdk"`).
 ## One call per service
 
 ```ts
+import { structureDosageRequest } from "@haau3/sdk";
+
 // Scheduling: open appointment slots, here in Boston.
 const { slots, total } = await haau3.searchSlots({ city: "Boston", state: "MA", limit: 10 });
 
@@ -76,7 +78,7 @@ const list = await haau3.reconcileMedications(records);
 
 // Structured Sig: a prescription's free-text directions as a FHIR Dosage, each element coded where the
 // words support it and a review flag on anything to check. Send the directions, never a patient.
-// structureDosageRequest, imported from @haau3/sdk, builds the request.
+// structureDosageRequest builds the request.
 const structured = await haau3.structureDosage(structureDosageRequest({ text: "Take 1 tablet by mouth twice daily" }));
 
 // Sandbox: the same pharmacy benefit check at /v1/sandbox/fhir/r4, where a test insurer answers
@@ -287,9 +289,11 @@ Each is a client method and a plain function exported by the package, so an answ
 read with no client and no key, in a browser too:
 
 ```ts
-import { parameter, reviewFlags } from "@haau3/sdk";
+import { parameter, type fhir4 } from "@haau3/sdk";
 
-const dosage = parameter(storedAnswer, "dosage")?.valueDosage;
+function dosageOf(stored: fhir4.Parameters): fhir4.Dosage | undefined {
+  return parameter(stored, "dosage")?.valueDosage;
+}
 ```
 
 ## Structured Sig
