@@ -49,6 +49,8 @@ exported as `fhir4` (`import type { fhir4 } from "@haau3/sdk"`).
 ## One call per service
 
 ```ts
+import { structureDosageRequest } from "@haau3/sdk";
+
 // Scheduling: open appointment slots, here in Boston.
 const { slots, total } = await haau3.searchSlots({ city: "Boston", state: "MA", limit: 10 });
 
@@ -76,10 +78,8 @@ const list = await haau3.reconcileMedications(records);
 
 // Structured Sig: a prescription's free-text directions as a FHIR Dosage, each element coded where the
 // words support it and a review flag on anything to check. Send the directions, never a patient.
-const structured = await haau3.structureDosage({
-  resourceType: "Parameters",
-  parameter: [{ name: "text", valueString: "Take 1 tablet by mouth twice daily" }],
-});
+// structureDosageRequest builds the request.
+const structured = await haau3.structureDosage(structureDosageRequest({ text: "Take 1 tablet by mouth twice daily" }));
 
 // Sandbox: the same pharmacy benefit check at /v1/sandbox/fhir/r4, where a test insurer answers
 // with synthetic data for its test members only (https://docs.haau3.com/sandbox/example-health-plan).
@@ -285,18 +285,40 @@ const lookup = await haau3.codeSystemLookup({ system: "http://loinc.org", code: 
 console.log(haau3.parameter(lookup, "display")?.valueString);
 ```
 
-Structured Sig answers with one `dosage` part, a FHIR `Dosage`, and writes on it a review flag for
-anything a person should check. `reviewFlags()` reads each flag's code, display and the words of the
-directions it is about, and the versions the Dosage names:
+Each is a client method and a plain function exported by the package, so an answer you stored can be
+read with no client and no key, in a browser too:
 
 ```ts
-const answer = await haau3.structureDosage({
-  resourceType: "Parameters",
-  parameter: [{ name: "text", valueString: "Instill 2 drops in the affected ear twice daily" }],
-});
+import { parameter, type fhir4 } from "@haau3/sdk";
+
+function dosageOf(stored: fhir4.Parameters): fhir4.Dosage | undefined {
+  return parameter(stored, "dosage")?.valueDosage;
+}
+```
+
+## Structured Sig
+
+`structureDosageRequest()` builds the request `$structure-dosage` takes from the directions and,
+optionally, the medication's codings, RxNorm or NDC, as a FHIR `CodeableConcept`. `RXNORM_SYSTEM` and
+`NDC_SYSTEM` are their code systems. It is a plain function, so it builds a batch entry too
+(`b.structureDosage(structureDosageRequest({ text }))`).
+
+The answer is one `dosage` part, a FHIR `Dosage`, with a review flag on anything a person should
+check. `reviewFlags()` reads each flag's code, display and the words of the directions it is about,
+and the versions the Dosage names:
+
+```ts
+import { reviewFlags, RXNORM_SYSTEM, structureDosageRequest } from "@haau3/sdk";
+
+const answer = await haau3.structureDosage(
+  structureDosageRequest({
+    text: "Instill 2 drops in the affected ear twice daily",
+    medication: { coding: [{ system: RXNORM_SYSTEM, code: "1923428" }] },
+  }),
+);
 const dosage = haau3.parameter(answer, "dosage")?.valueDosage;
 if (dosage) {
-  const review = haau3.reviewFlags(dosage);
+  const review = reviewFlags(dosage);
   for (const flag of review.flags) console.log(flag.code, flag.display, flag.words);
   console.log(review.engineVersion, review.vocabularyVersion, review.rxnormRelease);
 }
