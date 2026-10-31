@@ -713,6 +713,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/fhir/r4/$structure-dosage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Structure a prescription's directions as a FHIR Dosage
+         * @description FHIR system-level operation `$structure-dosage`. POST a Parameters resource with one `text` part, a prescription's directions as written, at most 1,000 characters, and optionally one `medication` part, the medication's codings as a CodeableConcept (RxNorm or NDC). The answer is a Parameters resource with one `dosage` part: a FHIR Dosage conforming to haau3 Structured Dosage, whose `text` is the directions exactly as sent and whose dose and unit, route, method, timing and as-needed elements are coded where the words support them, in SNOMED CT (Global Patient Set concepts only), NCIt and UCUM. Nothing is invented: an element the directions do not support is absent. Anything a person should check is a review flag on the Dosage, an extension with a code from `https://haau3.com/fhir/CodeSystem/structured-sig-review-flag` and, when the flag is about words, those words. Every Dosage names the engine and vocabulary versions it was written under, and the RxNorm release when the medication's code was looked up. With an RxNorm code, the product's dose form checks the dose's unit and the route, and supplies either when the directions name none, each flagged. Send the directions and the medication's codings only, never a patient's name or identifiers. Nothing a request carries is stored or logged, apart from the request's ids, and every answer is sent with `Cache-Control: no-store`. The operation takes no query parameters, and may be sent inside a batch, one request per entry. The contract is published at https://fhir.haau3.com/OperationDefinition-structure-dosage.html.
+         */
+        post: operations["structureDosage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/sandbox/fhir/r4/metadata": {
         parameters: {
             query?: never;
@@ -4821,6 +4841,98 @@ export interface operations {
                 };
             };
             /** @description The terminology store behind RxNorm did not respond in time. No partial list is returned. */
+            504: {
+                headers: {
+                    "X-Request-Id": components["headers"]["XRequestId"];
+                    "X-Correlation-Id": components["headers"]["XCorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/fhir+json": components["schemas"]["OperationOutcome"];
+                };
+            };
+        };
+    };
+    structureDosage: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description An id of your own for this request, as a UUID. It comes back in the `X-Correlation-Id` header and is kept with haau3's record of the request. Any value that is not a UUID is ignored. See https://docs.haau3.com/errors#request-ids. */
+                "X-Request-Id"?: components["parameters"]["XRequestId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/fhir+json": components["schemas"]["Parameters"];
+            };
+        };
+        responses: {
+            /** @description The structured directions: a FHIR `Parameters` resource with one `dosage` part, a Dosage conforming to haau3 Structured Dosage. */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["XRequestId"];
+                    "X-Correlation-Id": components["headers"]["XCorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/fhir+json": components["schemas"]["Parameters"];
+                };
+            };
+            /** @description The request was refused: a query parameter (the operation takes its input in the body only), a body that is not a Parameters resource, a parameter other than `text` and `medication`, a missing, repeated or empty `text`, a repeated `medication` or one that is not a CodeableConcept, or directions over 1,000 characters or a medication with over 20 codings (coded `too-long`). The OperationOutcome names the part by its FHIRPath, never a value sent. */
+            400: {
+                headers: {
+                    "X-Request-Id": components["headers"]["XRequestId"];
+                    "X-Correlation-Id": components["headers"]["XCorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/fhir+json": components["schemas"]["OperationOutcome"];
+                };
+            };
+            401: components["responses"]["FhirUnauthorized"];
+            403: components["responses"]["FhirForbiddenTestKey"];
+            406: components["responses"]["FhirNotAcceptable"];
+            /** @description The request body is over 64 KiB. */
+            413: {
+                headers: {
+                    "X-Request-Id": components["headers"]["XRequestId"];
+                    "X-Correlation-Id": components["headers"]["XCorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/fhir+json": components["schemas"]["OperationOutcome"];
+                };
+            };
+            415: components["responses"]["FhirUnsupportedMediaType"];
+            429: components["responses"]["FhirTooManyRequests"];
+            500: components["responses"]["FhirServerError"];
+            /** @description The medication carries an RxNorm code, and the terminology store behind RxNorm could not be reached. The directions are not structured without it. */
+            502: {
+                headers: {
+                    "X-Request-Id": components["headers"]["XRequestId"];
+                    "X-Correlation-Id": components["headers"]["XCorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/fhir+json": components["schemas"]["OperationOutcome"];
+                };
+            };
+            /** @description The medication carries an RxNorm code, and RxNorm is not configured on this deployment or no release has been published to it. The directions are not structured without it. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
+            503: {
+                headers: {
+                    /** @description Sent when waiting will help: the API key could not be checked just now, or the source behind this service is rate limiting requests. How many seconds to wait before sending the request again. */
+                    "Retry-After"?: number;
+                    "X-Request-Id": components["headers"]["XRequestId"];
+                    "X-Correlation-Id": components["headers"]["XCorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/fhir+json": components["schemas"]["OperationOutcome"];
+                };
+            };
+            /** @description The directions could not be structured in time: the terminology store behind RxNorm did not respond, or the operation passed its 8 seconds. */
             504: {
                 headers: {
                     "X-Request-Id": components["headers"]["XRequestId"];
