@@ -1,8 +1,9 @@
-import type { Bundle, FhirResource, Reference } from "fhir/r4.js";
+import type { Bundle, Dosage, FhirResource, Parameters, ParametersParameter, Reference } from "fhir/r4.js";
 import { APIPromise, type WithResponse } from "./api-promise.js";
 import { batchBundle, readBatch, type BatchEntry, type BatchResults } from "./batch.js";
 import { matchesIn, resolveIn, type ResolveOptions, type ResourceOf, type ResourceType } from "./bundles.js";
 import { NoAnswerError } from "./errors.js";
+import { onePartNamed, partsNamed, reviewOf, type DosageReview } from "./parameters.js";
 import { BatchBuilder } from "./generated/batch.js";
 import { Operations } from "./generated/methods.js";
 import type { ClientOptions, RequestOptions } from "./transport.js";
@@ -129,6 +130,54 @@ export class Haau3 extends Operations {
     options: ResolveOptions<K> = {},
   ): ResourceOf<K> | undefined {
     return resolveIn(bundle, reference, options);
+  }
+
+  /**
+   * Every part of a Parameters answer with that name, in order, with no request: the way FHIR
+   * operations answer, `$lookup`'s `property` parts or `$structure-dosage`'s `dosage` part. Each part
+   * holds its value in the `value[x]` its operation names, so read `valueDosage`, `valueString` and so
+   * on from it. Empty when there is none.
+   *
+   * ```ts
+   * const answer = await haau3.codeSystemLookup({ system: "http://loinc.org", code: "2345-7", property: ["COMPONENT"] });
+   * for (const property of haau3.parameters(answer, "property")) console.log(property.part);
+   * ```
+   */
+  parameters(answer: Parameters, name: string): ParametersParameter[] {
+    return partsNamed(answer, name);
+  }
+
+  /**
+   * The one part of a Parameters answer with that name, with no request, or undefined when there is
+   * none. Throws a {@link Haau3Error} when there are two, since which one is meant is then ambiguous;
+   * {@link parameters} reads a name that repeats.
+   *
+   * ```ts
+   * const answer = await haau3.codeSystemLookup({ system: "http://loinc.org", code: "2345-7" });
+   * console.log(haau3.parameter(answer, "display")?.valueString);
+   * ```
+   */
+  parameter(answer: Parameters, name: string): ParametersParameter | undefined {
+    return onePartNamed(answer, name);
+  }
+
+  /**
+   * The review flags on a Dosage that `$structure-dosage` answered with, and the versions it names,
+   * with no request. Each flag is something a person should check: its code, its display, and the
+   * words of the directions it is about, when it is about words. The versions say how the directions
+   * were read and coded, and which RxNorm release the medication was looked up in.
+   *
+   * ```ts
+   * const answer = await haau3.structureDosage({
+   *   resourceType: "Parameters",
+   *   parameter: [{ name: "text", valueString: "Take 1 tablet by mouth twice daily" }],
+   * });
+   * const dosage = haau3.parameter(answer, "dosage")?.valueDosage;
+   * if (dosage) for (const flag of haau3.reviewFlags(dosage).flags) console.log(flag.code, flag.words);
+   * ```
+   */
+  reviewFlags(dosage: Dosage): DosageReview {
+    return reviewOf(dosage);
   }
 
   /**
