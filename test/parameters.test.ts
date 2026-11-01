@@ -1,7 +1,8 @@
 // parameters(), parameter() and reviewFlags(): a Parameters answer's named parts, and the review flags
 // on a structured Dosage, with no request, as client methods and as plain functions; and
 // structureDosageRequest(), the request $structure-dosage takes. Read from the spec's own example of $structure-dosage's
-// answer, so a change to that answer's shape fails here.
+// answer, so a change to that answer's shape fails here. That example carries no review flag, so the flag the readers
+// read is written here, as the API writes one.
 import type { Dosage, Parameters } from "fhir/r4.js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Haau3, Haau3Error, NDC_SYSTEM, parameter, parameters, reviewFlags, RXNORM_SYSTEM, structureDosageRequest } from "../src/index.js";
@@ -9,6 +10,23 @@ import { fakeFetch, fhirAnswer, KEY, spec } from "./helpers.js";
 
 const examples = spec.paths["/v1/fhir/r4/$structure-dosage"]!.post.responses["200"].content["application/fhir+json"].examples;
 const answer = (Object.values(examples) as Array<{ value: Parameters }>)[0]!.value;
+
+/** A Dosage with one review flag, as the API writes it for ear drops sent with an eye solution's code. */
+const flagged: Dosage = {
+  extension: [
+    {
+      url: "https://haau3.com/fhir/StructureDefinition/structured-sig-review-flag",
+      extension: [
+        {
+          url: "code",
+          valueCoding: { system: "https://haau3.com/fhir/CodeSystem/structured-sig-review-flag", code: "route-form-mismatch", display: "Route and dose form differ" },
+        },
+        { url: "words", valueString: "in the affected ear" },
+      ],
+    },
+  ],
+  text: "Instill 2 drops in the affected ear twice daily",
+};
 
 function client() {
   const { fetch, received } = fakeFetch(() => {
@@ -21,7 +39,7 @@ describe("parameters() and parameter()", () => {
   it("give the parts with a name, and the one", () => {
     const { haau3, received } = client();
     expect(haau3.parameters(answer, "dosage")).toHaveLength(1);
-    expect(haau3.parameter(answer, "dosage")?.valueDosage?.text).toBe("Instill 2 drops in the affected ear twice daily");
+    expect(haau3.parameter(answer, "dosage")?.valueDosage?.text).toBe("Take 1 tablet by mouth daily");
     expect(received).toHaveLength(0);
   });
 
@@ -41,13 +59,18 @@ describe("parameters() and parameter()", () => {
 });
 
 describe("reviewFlags()", () => {
-  it("reads the example's flag, with its words, and its versions", () => {
+  it("reads the example's versions, and no flag: the example has nothing to review", () => {
     const { haau3 } = client();
     const review = haau3.reviewFlags(haau3.parameter(answer, "dosage")!.valueDosage!);
-    expect(review.flags).toEqual([{ code: "route-form-mismatch", display: "Route and dose form differ", words: "in the affected ear" }]);
+    expect(review.flags).toEqual([]);
     expect(review.engineVersion).toMatch(/^\d{4}-\d{2}-\d{2}\.v\d+$/);
     expect(review.vocabularyVersion).toMatch(/^\d{4}-\d{2}-\d{2}\.v\d+$/);
     expect(review.rxnormRelease).toMatch(/^\d{8}$/);
+  });
+
+  it("reads a flag with its code, its display and its words", () => {
+    const { haau3 } = client();
+    expect(haau3.reviewFlags(flagged).flags).toEqual([{ code: "route-form-mismatch", display: "Route and dose form differ", words: "in the affected ear" }]);
   });
 
   it("gives no flags and no versions for a Dosage that carries none (the control)", () => {
@@ -96,7 +119,8 @@ describe("the plain functions", () => {
     });
 
     it("the functions read a stored answer and build a request", () => {
-      expect(reviewFlags(parameter(answer, "dosage")!.valueDosage!).flags.map((flag) => flag.code)).toEqual(["route-form-mismatch"]);
+      expect(parameter(answer, "dosage")?.valueDosage?.text).toBe("Take 1 tablet by mouth daily");
+      expect(reviewFlags(flagged).flags.map((flag) => flag.code)).toEqual(["route-form-mismatch"]);
       expect(structureDosageRequest({ text: "Take 1 tablet daily" }).parameter).toHaveLength(1);
     });
   });
