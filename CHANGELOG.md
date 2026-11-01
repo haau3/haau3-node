@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.5](https://github.com/haau3/haau3-node/compare/v0.3.4...v0.3.5) (2026-11-01)
+
+
+### Bug Fixes
+
+* the API's spec at 1.0.0-preview.21 ([#60](https://github.com/haau3/haau3-node/issues/60)) ([4c86316](https://github.com/haau3/haau3-node/commit/4c863164f6c8f87c3eb99f35a4cd63f9d992f0fe))
+
 ## [0.3.4](https://github.com/haau3/haau3-node/compare/v0.3.3...v0.3.4) (2026-10-31)
 
 
