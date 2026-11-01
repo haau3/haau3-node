@@ -312,8 +312,8 @@ import { reviewFlags, RXNORM_SYSTEM, structureDosageRequest } from "@haau3/sdk";
 
 const answer = await haau3.structureDosage(
   structureDosageRequest({
-    text: "Instill 2 drops in the affected ear twice daily",
-    medication: { coding: [{ system: RXNORM_SYSTEM, code: "1923428" }] },
+    text: "Take 1 tablet by mouth daily",
+    medication: { coding: [{ system: RXNORM_SYSTEM, code: "311354" }] },
   }),
 );
 const dosage = haau3.parameter(answer, "dosage")?.valueDosage;
