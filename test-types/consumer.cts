@@ -3,10 +3,13 @@
 import { AuthError, ForbiddenError, Haau3, markAsTestData, NoAnswerError, RefusedError, type fhir4, type NoAnswerReason } from "@haau3/sdk";
 import type { SchedulingProviderLocation, SchedulingSlot, SearchInsurancePlanParams } from "@haau3/sdk";
 import type { BatchResult, BodyOf, Haau3ErrorJSON, QueryOf, ResponseOf } from "@haau3/sdk";
+import { SPEC_VERSION } from "@haau3/sdk";
 
 const haau3 = new Haau3({ apiKey: "haau3_sk_example", timeout: 10_000, maxRetries: 0 });
 
 export async function tour(): Promise<void> {
+  const generatedFrom: string = SPEC_VERSION;
+  void generatedFrom;
   const plan: fhir4.InsurancePlan = await haau3.readInsurancePlan("H2406-013-000");
   const params: SearchInsurancePlanParams = { "coverage-area-state": "NC", _count: 10 };
   const plans: fhir4.Bundle = await haau3.searchInsurancePlan(params);
