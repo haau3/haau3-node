@@ -266,6 +266,13 @@ ${methodLines.join("\n").trimEnd()}
 `;
 await writeFile(new URL("methods.ts", OUT), methods);
 
+// --- spec-version.ts ----------------------------------------------------------------------------
+
+await writeFile(
+  new URL("spec-version.ts", OUT),
+  `${HEADER("The version of the API's spec this release was generated from.")}/** The API's spec this release was generated from, as its \`info.version\` names it. */\nexport const SPEC_VERSION = ${JSON.stringify(spec.info.version)};\n`,
+);
+
 // --- batch.ts -----------------------------------------------------------------------------------
 
 /**
