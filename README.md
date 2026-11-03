@@ -83,7 +83,9 @@ const structured = await haau3.structureDosage(structureDosageRequest({ text: "T
 
 // Sandbox: the same pharmacy benefit check at /v1/sandbox/fhir/r4, where a test insurer answers
 // with synthetic data for its test members only (https://docs.haau3.com/sandbox/example-health-plan).
-const sandboxChecked = await haau3.sandboxProcessMessage(sandboxMessage);
+// It takes a test key, so it has a client of its own.
+const sandbox = new Haau3({ apiKey: testKey });
+const sandboxChecked = await sandbox.sandboxProcessMessage(sandboxMessage);
 ```
 
 Every method, grouped by service, with its request and a link to its page on docs.haau3.com, is in
