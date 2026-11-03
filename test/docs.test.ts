@@ -11,10 +11,12 @@ const isMethod = (name: string) => typeof (Haau3.prototype as unknown as Record<
 const operationIds = Object.values(spec.paths).flatMap((item) =>
   ["get", "post"].filter((m) => item[m]).map((m) => item[m].operationId as string),
 );
+/** A method called on one of the README's clients: `haau3`, or `sandbox`, the Sandbox's own. */
+const CALL = /\b(?:haau3|sandbox)\.([a-zA-Z]+)\(/g;
 
 describe("the README", () => {
   it("calls only methods Haau3 has", () => {
-    const called = [...read("README.md").matchAll(/\bhaau3\.([a-zA-Z]+)\(/g)].map((m) => m[1]!);
+    const called = [...read("README.md").matchAll(CALL)].map((m) => m[1]!);
     expect(called.length).toBeGreaterThan(10);
     expect(called.filter((name) => !isMethod(name))).toEqual([]);
   });
@@ -27,9 +29,21 @@ describe("the README", () => {
       ),
     );
     const services = new Set([...serviceOf.values()].filter((tag) => tag !== "FHIR base"));
-    const shown = new Set([...read("README.md").matchAll(/\bhaau3\.([a-zA-Z]+)\(/g)].map((m) => serviceOf.get(m[1]!)));
+    const shown = new Set([...read("README.md").matchAll(CALL)].map((m) => serviceOf.get(m[1]!)));
     expect(services.size).toBeGreaterThan(5);
     expect([...services].filter((service) => !shown.has(service))).toEqual([]);
+  });
+
+  it("sends the Sandbox's operations through a client of their own, made with a test key", () => {
+    const readme = read("README.md");
+    const sandboxIds = Object.values(spec.paths).flatMap((item) =>
+      ["get", "post"].filter((m) => item[m]?.tags[0] === "Sandbox").map((m) => item[m].operationId as string),
+    );
+    expect(sandboxIds.length).toBeGreaterThan(0);
+    expect(readme).toContain("const sandbox = new Haau3({ apiKey: testKey });");
+    expect(readme).toContain("sandbox.sandboxProcessMessage(");
+    // The live client, made from HAAU3_API_KEY, never sends one: the Sandbox refuses a live key.
+    expect(sandboxIds.filter((id) => readme.includes(`haau3.${id}(`))).toEqual([]);
   });
 
   it("shows a batch, built from the builder's methods", () => {
