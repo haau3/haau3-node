@@ -18,7 +18,8 @@
 // - openapi/code-samples.json: a TypeScript sample for every operation, as an OpenAPI Overlay that
 //   adds `x-codeSamples` to the spec, so a documentation site can show a call beside each operation.
 //   Each sample is a whole program that sends the operation's example request from the spec and
-//   prints one field of the answer. test/samples.test.ts runs every one, as it is written, against a
+//   prints one field of the answer, except the slot search, a quickstart's first call, which prints
+//   the first slot it found. test/samples.test.ts runs every one, as it is written, against a
 //   stand-in API, and scripts/check-consumer.ts compiles them against the packed package.
 //
 // Run it with `pnpm generate` after `pnpm fetch-spec`. CI runs it again and fails if the output
@@ -600,7 +601,28 @@ function batchCall(request: Json): string {
   return callLine("  ", `b.${op.id}`, args, ",");
 }
 
+/** The operation a quickstart makes its first call with. */
+const FIRST_CALL = "searchSlots";
+
+/**
+ * The first call: the slot search's example, which names a city, with the first slot it found
+ * printed whole, since one field says nothing of what a slot is.
+ */
+function firstCallSample(op: Operation): string {
+  const city = ((op.raw.parameters ?? []) as Json[]).find((p) => p.in === "query" && p.name === "city")?.example;
+  if (typeof city !== "string") throw new Error(`${op.id}: the first call's example names no city.`);
+  return program(
+    [IMPORT],
+    [
+      `// Open appointment slots, here in ${city}.`,
+      callLine("", `const { slots } = await haau3.${op.id}`, exampleArgs(op), ";"),
+      "console.log(slots[0]);",
+    ],
+  );
+}
+
 function sample(op: Operation): string {
+  if (op.id === FIRST_CALL) return firstCallSample(op);
   if (op.id === "fhirBatch") {
     const bundle = firstExample(op.raw.requestBody.content) as Json;
     return program(
