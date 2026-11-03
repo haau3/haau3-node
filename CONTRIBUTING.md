@@ -46,6 +46,12 @@ A sample whose request body nests resources, a Bundle's entries or a Parameters 
 reads that body from `request.json`, and says what the file holds in the words of the spec's
 example label.
 
+A sample's client line says which key `HAAU3_API_KEY` must hold, from the operation's `security`,
+or the document's when it has none of its own (`scripts/key-comment.ts`): `bearerAuth`, a live key,
+is `reads HAAU3_API_KEY`, and `testKeyAuth`, the Sandbox's test key, is
+`reads HAAU3_API_KEY, a test key`. The generator stops on any other security, so a new scheme gets
+its own words there before any sample uses it.
+
 The types come from [openapi-typescript](https://github.com/openapi-ts/openapi-typescript) 7.13.0,
 which declares TypeScript 5 as its peer. This repository builds with TypeScript 6.0.3. Before
 0.1.0 the generator's output under TypeScript 5.9.3 and 6.0.3 was compared and is byte-identical

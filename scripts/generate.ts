@@ -19,8 +19,10 @@
 //   adds `x-codeSamples` to the spec, so a documentation site can show a call beside each operation.
 //   Each sample is a whole program that sends the operation's example request from the spec and
 //   prints one field of the answer, except the slot search, a quickstart's first call, which prints
-//   the first slot it found. test/samples.test.ts runs every one, as it is written, against a
-//   stand-in API, and scripts/check-consumer.ts compiles them against the packed package.
+//   the first slot it found. Its client line says which key HAAU3_API_KEY must hold, from the
+//   operation's security (scripts/key-comment.ts). test/samples.test.ts runs every one, as it is
+//   written, against a stand-in API, and scripts/check-consumer.ts compiles them against the packed
+//   package.
 //
 // Run it with `pnpm generate` after `pnpm fetch-spec`. CI runs it again and fails if the output
 // differs from what is committed.
@@ -29,6 +31,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import openapiTS, { astToString } from "openapi-typescript";
 import ts from "typescript";
 import { CALL_OPTIONS } from "../src/transport.js";
+import { keyComment } from "./key-comment.js";
 
 const SPEC = new URL("../openapi/openapi.json", import.meta.url);
 const OUT = new URL("../src/generated/", import.meta.url);
@@ -540,8 +543,9 @@ function printLine(op: Operation, name: string): string {
 }
 
 const IMPORT = 'import { Haau3 } from "@haau3/sdk";';
-const CLIENT = "const haau3 = new Haau3(); // reads HAAU3_API_KEY";
-const program = (head: string[], body: string[]) => `${[...head, "", CLIENT, ...body].join("\n")}\n`;
+/** A whole program: its imports, then the client, saying which key it reads, then the call. */
+const program = (op: Operation, head: string[], body: string[]) =>
+  `${[...head, "", `const haau3 = new Haau3(); // ${keyComment(spec, op.raw)}`, ...body].join("\n")}\n`;
 
 /**
  * Where a sample reads a body that nests resources: a Bundle's entries or a Parameters resource's
@@ -612,6 +616,7 @@ function firstCallSample(op: Operation): string {
   const city = ((op.raw.parameters ?? []) as Json[]).find((p) => p.in === "query" && p.name === "city")?.example;
   if (typeof city !== "string") throw new Error(`${op.id}: the first call's example names no city.`);
   return program(
+    op,
     [IMPORT],
     [
       `// Open appointment slots, here in ${city}.`,
@@ -626,6 +631,7 @@ function sample(op: Operation): string {
   if (op.id === "fhirBatch") {
     const bundle = firstExample(op.raw.requestBody.content) as Json;
     return program(
+      op,
       [IMPORT],
       [
         "const results = await haau3.batch((b) => [",
@@ -640,6 +646,7 @@ function sample(op: Operation): string {
   if (body !== undefined && nestsResources(body)) {
     const type = body.resourceType as string;
     return program(
+      op,
       ['import { readFile } from "node:fs/promises";', 'import { Haau3, type fhir4 } from "@haau3/sdk";'],
       [
         `// ${BODY_FILE} holds ${exampleLabel(op.raw.requestBody.content)}, as a ${type}.`,
@@ -649,7 +656,7 @@ function sample(op: Operation): string {
       ],
     );
   }
-  return program([IMPORT], [callLine("", `const ${name} = await haau3.${op.id}`, exampleArgs(op), ";"), printLine(op, name)]);
+  return program(op, [IMPORT], [callLine("", `const ${name} = await haau3.${op.id}`, exampleArgs(op), ";"), printLine(op, name)]);
 }
 
 const inSpecOrder = Object.entries(spec.paths as Record<string, Json>).flatMap(([path, item]) =>
