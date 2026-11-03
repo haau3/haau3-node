@@ -21,5 +21,6 @@ export {
 export type { BatchBuilder } from "./generated/batch.js";
 export type * from "./generated/types.js";
 export { VERSION } from "./version.js";
+export { SPEC_VERSION } from "./generated/spec-version.js";
 /** @types/fhir's R4 types, as `fhir4.InsurancePlan` and so on, which every FHIR answer is typed with. */
 export type * as fhir4 from "fhir/r4.js";

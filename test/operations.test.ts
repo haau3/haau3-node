@@ -1,7 +1,7 @@
 // Every operation in the pinned spec, driven by the example exchange the spec itself carries: the
 // method sends the example request exactly as the API documents it, and returns the example answer.
 import { describe, expect, it } from "vitest";
-import { Haau3, VERSION } from "../src/index.js";
+import { Haau3, SPEC_VERSION, VERSION } from "../src/index.js";
 import { KEY, fakeFetch, fhirAnswer, answer, spec } from "./helpers.js";
 
 interface Case {
@@ -110,5 +110,12 @@ describe("the operations", () => {
       expect(JSON.parse(request!.body!)).toEqual(c.body);
       expect(request!.headers["content-type"]).toBe(c.sends);
     }
+  });
+});
+
+describe("SPEC_VERSION", () => {
+  it("is the pinned spec's version, which every method above was generated from", () => {
+    expect(SPEC_VERSION).toMatch(/^1\.0\.0-preview\.[1-9]\d*$|^\d+\.\d+\.\d+$/);
+    expect(SPEC_VERSION).toBe(spec.info.version);
   });
 });
