@@ -2,4 +2,4 @@
 // The version of the API's spec this release was generated from.
 
 /** The API's spec this release was generated from, as its `info.version` names it. */
-export const SPEC_VERSION = "1.0.0-preview.21";
+export const SPEC_VERSION = "1.0.0-preview.24";

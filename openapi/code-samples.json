@@ -2,7 +2,7 @@
   "overlay": "1.2.0",
   "info": {
     "title": "TypeScript samples for every operation of the haau3 platform API",
-    "version": "1.0.0-preview.21"
+    "version": "1.0.0-preview.24"
   },
   "extends": "https://api.haau3.com/openapi.json",
   "actions": [
@@ -25,7 +25,7 @@
           {
             "lang": "typescript",
             "label": "TypeScript",
-            "source": "import { Haau3 } from \"@haau3/sdk\";\n\nconst haau3 = new Haau3(); // reads HAAU3_API_KEY\nconst found = await haau3.searchSlots({ publisher: \"haau3\", limit: 1 });\nconsole.log(found.total);\n"
+            "source": "import { Haau3 } from \"@haau3/sdk\";\n\nconst haau3 = new Haau3(); // reads HAAU3_API_KEY\nconst found = await haau3.searchSlots({ city: \"Cambridge\", state: \"MA\", limit: 1 });\nconsole.log(found.total);\n"
           }
         ]
       }
