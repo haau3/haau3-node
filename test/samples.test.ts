@@ -17,6 +17,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer, type Server } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { inspect } from "node:util";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { FHIR_JSON, KEY, spec } from "./helpers.js";
 
@@ -86,6 +87,8 @@ function exampleRequestKey({ method, path, op }: Operation): string {
 /** What a sample prints for its example answer, by the rule the generator writes. */
 function expectedOutput({ id, op }: Operation): string {
   const answer = firstExample(op.responses["200"].content);
+  // The first call prints its first slot whole, as console.log shows an object.
+  if (id === "searchSlots") return inspect(answer.slots[0]);
   if (id === "fhirBatch") return answer.entry.map((e: Json) => String(Number.parseInt(e.response.status, 10))).join("\n");
   if (id === "fhirMetadata" || answer.resourceType === "CapabilityStatement") return answer.resourceType;
   if (answer.resourceType === "Bundle") return String(answer.entry?.length ?? 0);
@@ -221,6 +224,13 @@ describe("the code samples overlay", () => {
       if (operation.id !== "fhirBatch") expect(source).toContain(`haau3.${operation.id}(`);
     }
   });
+
+  it("writes the slot search as the first call: the city it searches, then the first slot it found", () => {
+    const source = sampleOf(operations.find((o) => o.id === "searchSlots")!);
+    expect(source).toMatch(/^\/\/ Open appointment slots, here in [A-Z][\w .'-]*\.$/m);
+    expect(source).toContain("const { slots } = await haau3.searchSlots({ city: ");
+    expect(source.trimEnd().endsWith("console.log(slots[0]);")).toBe(true);
+  });
 });
 
 describe("each sample, run as written", () => {
@@ -263,6 +273,8 @@ describe.skipIf(!live)("each sample, run against the production API", () => {
         expect(result.stderr).toBe("");
         expect(result.code).toBe(0);
         expect(result.stdout.trim()).not.toBe("");
+        // The first call prints a slot, so an empty search would print undefined.
+        expect(result.stdout.trim()).not.toBe("undefined");
         // A search that finds nothing still answers: its example found something, so this must too.
         if (expectedOutput(operation) !== "0") expect(result.stdout.trim()).not.toBe("0");
       } else {

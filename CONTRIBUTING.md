@@ -31,7 +31,8 @@ CI generates again and fails if the result differs from what is committed.
 `openapi/code-samples.json` is an [OpenAPI Overlay](https://spec.openapis.org/overlay/latest.html)
 that adds a TypeScript sample to every operation as `x-codeSamples`, for a documentation site to show
 beside it. Each sample is a whole program that sends the operation's example request from the spec
-and prints one field of the answer. `test/samples.test.ts` runs each one as it is written, with
+and prints one field of the answer, except the slot search, a quickstart's first call, which prints
+the first slot it found. `test/samples.test.ts` runs each one as it is written, with
 `HAAU3_BASE_URL` pointing at a stand-in that answers only the example request, and
 `scripts/check-consumer.ts` compiles them, and every TypeScript block of the README, against the
 packed package.
