@@ -8,7 +8,19 @@
 // file, which is refused real patient data.
 import type { Bundle, Resource } from "fhir/r4.js";
 import { describe, expect, it } from "vitest";
-import { ForbiddenError, Haau3, markAsTestData, parameter, RefusedError, reviewFlags, RXNORM_SYSTEM, structureDosageRequest } from "../src/index.js";
+import {
+  designations,
+  ForbiddenError,
+  Haau3,
+  lookupResult,
+  markAsTestData,
+  parameter,
+  RefusedError,
+  reviewFlags,
+  RXNORM_SYSTEM,
+  structureDosageRequest,
+  SYNONYM_USE,
+} from "../src/index.js";
 import { spec } from "./helpers.js";
 
 const live = process.env.HAAU3_LIVE_TEST === "1" && Boolean(process.env.HAAU3_API_KEY);
@@ -67,6 +79,14 @@ describe.skipIf(!live || testKey)("the production API", () => {
   it("looks up a code", async () => {
     const answer = await haau3.codeSystemLookup({ system: "http://loinc.org", code: "2345-7" });
     expect(answer.resourceType).toBe("Parameters");
+  });
+
+  it("reads an ICD-10-CM code's short title with lookupResult and designations", async () => {
+    const lookup = lookupResult(await haau3.codeSystemLookup({ system: "http://hl7.org/fhir/sid/icd-10-cm", code: "E08.37X1" }));
+    expect(lookup.abstract).toBe(false);
+    expect(designations(lookup, { use: SYNONYM_USE, language: "en" }).map((designation) => designation.value)).toEqual([
+      "Diab with diabetic macular edema, resolved fol trtmt, r eye",
+    ]);
   });
 
   it("structures a sig built with structureDosageRequest, and reads its review flag", async () => {
