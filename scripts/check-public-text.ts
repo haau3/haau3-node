@@ -20,7 +20,7 @@ export interface Rule {
 }
 
 /** Words for standards and published identifiers that look like ticket numbers. */
-const STANDARD_IDS = new Set(["UTF-8", "UTF-16", "UTF-32", "PHQ-2", "PHQ-9", "GAD-2", "GAD-7", "SHA-1", "SHA-2", "SHA-3", "TLS-1"]);
+const STANDARD_IDS = new Set(["UTF-8", "UTF-16", "UTF-32", "PHQ-2", "PHQ-9", "GAD-2", "GAD-7", "SHA-1", "SHA-2", "SHA-3", "TLS-1", "ICD-10"]);
 
 /**
  * The haau3- names the published spec carries, which are public by being in it: the guide's profile
