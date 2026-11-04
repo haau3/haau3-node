@@ -18,6 +18,20 @@ export {
   type ReviewFlag,
   type StructureDosageInput,
 } from "./parameters.js";
+export {
+  designations,
+  lookupResult,
+  PREFERRED_FOR_LANGUAGE_USE,
+  SYNONYM_USE,
+  validationResult,
+  type Designation,
+  type DesignationFilter,
+  type DesignationUse,
+  type LookupResult,
+  type Property,
+  type PropertyParts,
+  type ValidationResult,
+} from "./terminology.js";
 export type { BatchBuilder } from "./generated/batch.js";
 export type * from "./generated/types.js";
 export { VERSION } from "./version.js";

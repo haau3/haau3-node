@@ -298,6 +298,43 @@ function dosageOf(stored: fhir4.Parameters): fhir4.Dosage | undefined {
 }
 ```
 
+## Reading a lookup and a validation
+
+`lookupResult()` reads a `$lookup` answer, typed: the code, its system and version, its display,
+whether it is `abstract` (not for use, such as an ICD-10-CM header), every designation and every
+property. A property's `type` names the FHIR type of its `value`, so checking it narrows the value.
+`designations()` finds a code's names by use and language: a use by its system and code together, a
+language as RFC 4647 matches one, so `en` finds `en-US`. ICD-10-CM's short title is its `SYNONYM_USE`
+designation, where it differs from the display, and every code system the API holds names the display
+again with `PREFERRED_FOR_LANGUAGE_USE`.
+
+```ts
+import { designations, SYNONYM_USE } from "@haau3/sdk";
+
+const answer = await haau3.codeSystemLookup({ system: "http://hl7.org/fhir/sid/icd-10-cm", code: "E08.37X1" });
+const lookup = haau3.lookupResult(answer);
+console.log(lookup.display, lookup.abstract);
+console.log(designations(lookup, { use: SYNONYM_USE, language: "en" })[0]?.value);
+for (const property of lookup.properties) {
+  if (property.type === "boolean") console.log(property.code, property.value);
+}
+```
+
+`validationResult()` reads a `$validate-code` answer, from a code system or a value set: `result`,
+`display` and `message`. A display that does not match answers `result: false` with the code's own
+display beside it, which means the code is valid and only the label differs.
+
+```ts
+const check = haau3.validationResult(
+  await haau3.codeSystemValidateCode({ url: "http://loinc.org", code: "2345-7", display: "Glucose" }),
+);
+if (!check.result) console.log(check.message, check.display);
+```
+
+A part either reader does not know is kept, as the answer gave it, in the `other` list of the level it
+was found at, and a part FHIR allows once that comes twice throws. Each is a client method and a plain
+function exported by the package, so an answer you stored can be read with no client.
+
 ## Structured Sig
 
 `structureDosageRequest()` builds the request `$structure-dosage` takes from the directions and,

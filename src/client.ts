@@ -4,6 +4,15 @@ import { batchBundle, readBatch, type BatchEntry, type BatchResults } from "./ba
 import { matchesIn, resolveIn, type ResolveOptions, type ResourceOf, type ResourceType } from "./bundles.js";
 import { NoAnswerError } from "./errors.js";
 import { parameter as partNamed, parameters as partsNamed, reviewFlags as reviewOf, type DosageReview } from "./parameters.js";
+import {
+  designations as designationsOf,
+  lookupResult as lookupOf,
+  validationResult as validationOf,
+  type Designation,
+  type DesignationFilter,
+  type LookupResult,
+  type ValidationResult,
+} from "./terminology.js";
 import { BatchBuilder } from "./generated/batch.js";
 import { Operations } from "./generated/methods.js";
 import type { ClientOptions, RequestOptions } from "./transport.js";
@@ -178,6 +187,51 @@ export class Haau3 extends Operations {
    */
   reviewFlags(dosage: Dosage): DosageReview {
     return reviewOf(dosage);
+  }
+
+  /**
+   * A `CodeSystem/$lookup` answer, typed, with no request: the code, its system and version, its
+   * display, whether it is abstract, every designation and every property. A part this reader does
+   * not know stays in `other`. Throws a {@link Haau3Error} when a part FHIR allows once comes twice.
+   * The plain function `lookupResult()` does the same with no client.
+   *
+   * ```ts
+   * const lookup = haau3.lookupResult(await haau3.codeSystemLookup({ system: "http://hl7.org/fhir/sid/icd-10-cm", code: "E08.37X1" }));
+   * console.log(lookup.display, lookup.abstract);
+   * ```
+   */
+  lookupResult(answer: Parameters): LookupResult {
+    return lookupOf(answer);
+  }
+
+  /**
+   * A `$validate-code` answer, from a code system or a value set, typed, with no request: whether
+   * the code is valid, its display, and the server's message. Throws a {@link Haau3Error} when a
+   * part FHIR allows once comes twice. The plain function `validationResult()` does the same with no
+   * client.
+   *
+   * ```ts
+   * const answer = await haau3.codeSystemValidateCode({ url: "http://loinc.org", code: "8867-4", display: "Pulse" });
+   * const { result, display } = haau3.validationResult(answer);
+   * ```
+   */
+  validationResult(answer: Parameters): ValidationResult {
+    return validationOf(answer);
+  }
+
+  /**
+   * The designations of a lookup with a use and in a language, in answer order, with no request. A
+   * use matches by its system and code together; a language as RFC 4647's basic filtering says, so
+   * `en` finds `en-US`. A field left out matches every designation. The plain function
+   * `designations()` does the same with no client.
+   *
+   * ```ts
+   * const lookup = haau3.lookupResult(await haau3.codeSystemLookup({ system: "http://hl7.org/fhir/sid/icd-10-cm", code: "E08.37X1" }));
+   * const shortTitle = haau3.designations(lookup, { use: SYNONYM_USE })[0]?.value;
+   * ```
+   */
+  designations(lookup: LookupResult, filter: DesignationFilter = {}): Designation[] {
+    return designationsOf(lookup, filter);
   }
 
   /**
