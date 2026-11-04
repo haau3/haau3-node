@@ -2,7 +2,7 @@
   "overlay": "1.2.0",
   "info": {
     "title": "TypeScript samples for every operation of the haau3 platform API",
-    "version": "1.0.0-preview.24"
+    "version": "1.0.0-preview.25"
   },
   "extends": "https://api.haau3.com/openapi.json",
   "actions": [
@@ -469,7 +469,7 @@
           {
             "lang": "typescript",
             "label": "TypeScript",
-            "source": "import { Haau3 } from \"@haau3/sdk\";\n\nconst haau3 = new Haau3(); // reads HAAU3_API_KEY\nconst capabilityStatement = await haau3.sandboxMetadata();\nconsole.log(capabilityStatement.resourceType);\n"
+            "source": "import { Haau3 } from \"@haau3/sdk\";\n\nconst haau3 = new Haau3(); // reads HAAU3_API_KEY, a test key\nconst capabilityStatement = await haau3.sandboxMetadata();\nconsole.log(capabilityStatement.resourceType);\n"
           }
         ]
       }
@@ -481,7 +481,7 @@
           {
             "lang": "typescript",
             "label": "TypeScript",
-            "source": "import { readFile } from \"node:fs/promises\";\nimport { Haau3, type fhir4 } from \"@haau3/sdk\";\n\nconst haau3 = new Haau3(); // reads HAAU3_API_KEY\n// request.json holds a test member's pharmacy benefit check, as a Bundle.\nconst body: fhir4.Bundle = JSON.parse(await readFile(\"request.json\", \"utf8\"));\nconst bundle = await haau3.sandboxProcessMessage(body);\nconsole.log(bundle.entry?.length ?? 0);\n"
+            "source": "import { readFile } from \"node:fs/promises\";\nimport { Haau3, type fhir4 } from \"@haau3/sdk\";\n\nconst haau3 = new Haau3(); // reads HAAU3_API_KEY, a test key\n// request.json holds a test member's pharmacy benefit check, as a Bundle.\nconst body: fhir4.Bundle = JSON.parse(await readFile(\"request.json\", \"utf8\"));\nconst bundle = await haau3.sandboxProcessMessage(body);\nconsole.log(bundle.entry?.length ?? 0);\n"
           }
         ]
       }
