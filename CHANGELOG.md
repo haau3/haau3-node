@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.3.8](https://github.com/haau3/haau3-node/compare/v0.3.7...v0.3.8) (2026-11-10)
+
+
+### Features
+
+* lookupResult(), validationResult() and designations() read a terminology answer ([#73](https://github.com/haau3/haau3-node/issues/73)) ([1ca0e4e](https://github.com/haau3/haau3-node/commit/1ca0e4e98d958fd3b16bba9b0b784619bf6f785f))
+
+
+### Bug Fixes
+
+* the API's spec at 1.0.0-preview.29 ([#71](https://github.com/haau3/haau3-node/issues/71)) ([1274f52](https://github.com/haau3/haau3-node/commit/1274f52aa9ba32455834c8064febda50bee9de87))
+
 ## [0.3.7](https://github.com/haau3/haau3-node/compare/v0.3.6...v0.3.7) (2026-11-04)
 
 
