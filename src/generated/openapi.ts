@@ -152,13 +152,13 @@ export interface paths {
         };
         /**
          * Look up a code
-         * @description FHIR `CodeSystem/$lookup`. Returns a code's display and requested properties. On POST, a `coding` parameter may stand in for `system` + `code`.
+         * @description FHIR `CodeSystem/$lookup`. Returns a code's display and requested properties. On POST, a `coding` parameter may stand in for `system` + `code`. For the code systems this service holds (RxNorm and ICD-10-CM), the answer also names the `code` and the `system`, says whether the code is `abstract` (not for use), and carries the display again as a `designation` used `preferredForLanguage`. ICD-10-CM codes are written dotted (`E11.9`); a lookup answers `notSelectable`, true for a header, gives the code's short title as a `designation` used `synonym` (`http://fhir.org/packages/fhir.tx.support/CodeSystem/designation-usage`, as tx.fhir.org gives it) where it differs from the display, and a code not in the version served is a `404` naming that version.
          */
         get: operations["codeSystemLookup"];
         put?: never;
         /**
          * Look up a code
-         * @description FHIR `CodeSystem/$lookup`. Returns a code's display and requested properties. On POST, a `coding` parameter may stand in for `system` + `code`.
+         * @description FHIR `CodeSystem/$lookup`. Returns a code's display and requested properties. On POST, a `coding` parameter may stand in for `system` + `code`. For the code systems this service holds (RxNorm and ICD-10-CM), the answer also names the `code` and the `system`, says whether the code is `abstract` (not for use), and carries the display again as a `designation` used `preferredForLanguage`. ICD-10-CM codes are written dotted (`E11.9`); a lookup answers `notSelectable`, true for a header, gives the code's short title as a `designation` used `synonym` (`http://fhir.org/packages/fhir.tx.support/CodeSystem/designation-usage`, as tx.fhir.org gives it) where it differs from the display, and a code not in the version served is a `404` naming that version.
          */
         post: operations["codeSystemLookupPost"];
         delete?: never;
@@ -176,13 +176,13 @@ export interface paths {
         };
         /**
          * Validate a code in a code system
-         * @description FHIR `CodeSystem/$validate-code`. Asks whether a code exists in a code system. The ValueSet operation of the same name asks about membership of a particular set instead. On POST, a `coding` or `codeableConcept` parameter may stand in for `url` + `code`; a codeableConcept validates if any of its codings does.
+         * @description FHIR `CodeSystem/$validate-code`. Asks whether a code exists in a code system. The ValueSet operation of the same name asks about membership of a particular set instead. On POST, a `coding` or `codeableConcept` parameter may stand in for `url` + `code`; a codeableConcept validates if any of its codings does. An ICD-10-CM header is a code, so it answers `true`, with a message saying it is not valid for submission; to check a code for a claim, ask `ValueSet/$validate-code` with `https://haau3.com/fhir/ValueSet/icd-10-cm-valid-for-submission`.
          */
         get: operations["codeSystemValidateCode"];
         put?: never;
         /**
          * Validate a code in a code system
-         * @description FHIR `CodeSystem/$validate-code`. Asks whether a code exists in a code system. The ValueSet operation of the same name asks about membership of a particular set instead. On POST, a `coding` or `codeableConcept` parameter may stand in for `url` + `code`; a codeableConcept validates if any of its codings does.
+         * @description FHIR `CodeSystem/$validate-code`. Asks whether a code exists in a code system. The ValueSet operation of the same name asks about membership of a particular set instead. On POST, a `coding` or `codeableConcept` parameter may stand in for `url` + `code`; a codeableConcept validates if any of its codings does. An ICD-10-CM header is a code, so it answers `true`, with a message saying it is not valid for submission; to check a code for a claim, ask `ValueSet/$validate-code` with `https://haau3.com/fhir/ValueSet/icd-10-cm-valid-for-submission`.
          */
         post: operations["codeSystemValidateCodePost"];
         delete?: never;
@@ -200,13 +200,13 @@ export interface paths {
         };
         /**
          * Expand a value set
-         * @description FHIR `ValueSet/$expand`. Expands a value set canonical to its member codes, with a text filter and paging (`count=0` returns the total only). On the RxNorm value sets this service holds, the filter searches by name and is required, and the matches come ranked, best first, with `expansion.total` the number of matches.
+         * @description FHIR `ValueSet/$expand`. Expands a value set canonical to its member codes, with a text filter and paging (`count=0` returns the total only). On the value sets of the code systems this service holds (RxNorm and ICD-10-CM), the filter searches by name, and on ICD-10-CM by code too, and is required, and the matches come ranked, best first, with `expansion.total` the number of matches.
          */
         get: operations["valueSetExpand"];
         put?: never;
         /**
          * Expand a value set
-         * @description FHIR `ValueSet/$expand`. Expands a value set canonical to its member codes, with a text filter and paging (`count=0` returns the total only). On the RxNorm value sets this service holds, the filter searches by name and is required, and the matches come ranked, best first, with `expansion.total` the number of matches.
+         * @description FHIR `ValueSet/$expand`. Expands a value set canonical to its member codes, with a text filter and paging (`count=0` returns the total only). On the value sets of the code systems this service holds (RxNorm and ICD-10-CM), the filter searches by name, and on ICD-10-CM by code too, and is required, and the matches come ranked, best first, with `expansion.total` the number of matches.
          */
         post: operations["valueSetExpandPost"];
         delete?: never;
@@ -684,7 +684,7 @@ export interface paths {
         put?: never;
         /**
          * Check what a medication costs (pharmacy benefit check)
-         * @description FHIR system-level operation `$process-message`, as the CARIN Consumer Real-Time Pharmacy Benefit Check (STU2 ballot, `2.0.0-ballot`) specifies. Not yet open to customers: while its price sources are being licensed, every request from a customer's organization, with or without patient details, is refused with `403` `forbidden`. POST a FHIR `Bundle` of type `message` whose first entry is a MessageHeader with one of two events. `rtpbc-request-non-phi` asks for a medication's price without patient details: a Claim naming the product (an NDC of 11 digits with no dashes, or an RxNorm code) and the quantity, with the patient and the coverage masked, and a pharmacy, up to three ZIP codes, or both. It is answered by the cash-price sources haau3 connects to, each named in the notes on its prices. `rtpbc-request` asks what a medication would cost a member under their coverage: the member's Patient and Coverage, with the payer's identifier in `payor.identifier`, the prescription and its prescriber, and a pharmacy. It is answered by the member's insurer, found by the payer's Payer ID: a `payor.identifier` whose `type` is `payerid` from `http://hl7.org/fhir/us/carin-bb/CodeSystem/C4BBIdentifierType`. An insurer that answers only with the member's own authorization is sent the access token from the member's login with that insurer, in the `Payer-Authorization` header, for that one request; it is never stored, logged or sent anywhere else. No insurer is connected yet. The answer is a `message` Bundle whose MessageHeader answers the request's, with one ClaimResponse that carries either prices and coverage in `item` or the reason there are none in `error`, and for a member's request the request's Patient as it was sent. With prices, `item` is the lowest price at a pharmacy near the ZIP codes or at the pharmacy named, every price is also an `addItem` alternative naming its pharmacy by an Organization in the Bundle and its price source in `programCode`, from `https://haau3.com/fhir/CodeSystem/pharmacy-benefits-price-source`, and `processNote` says where each price came from, when, and which free discount card pays it. Each price repeats the request's product coding, which CARIN requires to carry a display: an RxNorm code sent without one is answered with the display haau3's RxNorm release gives it, and an NDC needs its display sent with it. A check no connected source can answer carries `no-responder-for-coverage`, `no-price-source` or `source-not-available-to-caller` from `https://haau3.com/fhir/CodeSystem/pharmacy-benefits-processing-code`, and a member's request to an insurer that needs the member's authorization carries `payer-authorization-required` when none was sent and `payer-authorization-rejected` when the insurer refused it. A member's request the insurer declines under its own rules carries `insurer-declined-request`, and sending it again gives the same answer. An insurer that prices by NDC is asked about the request's NDC, or, for an RxNorm code, an NDC haau3's RxNorm release holds for the code or one of its branded forms, named in the answer's note; with none held it is not asked and the answer carries `ndc-required`, so send the NDC. A price is an estimate; the pharmacy confirms the price. A member's request receives patient data, so send real patient data only under an executed business associate agreement (BAA) on the Team or Scale plan. Without both, send a member's request only as test data marked as such, the request and every resource in it labelled with the `meta.security` coding `HTEST` from `http://terminology.hl7.org/CodeSystem/v3-ActReason`; anything else is refused with `403` `phi-agreement-required`. A request without patient details needs neither. Nothing a request carries is stored or logged, apart from the request's ids, and every answer is sent with `Cache-Control: no-store`. The operation takes no query parameters and is not offered inside a batch. The contract is published at https://fhir.haau3.com/pharmacy-benefits.html.
+         * @description FHIR system-level operation `$process-message`, as the CARIN Consumer Real-Time Pharmacy Benefit Check (STU2 ballot, `2.0.0-ballot`) specifies. Not yet open to customers: while its price sources are being licensed, every request from a customer's organization, with or without patient details, is refused with `403` `forbidden`. POST a FHIR `Bundle` of type `message` whose first entry is a MessageHeader with one of two events. `rtpbc-request-non-phi` asks for a medication's price without patient details: a Claim naming the product (an NDC of 11 digits with no dashes, or an RxNorm code) and the quantity, with the patient and the coverage masked, and a pharmacy, up to three ZIP codes, or both. It is answered by the cash-price sources haau3 connects to, each named in the notes on its prices. `rtpbc-request` asks what a medication would cost a member under their coverage: the member's Patient and Coverage, with the payer's identifier in `payor.identifier`, the prescription and its prescriber, and a pharmacy. It is answered by the member's insurer, found by the payer's Payer ID: a `payor.identifier` whose `type` is `payerid` from `http://hl7.org/fhir/us/carin-bb/CodeSystem/C4BBIdentifierType`. An insurer that answers only with the member's own authorization is sent the access token from the member's login with that insurer, in the `Payer-Authorization` header, for that one request; it is never stored, logged or sent anywhere else. No insurer is connected yet. The answer is a `message` Bundle whose MessageHeader answers the request's, with one ClaimResponse that carries either prices and coverage in `item` or the reason there are none in `error`, and for a member's request the request's Patient as it was sent. With prices, `item` is the lowest price at a pharmacy near the ZIP codes or at the pharmacy named, every price is also an `addItem` alternative naming its pharmacy by an Organization in the Bundle and its price source in `programCode`, from `https://haau3.com/fhir/CodeSystem/pharmacy-benefits-price-source`, and `processNote` says where each price came from, when, and which free discount card pays it. Each price repeats the request's product coding, which CARIN requires to carry a display: an RxNorm code sent without one is answered with the display haau3's RxNorm release gives it, and an NDC needs its display sent with it. A check no connected source can answer carries `no-responder-for-coverage`, `no-price-source` or `source-not-available-to-caller` from `https://haau3.com/fhir/CodeSystem/pharmacy-benefits-processing-code`, and a member's request to an insurer that needs the member's authorization carries `payer-authorization-required` when none was sent and `payer-authorization-rejected` when the insurer refused it. A member's request the insurer declines under its own rules carries `insurer-declined-request`, and sending it again gives the same answer. An insurer that prices by NDC is asked about the request's NDC, or, for an RxNorm code, an NDC haau3's RxNorm release holds for the code or one of its branded forms, named in the answer's note; with none held it is not asked and the answer carries `ndc-required`, so send the NDC. Send the prescription's days supply in `MedicationRequest.dispenseRequest.expectedSupplyDuration`, as a whole number of days with the UCUM code `d`; any other days supply is refused with `400`, and an insurer that requires one is not asked about a request without one: the answer carries `days-supply-required`, beside `ndc-required` when the NDC is missing too. A price is an estimate; the pharmacy confirms the price. A member's request receives patient data, so send real patient data only under an executed business associate agreement (BAA) on the Team or Scale plan. Without both, send a member's request only as test data marked as such, the request and every resource in it labelled with the `meta.security` coding `HTEST` from `http://terminology.hl7.org/CodeSystem/v3-ActReason`; anything else is refused with `403` `phi-agreement-required`. A request without patient details needs neither. Nothing a request carries is stored or logged, apart from the request's ids, and every answer is sent with `Cache-Control: no-store`. The operation takes no query parameters and is not offered inside a batch. The contract is published at https://fhir.haau3.com/pharmacy-benefits.html.
          */
         post: operations["processMessage"];
         delete?: never;
@@ -1711,7 +1711,7 @@ export interface operations {
                  * @example SHORTNAME
                  */
                 property?: string | string[];
-                /** @description Language for the returned display and designations. Defaults to `en-US`, which also keeps answers small, since a code can have about 30 translations. */
+                /** @description Language for the returned display and designations. Defaults to `en-US`, which also keeps answers small, since a code can have about 30 translations. RxNorm and ICD-10-CM are held in English only: another language is answered in English, with a `warning` parameter saying so. */
                 displayLanguage?: string;
                 /** @description The date for which the lookup should be valid. */
                 date?: string;
@@ -1761,7 +1761,7 @@ export interface operations {
                 };
             };
             406: components["responses"]["FhirNotAcceptable"];
-            /** @description The request is well formed, but this service does not answer it in that form: an operation it does not offer for a code system it holds, the expansion of a value set defined by a rule too large to list (the whole of LOINC included), or an RxNorm expansion with no `filter` or one too short, coded `too-costly`. The `OperationOutcome` says which, and what to ask instead. */
+            /** @description The request is well formed, but this service does not answer it in that form: an operation it does not offer for a code system it holds, the expansion of a value set defined by a rule too large to list (the whole of LOINC included), or the expansion of a value set of a code system it holds (RxNorm's or ICD-10-CM's) with no `filter` or one too short, coded `too-costly`. The `OperationOutcome` says which, and what to ask instead. */
             422: {
                 headers: {
                     "X-Request-Id": components["headers"]["XRequestId"];
@@ -1875,7 +1875,7 @@ export interface operations {
                 };
             };
             415: components["responses"]["FhirUnsupportedMediaType"];
-            /** @description The request is well formed, but this service does not answer it in that form: an operation it does not offer for a code system it holds, the expansion of a value set defined by a rule too large to list (the whole of LOINC included), or an RxNorm expansion with no `filter` or one too short, coded `too-costly`. The `OperationOutcome` says which, and what to ask instead. */
+            /** @description The request is well formed, but this service does not answer it in that form: an operation it does not offer for a code system it holds, the expansion of a value set defined by a rule too large to list (the whole of LOINC included), or the expansion of a value set of a code system it holds (RxNorm's or ICD-10-CM's) with no `filter` or one too short, coded `too-costly`. The `OperationOutcome` says which, and what to ask instead. */
             422: {
                 headers: {
                     "X-Request-Id": components["headers"]["XRequestId"];
@@ -1940,9 +1940,9 @@ export interface operations {
                 code: string;
                 /** @description Optional code system version. */
                 version?: string;
-                /** @description Optional display to check against the code's own display. A mismatch returns `result: false` with the expected display alongside, which means the code is valid and only the label differs. Do not read that as an invalid code. */
+                /** @description Optional display to check against the code's own display. A mismatch returns `result: false` with the expected display alongside, which means the code is valid and only the label differs. Do not read that as an invalid code. On RxNorm and ICD-10-CM any name the code has matches: RxNorm's other names, and an ICD-10-CM code's short title. */
                 display?: string;
-                /** @description Language to use when checking the display. */
+                /** @description Language to use when checking the display. RxNorm and ICD-10-CM are held in English only: another language is checked against the English names, and the `message` says so. */
                 displayLanguage?: string;
                 /** @description The date for which the validation should be valid. */
                 date?: string;
@@ -1992,7 +1992,7 @@ export interface operations {
                 };
             };
             406: components["responses"]["FhirNotAcceptable"];
-            /** @description The request is well formed, but this service does not answer it in that form: an operation it does not offer for a code system it holds, the expansion of a value set defined by a rule too large to list (the whole of LOINC included), or an RxNorm expansion with no `filter` or one too short, coded `too-costly`. The `OperationOutcome` says which, and what to ask instead. */
+            /** @description The request is well formed, but this service does not answer it in that form: an operation it does not offer for a code system it holds, the expansion of a value set defined by a rule too large to list (the whole of LOINC included), or the expansion of a value set of a code system it holds (RxNorm's or ICD-10-CM's) with no `filter` or one too short, coded `too-costly`. The `OperationOutcome` says which, and what to ask instead. */
             422: {
                 headers: {
                     "X-Request-Id": components["headers"]["XRequestId"];
@@ -2106,7 +2106,7 @@ export interface operations {
                 };
             };
             415: components["responses"]["FhirUnsupportedMediaType"];
-            /** @description The request is well formed, but this service does not answer it in that form: an operation it does not offer for a code system it holds, the expansion of a value set defined by a rule too large to list (the whole of LOINC included), or an RxNorm expansion with no `filter` or one too short, coded `too-costly`. The `OperationOutcome` says which, and what to ask instead. */
+            /** @description The request is well formed, but this service does not answer it in that form: an operation it does not offer for a code system it holds, the expansion of a value set defined by a rule too large to list (the whole of LOINC included), or the expansion of a value set of a code system it holds (RxNorm's or ICD-10-CM's) with no `filter` or one too short, coded `too-costly`. The `OperationOutcome` says which, and what to ask instead. */
             422: {
                 headers: {
                     "X-Request-Id": components["headers"]["XRequestId"];
@@ -2160,13 +2160,13 @@ export interface operations {
         parameters: {
             query?: {
                 /**
-                 * @description Canonical URL of the value set to expand. Defaults to the implicit all-LOINC value set (`http://loinc.org?fhir_vs`), which is every LOINC code. That expansion is not served and answers `422`: expand a LOINC group or answer list instead, or ask `$validate-code` whether a code is in LOINC. The RxNorm value sets this service holds are `https://haau3.com/fhir/ValueSet/rxnorm-current-prescribable-content` (every concept of the release it serves) and `https://haau3.com/fhir/ValueSet/rxnorm-current-prescribable-products` (its drug products: clinical and branded drugs and packs).
+                 * @description Canonical URL of the value set to expand. Defaults to the implicit all-LOINC value set (`http://loinc.org?fhir_vs`), which is every LOINC code. That expansion is not served and answers `422`: expand a LOINC group or answer list instead, or ask `$validate-code` whether a code is in LOINC. The RxNorm value sets this service holds are `https://haau3.com/fhir/ValueSet/rxnorm-current-prescribable-content` (every concept of the release it serves) and `https://haau3.com/fhir/ValueSet/rxnorm-current-prescribable-products` (its drug products: clinical and branded drugs and packs). The ICD-10-CM value sets are `https://haau3.com/fhir/ValueSet/icd-10-cm` (every code of the release it serves, headers included) and `https://haau3.com/fhir/ValueSet/icd-10-cm-valid-for-submission` (the codes valid for submission for HIPAA-covered transactions, so no header).
                  * @example http://loinc.org/vs/LL360-9
                  */
                 url?: string;
-                /** @description Text to narrow the expansion: each word must be the start of a word in a concept's name, and every word must match, with case and accents ignored. On the RxNorm value sets it is required, with at least 3 letters or digits, and the matches come ranked, best first; without it, or with fewer, the answer is `422` coded `too-costly`. At most 500 characters. For a value set resolved from its own source, narrowing is refused with a `400` naming this parameter, because that source answers a whole expansion or nothing: expand it whole and filter the result. */
+                /** @description Text to narrow the expansion: each word must be the start of a word in a concept's name, and every word must match, with case and accents ignored. On the RxNorm and ICD-10-CM value sets it is required, with at least 3 letters or digits, and the matches come ranked, best first; on ICD-10-CM a code is a name too, so `E11` finds `E11` and the codes below it. Without it, or with fewer, the answer is `422` coded `too-costly`. At most 500 characters. For a value set resolved from its own source, narrowing is refused with a `400` naming this parameter, because that source answers a whole expansion or nothing: expand it whole and filter the result. */
                 filter?: string;
-                /** @description Maximum number of concepts to return (`0` returns the total only). On the RxNorm value sets the first 20 come back when it is not sent. For a value set resolved from its own source, narrowing is refused with a `400` naming this parameter, because that source answers a whole expansion or nothing: expand it whole and filter the result. */
+                /** @description Maximum number of concepts to return (`0` returns the total only). On the RxNorm and ICD-10-CM value sets the first 20 come back when it is not sent. For a value set resolved from its own source, narrowing is refused with a `400` naming this parameter, because that source answers a whole expansion or nothing: expand it whole and filter the result. */
                 count?: number;
                 /** @description Number of concepts to skip, for paging; `expansion.total` is the number of matching concepts. For a value set resolved from its own source, narrowing is refused with a `400` naming this parameter, because that source answers a whole expansion or nothing: expand it whole and filter the result. */
                 offset?: number;
@@ -2222,7 +2222,7 @@ export interface operations {
                 };
             };
             406: components["responses"]["FhirNotAcceptable"];
-            /** @description The request is well formed, but this service does not answer it in that form: an operation it does not offer for a code system it holds, the expansion of a value set defined by a rule too large to list (the whole of LOINC included), or an RxNorm expansion with no `filter` or one too short, coded `too-costly`. The `OperationOutcome` says which, and what to ask instead. */
+            /** @description The request is well formed, but this service does not answer it in that form: an operation it does not offer for a code system it holds, the expansion of a value set defined by a rule too large to list (the whole of LOINC included), or the expansion of a value set of a code system it holds (RxNorm's or ICD-10-CM's) with no `filter` or one too short, coded `too-costly`. The `OperationOutcome` says which, and what to ask instead. */
             422: {
                 headers: {
                     "X-Request-Id": components["headers"]["XRequestId"];
@@ -2336,7 +2336,7 @@ export interface operations {
                 };
             };
             415: components["responses"]["FhirUnsupportedMediaType"];
-            /** @description The request is well formed, but this service does not answer it in that form: an operation it does not offer for a code system it holds, the expansion of a value set defined by a rule too large to list (the whole of LOINC included), or an RxNorm expansion with no `filter` or one too short, coded `too-costly`. The `OperationOutcome` says which, and what to ask instead. */
+            /** @description The request is well formed, but this service does not answer it in that form: an operation it does not offer for a code system it holds, the expansion of a value set defined by a rule too large to list (the whole of LOINC included), or the expansion of a value set of a code system it holds (RxNorm's or ICD-10-CM's) with no `filter` or one too short, coded `too-costly`. The `OperationOutcome` says which, and what to ask instead. */
             422: {
                 headers: {
                     "X-Request-Id": components["headers"]["XRequestId"];
@@ -2404,9 +2404,9 @@ export interface operations {
                  * @example http://loinc.org
                  */
                 system?: string;
-                /** @description Optional display to check against the code's own display. A mismatch returns `result: false` with the expected display alongside, which means the code is valid and only the label differs. Do not read that as an invalid code. */
+                /** @description Optional display to check against the code's own display. A mismatch returns `result: false` with the expected display alongside, which means the code is valid and only the label differs. Do not read that as an invalid code. On RxNorm and ICD-10-CM any name the code has matches: RxNorm's other names, and an ICD-10-CM code's short title. */
                 display?: string;
-                /** @description Language to use when checking the display. */
+                /** @description Language to use when checking the display. RxNorm and ICD-10-CM are held in English only: another language is checked against the English names, and the `message` says so. */
                 displayLanguage?: string;
                 /** @description The date for which the validation should be valid. */
                 date?: string;
@@ -2456,7 +2456,7 @@ export interface operations {
                 };
             };
             406: components["responses"]["FhirNotAcceptable"];
-            /** @description The request is well formed, but this service does not answer it in that form: an operation it does not offer for a code system it holds, the expansion of a value set defined by a rule too large to list (the whole of LOINC included), or an RxNorm expansion with no `filter` or one too short, coded `too-costly`. The `OperationOutcome` says which, and what to ask instead. */
+            /** @description The request is well formed, but this service does not answer it in that form: an operation it does not offer for a code system it holds, the expansion of a value set defined by a rule too large to list (the whole of LOINC included), or the expansion of a value set of a code system it holds (RxNorm's or ICD-10-CM's) with no `filter` or one too short, coded `too-costly`. The `OperationOutcome` says which, and what to ask instead. */
             422: {
                 headers: {
                     "X-Request-Id": components["headers"]["XRequestId"];
@@ -2570,7 +2570,7 @@ export interface operations {
                 };
             };
             415: components["responses"]["FhirUnsupportedMediaType"];
-            /** @description The request is well formed, but this service does not answer it in that form: an operation it does not offer for a code system it holds, the expansion of a value set defined by a rule too large to list (the whole of LOINC included), or an RxNorm expansion with no `filter` or one too short, coded `too-costly`. The `OperationOutcome` says which, and what to ask instead. */
+            /** @description The request is well formed, but this service does not answer it in that form: an operation it does not offer for a code system it holds, the expansion of a value set defined by a rule too large to list (the whole of LOINC included), or the expansion of a value set of a code system it holds (RxNorm's or ICD-10-CM's) with no `filter` or one too short, coded `too-costly`. The `OperationOutcome` says which, and what to ask instead. */
             422: {
                 headers: {
                     "X-Request-Id": components["headers"]["XRequestId"];
