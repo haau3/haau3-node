@@ -116,6 +116,7 @@ An agent can read the docs directly:
 | `maxRetries` | `1` | Retries after a timeout, a network failure, a 429 or a 5xx. |
 | `fetch` | the global `fetch` | The fetch to send requests with. |
 | `fetchOptions` | `{ cache: "no-store" }` | Passed on to `fetch` with every request, for any runtime. |
+| `appInfo` | none | Your app's name, version and URL, sent in the User-Agent after the SDK's own. |
 
 Each call takes `{ timeout, maxRetries, signal, correlationId, headers, fetchOptions }` as its last
 argument, for that call only:
@@ -150,6 +151,20 @@ answer is live data for your key, not something a fetch cache should keep. Frame
 `fetch` follow it: in Next.js it also keeps `next build` from sending a request while it prerenders
 a page, and `{ next: { revalidate: 60 } }` caches an answer there instead. `{ cache: undefined }`
 sends no `cache` at all.
+
+`appInfo` names your app in the User-Agent, after the SDK's own, when you build a library, a plugin
+or a command line on the SDK. It takes a `name`, and a `version` and a `url` if you have them, and
+every request the client sends carries them:
+
+```ts
+const haau3 = new Haau3({ appInfo: { name: "my-plugin", version: "1.2.0" } });
+// User-Agent: haau3-node/<version> (node 24) my-plugin/1.2.0
+```
+
+A name and a version each take letters, digits, `-`, `.`, `_` and the other characters RFC 9110
+allows in a User-Agent product, with no space or slash. A `url` is an http or https URL, sent in
+parentheses after them. Anything else is refused when the client is made, before a request is sent.
+A `user-agent` in a call's `headers` replaces the whole User-Agent, the SDK's part included.
 
 A retry waits a short, growing interval, or what the API's `Retry-After` header says when that is
 60 seconds or less. A longer `Retry-After` fails at once, carrying it.

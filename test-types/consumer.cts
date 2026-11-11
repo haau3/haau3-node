@@ -2,10 +2,13 @@
 // customers use (5.9, 6.0, 7.0), as CommonJS. consumer.mts is the same as ES modules.
 import { AuthError, ForbiddenError, Haau3, markAsTestData, NoAnswerError, RefusedError, type fhir4, type NoAnswerReason } from "@haau3/sdk";
 import type { SchedulingProviderLocation, SchedulingSlot, SearchInsurancePlanParams } from "@haau3/sdk";
-import type { BatchResult, BodyOf, Haau3ErrorJSON, QueryOf, ResponseOf } from "@haau3/sdk";
+import type { AppInfo, BatchResult, BodyOf, Haau3ErrorJSON, QueryOf, ResponseOf } from "@haau3/sdk";
 import { SPEC_VERSION } from "@haau3/sdk";
 
 const haau3 = new Haau3({ apiKey: "haau3_sk_example", timeout: 10_000, maxRetries: 0 });
+// A library built on the SDK names itself in the User-Agent; a version read from the environment may be unset.
+const app: AppInfo = { name: "my-plugin", version: process.env.MY_PLUGIN_VERSION, url: "https://example.com/my-plugin" };
+export const named = new Haau3({ apiKey: "haau3_sk_example", appInfo: app });
 
 export async function tour(): Promise<void> {
   const generatedFrom: string = SPEC_VERSION;
