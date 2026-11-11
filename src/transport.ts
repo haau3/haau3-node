@@ -28,6 +28,22 @@ export type FetchOptions = Omit<RequestInit, "method" | "headers" | "body" | "si
   dispatcher?: object | undefined;
 };
 
+/**
+ * Your app, named in the User-Agent after the SDK's own: a library, plugin or command line built on
+ * this SDK names itself once, and every request it sends says so, as `name/version (url)`.
+ */
+export interface AppInfo {
+  /**
+   * Your app's name, such as `my-plugin`: letters, digits and the marks `- . _ ~ ! # $ % & ' * + ^ \` |`,
+   * with no space or slash, as a User-Agent product name takes.
+   */
+  name: string;
+  /** Its version, such as `1.2.0`, in the same characters. An empty string sends none. */
+  version?: string | undefined;
+  /** Where to find out about it: an http or https URL, such as `https://example.com/my-plugin`. An empty string sends none. */
+  url?: string | undefined;
+}
+
 /** How to construct the client. Every option has a default. */
 export interface ClientOptions {
   /** Your platform API key (`haau3_sk_…`). Defaults to `process.env.HAAU3_API_KEY`. */
@@ -51,6 +67,12 @@ export interface ClientOptions {
    * `{ cache: undefined }` to send no `cache` at all.
    */
   fetchOptions?: FetchOptions;
+  /**
+   * Your app's name, version and URL, sent in the User-Agent after the SDK's own:
+   * `haau3-node/0.3.9 (node 24) my-plugin/1.2.0`. A value the header cannot carry is refused here,
+   * before anything is sent. A `user-agent` in a call's `headers` replaces the whole value instead.
+   */
+  appInfo?: AppInfo;
 }
 
 /** Options for one call. Each overrides the client's own for that call only. */
@@ -197,6 +219,61 @@ function runtime(): string {
 }
 
 const USER_AGENT = `haau3-node/${VERSION} (${runtime()})`;
+
+/** RFC 9110's `token`, which a User-Agent's product name and version each are. */
+const TOKEN = /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/;
+/** What a User-Agent's comment can carry of a URL: printable ASCII with no space, parenthesis or backslash. */
+const COMMENT_TEXT = /^[\x21-\x27\x2A-\x5B\x5D-\x7E]+$/;
+const APP_INFO_FIELDS = ["name", "version", "url"];
+const TOKEN_MARKS = "letters, digits and the marks - . _ ~ ! # $ % & ' * + ^ ` |, with no space or slash";
+
+/** A value as a message shows it: a string quoted, anything else by its type. */
+const shown = (value: unknown) => (typeof value === "string" ? JSON.stringify(value) : value === null ? "null" : `a ${typeof value}`);
+
+/**
+ * The SDK's User-Agent with the caller's app after it, as `name/version (url)`. Each field is checked
+ * here, so a value the header cannot carry is refused before anything is sent, naming the field.
+ */
+function userAgentOf(appInfo: AppInfo | undefined): string {
+  if (appInfo === undefined) return USER_AGENT;
+  if (appInfo === null || typeof appInfo !== "object" || Array.isArray(appInfo)) {
+    throw new Haau3Error(`appInfo takes an object with a name, such as { name: "my-plugin", version: "1.2.0" }: ${shown(appInfo)} is not one.`);
+  }
+  const unknown = Object.keys(appInfo).filter((key) => !APP_INFO_FIELDS.includes(key));
+  if (unknown.length > 0) {
+    throw new Haau3Error(`appInfo takes name, version and url only: ${unknown.map((key) => JSON.stringify(key)).join(", ")} is not one of them.`);
+  }
+  const { name, version, url } = appInfo as { name?: unknown; version?: unknown; url?: unknown };
+  if (name === undefined || name === "") throw new Haau3Error(`appInfo.name is required: your app's name, such as "my-plugin".`);
+  if (typeof name !== "string" || !TOKEN.test(name)) {
+    throw new Haau3Error(`appInfo.name takes ${TOKEN_MARKS}, such as "my-plugin": ${shown(name)} is not one.`);
+  }
+  let product = name;
+  if (version !== undefined && version !== "") {
+    if (typeof version !== "string" || !TOKEN.test(version)) {
+      throw new Haau3Error(`appInfo.version takes ${TOKEN_MARKS}, such as "1.2.0": ${shown(version)} is not one.`);
+    }
+    product += `/${version}`;
+  }
+  if (url !== undefined && url !== "") {
+    if (typeof url !== "string" || !COMMENT_TEXT.test(url) || !isWebURL(url)) {
+      throw new Haau3Error(
+        `appInfo.url takes an http or https URL with a host and no space, parenthesis or backslash, such as "https://example.com/my-plugin": ${shown(url)} is not one.`,
+      );
+    }
+    product += ` (${url})`;
+  }
+  return `${USER_AGENT} ${product}`;
+}
+
+function isWebURL(text: string): boolean {
+  try {
+    const url = new URL(text);
+    return (url.protocol === "http:" || url.protocol === "https:") && url.hostname !== "";
+  } catch {
+    return false;
+  }
+}
 
 /** The standard text of each status (RFC 9110), for an answer that came with none, as HTTP/2 answers do. */
 const STATUS_TEXT: Record<number, string> = {
@@ -478,6 +555,8 @@ export abstract class Transport {
   readonly #fetch: typeof fetch;
   readonly #fetchOptions: FetchOptions;
   readonly #noStoreTaken: boolean;
+  /** The SDK's User-Agent, with the caller's `appInfo` after it. */
+  readonly #userAgent: string;
   /** Where requests go. */
   readonly baseURL: string;
   /** Milliseconds one attempt may take. */
@@ -506,6 +585,7 @@ export abstract class Transport {
         : fromEnv !== undefined
           ? checkedBaseURL(fromEnv, "HAAU3_BASE_URL")
           : DEFAULT_BASE_URL;
+    this.#userAgent = userAgentOf(options.appInfo);
     this.timeout = options.timeout ?? DEFAULT_TIMEOUT;
     this.maxRetries = options.maxRetries ?? DEFAULT_MAX_RETRIES;
   }
@@ -629,7 +709,7 @@ export abstract class Transport {
     const headers: Record<string, string> = {
       accept: fhir ? FHIR_JSON : "application/json",
       authorization: `Bearer ${this.#apiKey}`,
-      "user-agent": USER_AGENT,
+      "user-agent": this.#userAgent,
     };
     let payload: string | undefined;
     if (body !== undefined) {
