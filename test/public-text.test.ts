@@ -34,6 +34,11 @@ describe("the public-text check", () => {
     expect(found(text)).toEqual([]);
   });
 
+  it("allows the command line's repository and name, and still no other", () => {
+    expect(found("npx haau3, from https://github.com/haau3/haau3-cli (haau3-cli), sends haau3-cli/0.1.0.")).toEqual([]);
+    expect(found("see haau3/haau3-client")).toEqual(["haau3/haau3-client", "haau3-client"]);
+  });
+
   it("allows a haau3- name the published spec carries, and no other", () => {
     expect(SPEC_NAMES.has("haau3-insurance-plan")).toBe(true);
     expect(found("the profile haau3-insurance-plan, the field x-haau3-batchable")).toEqual([]);
