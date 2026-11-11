@@ -39,15 +39,15 @@ const EMAIL_DOMAINS = /(^|\.)(haau3\.com|users\.noreply\.github\.com|anthropic\.
 
 export const RULES: Rule[] = [
   {
-    name: "a repository of the haau3 organization other than the SDKs",
+    name: "a repository of the haau3 organization other than the SDKs and the command line",
     pattern: /(?<![@\w.-])haau3\/[\w.-]+/g,
-    // The SDKs for other languages are public too, and each README names the others.
-    allow: (match) => /^haau3\/haau3-(node|python|go)(?![\w-])/.test(match),
+    // The SDKs for other languages and the command line are public too, and a README may name them.
+    allow: (match) => /^haau3\/haau3-(node|python|go|cli)(?![\w-])/.test(match),
   },
   {
-    name: "a haau3 project, repository or service name other than the SDKs' and the spec's",
+    name: "a haau3 project, repository or service name other than the SDKs', the command line's and the spec's",
     pattern: /\bhaau3-[a-z0-9][\w-]*/gi,
-    allow: (match) => /^haau3-(node|python|go|bot|sdk)\b/i.test(match) || SPEC_NAMES.has(match.toLowerCase()),
+    allow: (match) => /^haau3-(node|python|go|cli|bot|sdk)\b/i.test(match) || SPEC_NAMES.has(match.toLowerCase()),
   },
   {
     name: "an issue or pull request number without the repository it belongs to",
