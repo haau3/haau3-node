@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.4.0](https://github.com/haau3/haau3-node/compare/v0.3.9...v0.4.0) (2026-11-12)
+
+
+### ⚠ BREAKING CHANGES
+
+* the key's mode picks the host, and environment calls the Sandbox with no key ([#80](https://github.com/haau3/haau3-node/issues/80))
+
+### Features
+
+* the key's mode picks the host, and environment calls the Sandbox with no key ([#80](https://github.com/haau3/haau3-node/issues/80)) ([0d3e81e](https://github.com/haau3/haau3-node/commit/0d3e81ee4718cffd0f53e9ba632c31540e859ab3))
+
 ## [0.3.9](https://github.com/haau3/haau3-node/compare/v0.3.8...v0.3.9) (2026-11-12)
 
 
