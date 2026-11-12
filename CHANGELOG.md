@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.1](https://github.com/haau3/haau3-node/compare/v0.4.0...v0.4.1) (2026-11-12)
+
+
+### Features
+
+* a client that cannot be made says why with a code ([#82](https://github.com/haau3/haau3-node/issues/82)) ([f4e7841](https://github.com/haau3/haau3-node/commit/f4e7841d4114c775f33b260c81ddb91c3f54c25d))
+
 ## [0.4.0](https://github.com/haau3/haau3-node/compare/v0.3.9...v0.4.0) (2026-11-12)
 
 
