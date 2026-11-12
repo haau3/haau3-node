@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.4.2](https://github.com/haau3/haau3-node/compare/v0.4.1...v0.4.2) (2026-11-12)
+
+
+### Features
+
+* get() and post() call any operation by its path, with the typed errors ([#84](https://github.com/haau3/haau3-node/issues/84)) ([e53e2f1](https://github.com/haau3/haau3-node/commit/e53e2f1ab2b60a92085924ce3a22d99a3a0fe7d1))
+
+
+### Bug Fixes
+
+* the API's spec at 1.0.0-preview.34 ([#85](https://github.com/haau3/haau3-node/issues/85)) ([2fda7b3](https://github.com/haau3/haau3-node/commit/2fda7b3891d59b87a73a5da815421fc0a432af10))
+
 ## [0.4.1](https://github.com/haau3/haau3-node/compare/v0.4.0...v0.4.1) (2026-11-12)
 
 
