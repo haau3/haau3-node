@@ -1,24 +1,19 @@
-// Which env file in the current folder sets HAAU3_API_KEY when the program never loaded it: the
-// case of a key written to `.env` (by hand, or by `npx haau3 keys create`) and a script run with
-// plain `node`, which reads no env file. Asked only when a client is refused for having no key, so
-// the refusal can name the file and how to load it.
+// Which env file in the current folder sets HAAU3_API_KEY when the program's environment has no value
+// for it: the case of a key written to `.env` (by hand, or by `npx haau3 keys create`) and a script
+// run with plain `node`, which reads no env file. Asked only when a client is refused for having no
+// key from HAAU3_API_KEY, so the refusal can name the file and how to load it.
 //
-// It looks for the variable's name and nothing else. The value is never parsed out, compared, kept
-// or shown. Anything unexpected (no file system, a file that is not a regular file, a read that
-// fails, a runtime that would ask permission to read) is taken as "no such file", so the refusal is
-// then the one it was before.
+// It never keeps or shows the value. The file is read into a buffer that is scanned byte by byte, with
+// no string made from it and no regular expression run over it (a match would leave the text on
+// `RegExp`'s legacy statics), and the buffer is zeroed before it is let go. Anything unexpected (no
+// file system, a file that is not a regular file, a read that fails, a runtime that would ask
+// permission to read) is taken as "no such file", so the refusal is then the one it was before.
 
 /** The files a key is written to, in the order Next.js, Vite and the haau3 command line read them. */
 export const ENV_FILES = [".env.local", ".env"] as const;
 
 /** The most of a file read: a key is one short line, and a larger file is not an env file to read. */
 export const ENV_FILE_LIMIT = 1024 * 1024;
-
-/**
- * A line that sets HAAU3_API_KEY to something: the name at the start of a line (after spaces and an
- * optional `export`), `=`, then a value that is not empty, a comment or an empty pair of quotes.
- */
-const SETS_THE_KEY = /^[ \t]*(?:export[ \t]+)?HAAU3_API_KEY[ \t]*=[ \t]*(?:"[^"\r\n]|'[^'\r\n]|[^\s#"'])/m;
 
 type Fs = typeof import("node:fs");
 
@@ -30,20 +25,90 @@ function fileSystem(): Fs | undefined {
   return g.process?.getBuiltinModule?.("node:fs") as Fs | undefined;
 }
 
-/** Whether a file sets HAAU3_API_KEY, reading at most ENV_FILE_LIMIT bytes, never blocking on a pipe. */
+const bytesOf = (text: string) => Uint8Array.from(text, (c) => c.charCodeAt(0));
+const NAME = bytesOf("HAAU3_API_KEY");
+const EXPORT = bytesOf("export");
+const EQUALS = 0x3d;
+const HASH = 0x23;
+const DOLLAR = 0x24;
+const DOUBLE_QUOTE = 0x22;
+const SINGLE_QUOTE = 0x27;
+const NEWLINE = 0x0a;
+
+const isBlank = (c: number | undefined) => c === 0x20 || c === 0x09;
+const isSpace = (c: number | undefined) => c !== undefined && (isBlank(c) || (c >= 0x0a && c <= 0x0d));
+
+/** Whether `word` is at `at` in `bytes`, before `end`. */
+function wordAt(bytes: Uint8Array, at: number, end: number, word: Uint8Array): boolean {
+  if (at + word.length > end) return false;
+  for (let k = 0; k < word.length; k++) if (bytes[at + k] !== word[k]) return false;
+  return true;
+}
+
+/**
+ * Whether one line, `bytes[start, end)`, assigns HAAU3_API_KEY (the name at the start of the line,
+ * after blanks and an optional `export`, then `=`), and if it does, whether it sets it to something:
+ * a value that is not empty, a comment, quotes holding nothing or a blank first, or a reference to
+ * another variable. Undefined when the line assigns nothing.
+ */
+function assignment(bytes: Uint8Array, start: number, end: number): boolean | undefined {
+  let at = start;
+  const skipBlanks = () => {
+    while (at < end && isBlank(bytes[at])) at++;
+  };
+  skipBlanks();
+  if (wordAt(bytes, at, end, EXPORT) && isBlank(bytes[at + EXPORT.length])) {
+    at += EXPORT.length;
+    skipBlanks();
+  }
+  if (!wordAt(bytes, at, end, NAME)) return undefined;
+  at += NAME.length;
+  skipBlanks();
+  if (at >= end || bytes[at] !== EQUALS) return undefined;
+  at++;
+  skipBlanks();
+  if (at >= end) return false;
+  const first = bytes[at];
+  if (first === DOUBLE_QUOTE || first === SINGLE_QUOTE) {
+    const next = at + 1 < end ? bytes[at + 1] : undefined;
+    return next !== undefined && next !== first && !isSpace(next);
+  }
+  return !isSpace(first) && first !== HASH && first !== DOLLAR;
+}
+
+/** Whether the last line assigning HAAU3_API_KEY sets it, since a loader keeps the last. */
+function lastAssignmentSetsTheKey(bytes: Uint8Array): boolean {
+  let set = false;
+  for (let start = 0; start < bytes.length; ) {
+    const newline = bytes.indexOf(NEWLINE, start);
+    const end = newline === -1 ? bytes.length : newline;
+    const verdict = assignment(bytes, start, end);
+    if (verdict !== undefined) set = verdict;
+    start = end + 1;
+  }
+  return set;
+}
+
+/**
+ * Whether a file sets HAAU3_API_KEY, reading at most ENV_FILE_LIMIT bytes. The path is asked what it
+ * is before it is opened, so a named pipe is never opened: secret managers mount `.env` as one, and an
+ * open would count as a read, or ask the person to approve one. The open never blocks, and the open
+ * file is asked again, so a pipe swapped in between is not read either. A byte-order mark before the
+ * first line is not skipped, as Node's own loader does not skip it.
+ */
 function setsTheKey(fs: Fs, path: string): boolean {
-  // A non-blocking open, so a named pipe called `.env` cannot hold the program; then only a regular file.
+  if (!fs.statSync(path).isFile()) return false;
   const fd = fs.openSync(path, fs.constants.O_RDONLY | (fs.constants.O_NONBLOCK ?? 0));
+  let bytes: Uint8Array | undefined;
   try {
     const stat = fs.fstatSync(fd);
     if (!stat.isFile()) return false;
-    const buffer = Buffer.alloc(Math.min(stat.size, ENV_FILE_LIMIT));
-    const read = fs.readSync(fd, buffer, 0, buffer.length, 0);
-    // The name is plain ASCII, so latin1 reads it whatever the file's encoding; a byte-order mark
-    // before the first line is skipped.
-    const text = buffer.subarray(0, read).toString("latin1").replace(/^\xEF\xBB\xBF/, "");
-    return SETS_THE_KEY.test(text);
+    bytes = new Uint8Array(Math.min(stat.size, ENV_FILE_LIMIT));
+    const read = fs.readSync(fd, bytes, 0, bytes.length, 0);
+    return lastAssignmentSetsTheKey(bytes.subarray(0, read));
   } finally {
+    // The file holds the key and any other secret in it: nothing of it outlives this call.
+    bytes?.fill(0);
     fs.closeSync(fd);
   }
 }
@@ -61,7 +126,8 @@ export function unloadedEnvFile(folder?: string): (typeof ENV_FILES)[number] | u
     if (base === undefined) return undefined;
     for (const name of ENV_FILES) {
       try {
-        if (setsTheKey(fs, `${base.replace(/[\\/]+$/, "")}/${name}`)) return name;
+        // A doubled separator is harmless, and stripping one could name another folder.
+        if (setsTheKey(fs, `${base}/${name}`)) return name;
       } catch {
         // No such file, or one that cannot be read: the next one is still asked.
       }

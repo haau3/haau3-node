@@ -541,18 +541,34 @@ const NO_KEY =
   'with no key, set HAAU3_ENVIRONMENT=sandbox, or pass new Haau3({ environment: "sandbox" }).';
 
 /**
- * What the client says when it has no key and an env file in the current folder sets one: the
- * program never loaded that file. The file is named; its contents never are.
+ * What the client says when it has no key, an env file in the current folder sets one, and the
+ * environment has no HAAU3_API_KEY at all. It says only what was seen. The file is named; its
+ * contents never are.
  */
-const UNLOADED = (file: string) =>
-  `No API key. HAAU3_API_KEY is not set, but ${file} in this folder sets it, and this program has ` +
-  `not loaded that file. Load it first: run node --env-file=${file}, or call ` +
-  `process.loadEnvFile("${file}") before new Haau3().`;
+const NOT_IN_THE_ENVIRONMENT = (file: string) =>
+  `No API key. ${file} in this folder sets HAAU3_API_KEY, but this program's environment has no ` +
+  `value for it. Load the file before new Haau3(): run node --env-file=${file}, or call ` +
+  `process.loadEnvFile("${file}") first.`;
 
-/** The refusal for no key, naming an env file the program did not load when there is one. */
-function noKey(): Haau3Error {
-  const file = unloadedEnvFile();
-  return refusal("no-api-key", file === undefined ? NO_KEY : UNLOADED(file));
+/**
+ * What it says when the environment has HAAU3_API_KEY set to nothing and an env file sets it: Node's
+ * loaders keep a variable the environment already has, so loading the file would change nothing.
+ */
+const SET_BUT_EMPTY = (file: string) =>
+  `No API key. HAAU3_API_KEY is set but empty in this program's environment, and ${file} in this ` +
+  `folder sets it. node --env-file and process.loadEnvFile() keep a variable the environment ` +
+  `already has: unset HAAU3_API_KEY where it is set to nothing, then load the file.`;
+
+/**
+ * The refusal for no key. A key given as `apiKey`, even an empty one, is the caller's choice, so only
+ * a key from HAAU3_API_KEY sends it looking for an env file.
+ */
+function noKey(keyFrom: "apiKey" | "HAAU3_API_KEY"): Haau3Error {
+  const file = keyFrom === "HAAU3_API_KEY" ? unloadedEnvFile() : undefined;
+  if (file === undefined) return refusal("no-api-key", NO_KEY);
+  const g = globalThis as { process?: { env?: Record<string, string | undefined> } };
+  const present = g.process?.env?.HAAU3_API_KEY !== undefined;
+  return refusal("no-api-key", present ? SET_BUT_EMPTY(file) : NOT_IN_THE_ENVIRONMENT(file));
 }
 
 /**
@@ -802,7 +818,7 @@ export abstract class Transport {
         : fromEnvironment !== undefined
           ? checkedEnvironment(fromEnvironment, "HAAU3_ENVIRONMENT")
           : undefined;
-    if (apiKey === undefined && named !== "sandbox") throw noKey();
+    if (apiKey === undefined && named !== "sandbox") throw noKey(keyFrom);
     const mode = apiKey === undefined ? undefined : keyModeOf(apiKey);
     const refused = mode !== undefined && named !== undefined ? mismatch(mode, keyFrom, named, namedIn) : undefined;
     if (refused !== undefined) throw refused;
