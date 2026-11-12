@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.3](https://github.com/haau3/haau3-node/compare/v0.4.2...v0.4.3) (2026-11-12)
+
+
+### Bug Fixes
+
+* a missing key names the command line and an env file the program did not load, and the first call says when no slot matched ([#87](https://github.com/haau3/haau3-node/issues/87)) ([bb4e85a](https://github.com/haau3/haau3-node/commit/bb4e85a2c88b30f0ef060a6cb7dc060f7e10b308))
+
 ## [0.4.2](https://github.com/haau3/haau3-node/compare/v0.4.1...v0.4.2) (2026-11-12)
 
 
