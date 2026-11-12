@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.9](https://github.com/haau3/haau3-node/compare/v0.3.8...v0.3.9) (2026-11-12)
+
+
+### Features
+
+* appInfo adds your app's name and version to the User-Agent ([#77](https://github.com/haau3/haau3-node/issues/77)) ([3acd606](https://github.com/haau3/haau3-node/commit/3acd6066a1848392214a3b97d474eaa5ab463b23))
+* the API's spec at 1.0.0-preview.32 ([#79](https://github.com/haau3/haau3-node/issues/79)) ([f7252e6](https://github.com/haau3/haau3-node/commit/f7252e6602d144a73e5390032f6ea008fc91e5e2))
+
 ## [0.3.8](https://github.com/haau3/haau3-node/compare/v0.3.7...v0.3.8) (2026-11-10)
 
 
