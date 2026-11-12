@@ -2,7 +2,7 @@
 
 # API reference
 
-Every operation of the haau3 platform API (`1.0.0-preview.29`) is a method on `Haau3`, named by its
+Every operation of the haau3 platform API (`1.0.0-preview.32`) is a method on `Haau3`, named by its
 operationId. Each links to its page on docs.haau3.com, which shows its parameters and an example
 exchange. `params` is the query parameters as one object, `body` the request body, and every method
 takes the per-call options (`{ timeout, maxRetries, signal, correlationId, headers, fetchOptions }`) as its last
@@ -10,7 +10,7 @@ argument. Every method's answer can be awaited as it is, or with `.withResponse(
 and timing too.
 
 An operation that declares a header takes it as one more option, named from the header and checked
-before sending: `processMessage` takes `payerAuthorization`, sent as `Payer-Authorization`.
+before sending: `processMessage` takes `payerAuthorization`, sent as `Payer-Authorization`; `sandboxProcessMessage` takes `payerAuthorization`, sent as `Payer-Authorization`.
 
 `batch()` sends several of these as one request, each with its own answer or error. It takes
 every operation on the FHIR base except `fhirBatch`, `processMessage` and `reconcileMedications`: 30 of the
@@ -119,7 +119,7 @@ A prescription's free-text directions as a FHIR Dosage: the dose, unit, route, m
 
 ## Sandbox
 
-The FHIR base without production behind it, to build and test against: the same paths at `/v1/sandbox/fhir/r4`, answered with synthetic data that always gives the same answer. Its first service is the CARIN Consumer Real-Time Pharmacy Benefit Check, answered by Example Health Plan, a test insurer. It takes a test key (`haau3_sk_test_…`), made on the API keys page, and each request counts like any other. Send test members only, never a real person.
+The FHIR base without production behind it, to build and test against: the same paths at `/v1/sandbox/fhir/r4`, answered with synthetic data that always gives the same answer. Its first service is the CARIN Consumer Real-Time Pharmacy Benefit Check, answered by Example Health Plan, a test insurer. It takes a test key (`haau3_sk_test_…`), made on the API keys page. A test key's requests count toward its organization's requests a minute, apart from its production requests, and never toward the plan's month. Send test members only, never a real person.
 
 | Method | Request | What it does |
 |---|---|---|
