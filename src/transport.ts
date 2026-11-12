@@ -196,6 +196,54 @@ export interface RawResponse extends ResponseMeta {
   body: unknown;
 }
 
+/**
+ * What {@link Transport.get} takes beside the path: the call's own values, and every per-call option.
+ */
+export interface CallOptions extends RequestOptions {
+  /**
+   * A value for each `{name}` in the path, such as `{ id: "Practitioner-1093209884" }` for
+   * `/v1/fhir/r4/Practitioner/{id}`. Each is encoded into the path, and the path as you wrote it, its
+   * `{name}` left in, is what an error's message names, so no value you send ends up in one. Every
+   * `{name}` needs a value, and every value a `{name}`; either missing is refused before sending.
+   */
+  pathParams?: Record<string, string>;
+  /** The query parameters. A list sends the parameter once per value, and `undefined` sends none. */
+  query?: Record<string, QueryValue>;
+  /**
+   * The FHIR resource types the answer may be, such as `["Bundle"]`, as each operation's own method
+   * checks them. Any other answer is a {@link NoAnswerError} with reason `unreadable`. Unset, any
+   * answer the API sends is returned.
+   */
+  expects?: readonly string[];
+}
+
+/** What {@link Transport.post} takes beside the path: {@link CallOptions}, and the body. */
+export interface PostOptions extends CallOptions {
+  /** Sent as it is when it is a string, and as JSON otherwise. */
+  body?: unknown;
+}
+
+/** A path's `{name}` placeholders. */
+const PLACEHOLDER = /\{([^{}]*)\}/g;
+
+/**
+ * Refuses, before anything is sent, a path whose `{name}` has no value or a value with no `{name}`:
+ * either would send a request to another address than the one meant. The message names the
+ * placeholder, never a value.
+ */
+function checkPathParams(method: string, path: string, pathParams: Record<string, string> | undefined): void {
+  const names = [...path.matchAll(PLACEHOLDER)].map((match) => match[1]!);
+  const given = pathParams ?? {};
+  const notSent = `${method} ${path} was not sent:`;
+  for (const name of names) {
+    if (!Object.hasOwn(given, name)) throw new Haau3Error(`${notSent} pathParams has no value for {${name}}.`);
+    if (typeof given[name] !== "string") throw new Haau3Error(`${notSent} the value for {${name}} in pathParams must be a string.`);
+  }
+  for (const name of Object.keys(given)) {
+    if (!names.includes(name)) throw new Haau3Error(`${notSent} the path has no {${name}} for pathParams' value.`);
+  }
+}
+
 /** What a generated method passes to {@link Transport.operation}. */
 interface OperationCall {
   method: "GET" | "POST";
@@ -332,6 +380,7 @@ const FORBIDDEN_REASONS: Record<string, string> = {
   "test-key-outside-sandbox": "this is a test key, which works only in the Sandbox",
   "live-key-in-sandbox": "this is a live key, which does not work in the Sandbox",
   "phi-agreement-required": "its organization may not send patient data, and not every resource in this request is labelled as test data",
+  "not-open-to-customers": "the operation is not yet open to customers",
 };
 const FORBIDDEN_GENERAL = "the API key was accepted, and its organization may not make this request";
 
@@ -772,6 +821,45 @@ export abstract class Transport {
       attempts: sent.attempts,
       durationMs: sent.durationMs,
     };
+  }
+
+  /**
+   * Sends a GET to a path on the API and returns its answer, or throws the errors every operation's
+   * own method throws: {@link AuthError}, {@link ForbiddenError}, {@link RefusedError} or
+   * {@link NoAnswerError}. For an operation this version of the SDK has no method for, or one you
+   * call by its path. Its `.withResponse()` gives the request id and timing too.
+   *
+   * ```ts
+   * const practitioner = await haau3.get("/v1/fhir/r4/Practitioner/{id}", {
+   *   pathParams: { id: "Practitioner-1093209884" },
+   *   expects: ["Practitioner"],
+   * });
+   * ```
+   */
+  get<T = unknown>(path: string, options: CallOptions = {}): APIPromise<T> {
+    return this.#call<T>("GET", path, options);
+  }
+
+  /**
+   * Sends a POST to a path on the API, with a body, and returns its answer or throws, as
+   * {@link Transport.get} does.
+   *
+   * ```ts
+   * const dosage = await haau3.post("/v1/fhir/r4/$structure-dosage", { body: parameters, expects: ["Parameters"] });
+   * ```
+   */
+  post<T = unknown>(path: string, options: PostOptions = {}): APIPromise<T> {
+    return this.#call<T>("POST", path, options);
+  }
+
+  #call<T>(method: "GET" | "POST", path: string, options: PostOptions): APIPromise<T> {
+    const { pathParams, query, expects, body, ...callOptions } = options;
+    try {
+      checkPathParams(method, path, pathParams);
+    } catch (error) {
+      return new APIPromise<T>(Promise.reject(error));
+    }
+    return this.operation<T>({ method, path, pathParams, query, body, expects }, callOptions);
   }
 
   /**

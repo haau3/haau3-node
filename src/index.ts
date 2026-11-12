@@ -11,7 +11,18 @@ export {
   type NoAnswerReason,
 } from "./errors.js";
 export { markAsTestData } from "./testData.js";
-export type { AppInfo, ClientOptions, Environment, FetchOptions, QueryValue, RawRequest, RawResponse, RequestOptions } from "./transport.js";
+export type {
+  AppInfo,
+  CallOptions,
+  ClientOptions,
+  Environment,
+  FetchOptions,
+  PostOptions,
+  QueryValue,
+  RawRequest,
+  RawResponse,
+  RequestOptions,
+} from "./transport.js";
 export type { BodyOf, HeaderOf, OperationId, QueryOf, ResponseOf } from "./operations.js";
 export type { RequestBundle, RequestBundleEntry, RequestParameter, RequestParameters, RequestResource } from "./request.js";
 export type { BatchEntry, BatchResult, BatchResults } from "./batch.js";

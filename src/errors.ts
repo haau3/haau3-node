@@ -207,9 +207,11 @@ export class AuthError extends Haau3Error {
  * - `live-key-in-sandbox`: a live key does not work in the Sandbox. Send a test key.
  * - `phi-agreement-required`: the organization may not send patient data, and not every resource in
  *   the request is labelled as test data. `markAsTestData` labels made-up data.
+ * - `not-open-to-customers`: the operation is not yet open to customers, so it did not run. An
+ *   expected answer, not a fault in the request.
  *
- * Without a code, the key's organization may not make the request, or the operation is not yet open
- * to it; `outcome` (or `problem`) says why, in the API's words. Not an {@link AuthError}, which is a
+ * Without a code, the key's organization may not make the request; `outcome` (or `problem`) says
+ * why, in the API's words. Not an {@link AuthError}, which is a
  * key the API did not accept (401).
  */
 export class ForbiddenError extends Haau3Error {
