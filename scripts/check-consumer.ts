@@ -27,7 +27,7 @@ const samples = overlay.actions.map((action, i) => ({ file: `samples/sample-${i 
 
 // A README block uses names the reader already has: the client from "Authenticate", an id, a list of
 // codes, a patient's records, a pharmacy benefit check's message, a Sandbox check's message and the
-// test key it is sent with, a member's access token. Each is declared before the block, unless the
+// test key that sends it there, a member's access token. Each is declared before the block, unless the
 // block makes its own.
 const makes = (block: string, name: string) =>
   new RegExp(`\\b(const|let)\\s+(${name}\\b|\\{[^}]*\\b${name}\\b[^}]*\\})`).test(block);

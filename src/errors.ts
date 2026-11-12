@@ -52,14 +52,17 @@ const LOGGED = [
 export class Haau3Error extends Error {
   override name = "Haau3Error";
   /** The `X-Request-Id` the API sent, when it answered. Quote it when you ask for help. */
-  readonly requestId: string | undefined;
+  declare readonly requestId: string | undefined;
   /** The `correlationId` you sent, as the API returned it in `X-Correlation-Id`, when it answered. */
-  readonly correlationId: string | undefined;
+  declare readonly correlationId: string | undefined;
 
   constructor(message: string, requestId?: string, options?: ErrorOptions & { correlationId?: string | undefined }) {
     super(message, options?.cause === undefined ? undefined : { cause: options.cause });
-    this.requestId = requestId;
-    this.correlationId = options?.correlationId;
+    // Set only when there is a value, so an error raised before anything was sent prints its message
+    // alone, never a `requestId: undefined` that reads as if a request had failed.
+    const fields = this as { requestId?: string; correlationId?: string };
+    if (requestId !== undefined) fields.requestId = requestId;
+    if (options?.correlationId !== undefined) fields.correlationId = options.correlationId;
   }
 
   /**

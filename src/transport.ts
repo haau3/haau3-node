@@ -44,13 +44,38 @@ export interface AppInfo {
   url?: string | undefined;
 }
 
+/**
+ * The API's two environments: `production` at `https://api.haau3.com`, and `sandbox` at
+ * `https://sandbox.haau3.com`, which serves production's paths with fixed answers and synthetic data,
+ * to build and test against.
+ */
+export type Environment = "production" | "sandbox";
+
+/** Where each environment is. */
+const ENVIRONMENTS: Readonly<Record<Environment, string>> = {
+  production: "https://api.haau3.com",
+  sandbox: "https://sandbox.haau3.com",
+};
+
 /** How to construct the client. Every option has a default. */
 export interface ClientOptions {
-  /** Your platform API key (`haau3_sk_…`). Defaults to `process.env.HAAU3_API_KEY`. */
+  /**
+   * Your platform API key. Defaults to `process.env.HAAU3_API_KEY`. Its mode picks the environment:
+   * a test key (`haau3_sk_test_…`) sends every call to the Sandbox, and a live key
+   * (`haau3_sk_live_…`), or one made before test and live keys, to production. Optional only in the
+   * Sandbox: with no key, name it as the `environment`.
+   */
   apiKey?: string;
   /**
-   * Where the API is. Defaults to `process.env.HAAU3_BASE_URL`, then `https://api.haau3.com`. The API
-   * key is sent to this address only.
+   * The environment to call: `"production"` or `"sandbox"`. Defaults to
+   * `process.env.HAAU3_ENVIRONMENT`, then the key's mode. Name `"sandbox"` to call the Sandbox with
+   * no key. A key of the other mode is refused when the client is made, before anything is sent.
+   */
+  environment?: Environment;
+  /**
+   * Where the API is, for a stand-in or your own proxy. Defaults to `process.env.HAAU3_BASE_URL`,
+   * then the environment's address: `https://api.haau3.com` or `https://sandbox.haau3.com`. The API
+   * key is sent to this address only. The environment's rules for the key still hold.
    */
   baseURL?: string;
   /** Milliseconds one attempt may take. Defaults to 65,000. */
@@ -188,7 +213,6 @@ interface Sent {
   durationMs: number;
 }
 
-const DEFAULT_BASE_URL = "https://api.haau3.com";
 const DEFAULT_TIMEOUT = 65_000;
 const DEFAULT_MAX_RETRIES = 1;
 /** The longest `Retry-After` the client waits out. A longer one fails at once and says when. */
@@ -375,10 +399,61 @@ function checkedBaseURL(base: string, source: "baseURL" | "HAAU3_BASE_URL"): str
 }
 
 /** A value from `process.env`, where the runtime has one. Empty counts as unset. */
-function env(name: "HAAU3_API_KEY" | "HAAU3_BASE_URL"): string | undefined {
+function env(name: "HAAU3_API_KEY" | "HAAU3_BASE_URL" | "HAAU3_ENVIRONMENT"): string | undefined {
   const g = globalThis as { process?: { env?: Record<string, string | undefined> } };
   return g.process?.env?.[name] || undefined;
 }
+
+/**
+ * An environment, refused unless it is one of the two. The value is never repeated, since a variable
+ * set by mistake can hold anything.
+ */
+function checkedEnvironment(value: unknown, source: "environment" | "HAAU3_ENVIRONMENT"): Environment {
+  if (value === "production" || value === "sandbox") return value;
+  throw new Haau3Error(`${source} takes "production" or "sandbox", and this is neither.`);
+}
+
+/** A key's mode, from its prefix alone: the API checks the rest. */
+type KeyMode = "live" | "test" | "older";
+function keyModeOf(key: string): KeyMode {
+  if (key.startsWith("haau3_sk_test_")) return "test";
+  if (key.startsWith("haau3_sk_live_")) return "live";
+  return "older";
+}
+
+/**
+ * What the client says when it has no key: both ways to give one, where one comes from, and the
+ * Sandbox's way to call with none.
+ */
+const NO_KEY =
+  "No API key. Set HAAU3_API_KEY, or pass it as new Haau3({ apiKey }). Create a free key at " +
+  "https://platform.haau3.com (see https://docs.haau3.com/authentication). To call the Sandbox " +
+  'with no key, set HAAU3_ENVIRONMENT=sandbox, or pass new Haau3({ environment: "sandbox" }).';
+
+/**
+ * Why a key and a named environment cannot go together, or nothing when they can. The key is named by
+ * where it came from and its kind, never by its value, and the way to call with no key is the one its
+ * source needs.
+ */
+function mismatch(mode: KeyMode, keyFrom: "apiKey" | "HAAU3_API_KEY", environment: Environment, namedIn: string): string | undefined {
+  const withNoKey = keyFrom === "HAAU3_API_KEY" ? "unset HAAU3_API_KEY to call it with no key" : "pass no key to call it with none";
+  if (environment === "production" && mode === "test") {
+    return `The key in ${keyFrom} is a test key (haau3_sk_test_…), which works only in the Sandbox, and ${namedIn} names production. Use a live key there, or name the Sandbox.`;
+  }
+  if (environment === "sandbox" && mode === "live") {
+    return `The key in ${keyFrom} is a live key (haau3_sk_live_…), which does not work in the Sandbox, and ${namedIn} names the Sandbox. Use a test key there, or ${withNoKey}.`;
+  }
+  if (environment === "sandbox" && mode === "older") {
+    return `The key in ${keyFrom} was made before test and live keys, so it does not work in the Sandbox, and ${namedIn} names the Sandbox. Create a test key at https://platform.haau3.com, or ${withNoKey}.`;
+  }
+  return undefined;
+}
+
+/**
+ * The Sandbox's first address, which its own host does not serve: there, an operation of the first
+ * address goes to the same operation at production's path, which answers it the same way.
+ */
+const FIRST_ADDRESS = "/v1/sandbox/fhir/r4";
 
 /** Seconds from a `Retry-After` header, when it holds a number of seconds. */
 function retryAfterSeconds(headers: Headers): number | undefined {
@@ -551,7 +626,9 @@ export function judge<T>(
 
 /** The connection, retries and errors every operation shares. */
 export abstract class Transport {
-  readonly #apiKey: string;
+  readonly #apiKey: string | undefined;
+  /** Whether requests go to the Sandbox's own host, which does not serve its first address. */
+  readonly #onTheSandboxHost: boolean;
   readonly #fetch: typeof fetch;
   readonly #fetchOptions: FetchOptions;
   readonly #noStoreTaken: boolean;
@@ -559,6 +636,8 @@ export abstract class Transport {
   readonly #userAgent: string;
   /** Where requests go. */
   readonly baseURL: string;
+  /** The environment the client calls: the one named, else the key's mode. */
+  readonly environment: Environment;
   /** Milliseconds one attempt may take. */
   readonly timeout: number;
   /** How many times a request is retried. */
@@ -570,8 +649,21 @@ export abstract class Transport {
         "@haau3/sdk runs on a server only: an API key in a browser is public. Call the API from your server.",
       );
     }
-    const apiKey = options.apiKey ?? env("HAAU3_API_KEY");
-    if (!apiKey) throw new Haau3Error("No API key: pass apiKey, or set HAAU3_API_KEY.");
+    const apiKey = (options.apiKey ?? env("HAAU3_API_KEY")) || undefined;
+    const fromEnvironment = env("HAAU3_ENVIRONMENT");
+    const namedIn = options.environment !== undefined ? "environment" : "HAAU3_ENVIRONMENT";
+    const named =
+      options.environment !== undefined
+        ? checkedEnvironment(options.environment, "environment")
+        : fromEnvironment !== undefined
+          ? checkedEnvironment(fromEnvironment, "HAAU3_ENVIRONMENT")
+          : undefined;
+    if (apiKey === undefined && named !== "sandbox") throw new Haau3Error(NO_KEY);
+    const mode = apiKey === undefined ? undefined : keyModeOf(apiKey);
+    const keyFrom = options.apiKey ? "apiKey" : "HAAU3_API_KEY";
+    const refused = mode !== undefined && named !== undefined ? mismatch(mode, keyFrom, named, namedIn) : undefined;
+    if (refused !== undefined) throw new Haau3Error(refused);
+    this.environment = named ?? (mode === "test" ? "sandbox" : "production");
     const fetchImpl = options.fetch ?? (globalThis as { fetch?: typeof fetch }).fetch;
     if (!fetchImpl) throw new Haau3Error("No fetch: pass one as the fetch option. Node 22 and newer have one.");
     this.#apiKey = apiKey;
@@ -584,7 +676,10 @@ export abstract class Transport {
         ? checkedBaseURL(options.baseURL, "baseURL")
         : fromEnv !== undefined
           ? checkedBaseURL(fromEnv, "HAAU3_BASE_URL")
-          : DEFAULT_BASE_URL;
+          : ENVIRONMENTS[this.environment];
+    // The Sandbox's own host: chosen by the key or the environment, named as the base URL, or a
+    // stand-in for it, named with the Sandbox as the environment.
+    this.#onTheSandboxHost = named === "sandbox" || new URL(this.baseURL).origin === ENVIRONMENTS.sandbox;
     this.#userAgent = userAgentOf(options.appInfo);
     this.timeout = options.timeout ?? DEFAULT_TIMEOUT;
     this.maxRetries = options.maxRetries ?? DEFAULT_MAX_RETRIES;
@@ -614,7 +709,11 @@ export abstract class Transport {
    * answer's `.withResponse()` gives its request id and timing too.
    */
   protected operation<T>(call: OperationCall, options: RequestOptions = {}): APIPromise<T> {
-    let path = call.path;
+    const label =
+      this.#onTheSandboxHost && call.path.startsWith(`${FIRST_ADDRESS}/`)
+        ? `/v1/fhir/r4${call.path.slice(FIRST_ADDRESS.length)}`
+        : call.path;
+    let path = label;
     for (const [name, value] of Object.entries(call.pathParams ?? {})) {
       path = path.replace(`{${name}}`, encodeURIComponent(value));
     }
@@ -628,7 +727,7 @@ export abstract class Transport {
     } catch (error) {
       return new APIPromise<T>(Promise.reject(error));
     }
-    return new APIPromise(this.respond<T>(call.method, url, call.body, options, call.path, call.expects, declared));
+    return new APIPromise(this.respond<T>(call.method, url, call.body, options, label, call.expects, declared));
   }
 
   /** Sends a request and returns its answer only. See {@link Transport.respond}. */
@@ -708,7 +807,7 @@ export abstract class Transport {
     const fhir = speaksFHIR(path);
     const headers: Record<string, string> = {
       accept: fhir ? FHIR_JSON : "application/json",
-      authorization: `Bearer ${this.#apiKey}`,
+      ...(this.#apiKey === undefined ? {} : { authorization: `Bearer ${this.#apiKey}` }),
       "user-agent": this.#userAgent,
     };
     let payload: string | undefined;
