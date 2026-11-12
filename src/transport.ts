@@ -211,8 +211,8 @@ export interface CallOptions extends RequestOptions {
   query?: Record<string, QueryValue>;
   /**
    * The FHIR resource types the answer may be, such as `["Bundle"]`, as each operation's own method
-   * checks them. Any other answer is a {@link NoAnswerError} with reason `unreadable`. Unset, any
-   * answer the API sends is returned.
+   * checks them. Any other answer is a {@link NoAnswerError} with reason `unreadable`. Unset or empty,
+   * any answer the API sends is returned.
    */
   expects?: readonly string[];
 }
@@ -859,7 +859,8 @@ export abstract class Transport {
     } catch (error) {
       return new APIPromise<T>(Promise.reject(error));
     }
-    return this.operation<T>({ method, path, pathParams, query, body, expects }, callOptions);
+    // An empty list names no type, so it checks none, as an unset one does.
+    return this.operation<T>({ method, path, pathParams, query, body, expects: expects?.length ? expects : undefined }, callOptions);
   }
 
   /**
