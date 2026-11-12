@@ -240,4 +240,101 @@ describe("a client with no key", () => {
     expect(inspect(haau3, { depth: 10, showHidden: true })).toContain(SANDBOX);
     expect(inspect(haau3, { depth: 10, showHidden: true })).not.toMatch(/Bearer|haau3_sk_/);
   });
+
+  it("says a request, not the API key, when it refuses another host, and a 401 says no key was sent", async () => {
+    vi.stubEnv("HAAU3_API_KEY", "");
+    const { fetch } = fakeFetch(() => fhirAnswer({ resourceType: "OperationOutcome", issue: [] }, 401));
+    const haau3 = new Haau3({ environment: "sandbox", fetch });
+    await expect(haau3.request({ method: "GET", path: "https://api.haau3.com/v1/fhir/r4/metadata" })).rejects.toThrow(
+      "Refusing to send a request to https://api.haau3.com: the client's baseURL is https://sandbox.haau3.com.",
+    );
+    await expect(haau3.fhirMetadata()).rejects.toThrow("GET /v1/fhir/r4/metadata was refused: it was sent with no API key (401).");
+  });
+});
+
+describe("a key as the environment holds it", () => {
+  const { fetch, received } = fakeFetch(() => answer({ publishers: [] }));
+
+  it("is trimmed, and sent trimmed", async () => {
+    vi.stubEnv("HAAU3_API_KEY", `  ${TEST_KEY}\n`);
+    const haau3 = new Haau3({ fetch });
+    expect(haau3.baseURL).toBe(SANDBOX);
+    await haau3.listPublishers();
+    expect(received.at(-1)!.headers.authorization).toBe(`Bearer ${TEST_KEY}`);
+  });
+
+  it("is refused with anything before its prefix, such as quotes or Bearer, naming only where it came from", () => {
+    const sent = received.length;
+    for (const held of [`"${TEST_KEY}"`, `'${KEY}'`, `Bearer ${TEST_KEY}`]) {
+      vi.stubEnv("HAAU3_API_KEY", held);
+      const error = refusal(() => new Haau3({ fetch }));
+      expect(error.message).toBe('The key in HAAU3_API_KEY has something before its haau3_sk_ prefix, such as quotes or "Bearer ". Set the key alone.');
+    }
+    expect(refusal(() => new Haau3({ fetch, apiKey: `"${KEY}"` })).message).toMatch(/^The key in apiKey has something before/);
+    expect(received).toHaveLength(sent);
+  });
+
+  it("is refused when it is not a string, with the SDK's own error", () => {
+    expect(refusal(() => new Haau3({ fetch, apiKey: 123 as never })).message).toBe("apiKey takes a string.");
+  });
+});
+
+describe("HAAU3_ENVIRONMENT", () => {
+  const { fetch } = fakeFetch(() => answer({}));
+
+  it("is read trimmed and in any case", () => {
+    vi.stubEnv("HAAU3_API_KEY", "");
+    for (const written of ["Sandbox", " sandbox ", "SANDBOX\n"]) {
+      vi.stubEnv("HAAU3_ENVIRONMENT", written);
+      expect(new Haau3({ fetch }).environment, JSON.stringify(written)).toBe("sandbox");
+    }
+  });
+
+  it("is not read when the option names the environment, so a stray one stops nothing", () => {
+    vi.stubEnv("HAAU3_ENVIRONMENT", "staging");
+    expect(new Haau3({ fetch, apiKey: KEY, environment: "production" }).environment).toBe("production");
+    expect(refusal(() => new Haau3({ fetch, apiKey: KEY })).message).toBe('HAAU3_ENVIRONMENT takes "production" or "sandbox", and this is neither.');
+  });
+});
+
+describe("a base URL that is one environment's own address", () => {
+  const { fetch } = fakeFetch(() => answer({}));
+
+  it("must agree with the named environment", () => {
+    vi.stubEnv("HAAU3_API_KEY", "");
+    expect(refusal(() => new Haau3({ fetch, environment: "sandbox", baseURL: PRODUCTION })).message).toBe(
+      "environment names the Sandbox, and baseURL is production's address, https://api.haau3.com. Name one environment, or a base URL that is neither's.",
+    );
+    vi.stubEnv("HAAU3_BASE_URL", SANDBOX);
+    expect(refusal(() => new Haau3({ fetch, apiKey: KEY, environment: "production" })).message).toBe(
+      "environment names production, and HAAU3_BASE_URL is the Sandbox's address, https://sandbox.haau3.com. Name one environment, or a base URL that is neither's.",
+    );
+  });
+
+  it("is the Sandbox's, which takes test keys only, by its origin", () => {
+    for (const baseURL of [SANDBOX, "https://SANDBOX.haau3.com", "https://sandbox.haau3.com:443"]) {
+      expect(refusal(() => new Haau3({ fetch, apiKey: KEY, baseURL })).message, baseURL).toBe(
+        "The key in apiKey is a live key (haau3_sk_live_…), and baseURL is the Sandbox's address, https://sandbox.haau3.com, which takes test keys only. Use a test key there.",
+      );
+      expect(new Haau3({ fetch, apiKey: TEST_KEY, baseURL }).environment, baseURL).toBe("sandbox");
+    }
+    expect(refusal(() => new Haau3({ fetch, apiKey: OLDER_KEY, baseURL: SANDBOX })).message).toMatch(/^The key in apiKey was made before test and live keys, and baseURL is the Sandbox's address/);
+  });
+
+  it("is production's, which still takes a test key at the Sandbox's first address", async () => {
+    const bundle = fakeFetch(() => fhirAnswer({ resourceType: "Bundle", type: "message" }));
+    const haau3 = new Haau3({ fetch: bundle.fetch, apiKey: TEST_KEY, baseURL: PRODUCTION });
+    expect(haau3.environment).toBe("production");
+    await haau3.sandboxProcessMessage({ resourceType: "Bundle", type: "message" } as never);
+    expect(bundle.received[0]!.url.href).toBe(`${PRODUCTION}/v1/sandbox/fhir/r4/$process-message`);
+  });
+
+  it("rewrites the deprecated methods on the Sandbox's address however it is written", async () => {
+    const bundle = fakeFetch(() => fhirAnswer({ resourceType: "Bundle", type: "message" }));
+    await new Haau3({ fetch: bundle.fetch, apiKey: TEST_KEY, baseURL: "https://Sandbox.haau3.com:443" }).sandboxProcessMessage({
+      resourceType: "Bundle",
+      type: "message",
+    } as never);
+    expect(bundle.received[0]!.url.href).toBe(`${SANDBOX}/v1/fhir/r4/$process-message`);
+  });
 });
