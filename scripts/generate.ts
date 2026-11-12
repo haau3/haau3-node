@@ -623,7 +623,8 @@ const FIRST_CALL = "searchSlots";
 
 /**
  * The first call: the slot search's example, which names a city, with the first slot it found
- * printed whole, since one field says nothing of what a slot is.
+ * printed whole, since one field says nothing of what a slot is. A search that finds nothing says
+ * so, rather than printing `undefined`.
  */
 function firstCallSample(op: Operation): string {
   const city = ((op.raw.parameters ?? []) as Json[]).find((p) => p.in === "query" && p.name === "city")?.example;
@@ -634,7 +635,7 @@ function firstCallSample(op: Operation): string {
     [
       `// Open appointment slots, here in ${city}.`,
       callLine("", `const { slots } = await haau3.${op.id}`, exampleArgs(op), ";"),
-      "console.log(slots[0]);",
+      'console.log(slots[0] ?? "No open slots matched.");',
     ],
   );
 }

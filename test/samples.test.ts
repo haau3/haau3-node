@@ -225,11 +225,45 @@ describe("the code samples overlay", () => {
     }
   });
 
-  it("writes the slot search as the first call: the city it searches, then the first slot it found", () => {
+  it("writes the slot search as the first call: the city it searches, then the first slot it found, or that none did", () => {
     const source = sampleOf(operations.find((o) => o.id === "searchSlots")!);
     expect(source).toMatch(/^\/\/ Open appointment slots, here in [A-Z][\w .'-]*\.$/m);
     expect(source).toContain("const { slots } = await haau3.searchSlots({ city: ");
-    expect(source.trimEnd().endsWith("console.log(slots[0]);")).toBe(true);
+    expect(source.trimEnd().endsWith('console.log(slots[0] ?? "No open slots matched.");')).toBe(true);
+  });
+});
+
+describe("the first call, when the search finds no slot", () => {
+  let empty: Server;
+  let emptyURL: string;
+
+  beforeAll(async () => {
+    empty = createServer((_req, res) => {
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(JSON.stringify({ total: 0, slots: [] }));
+    });
+    await new Promise<void>((resolve) => empty.listen(0, "127.0.0.1", resolve));
+    const address = empty.address();
+    if (!address || typeof address === "string") throw new Error("The stand-in has no port.");
+    emptyURL = `http://127.0.0.1:${address.port}`;
+  });
+
+  afterAll(() => new Promise<void>((resolve) => empty.close(() => resolve())));
+
+  const firstCall = () => sampleOf(operations.find((o) => o.id === "searchSlots")!);
+
+  it("says that no open slot matched", async () => {
+    const result = await run(firstCall(), {}, { HAAU3_API_KEY: KEY, HAAU3_BASE_URL: emptyURL });
+    expect(result.stderr).toBe("");
+    expect(result.code).toBe(0);
+    expect(result.stdout).toBe("No open slots matched.\n");
+  });
+
+  it("where the sample before the guard printed undefined (the control)", async () => {
+    const unguarded = firstCall().replace('console.log(slots[0] ?? "No open slots matched.");', "console.log(slots[0]);");
+    expect(unguarded).not.toBe(firstCall());
+    const result = await run(unguarded, {}, { HAAU3_API_KEY: KEY, HAAU3_BASE_URL: emptyURL });
+    expect(result.stdout).toBe("undefined\n");
   });
 });
 

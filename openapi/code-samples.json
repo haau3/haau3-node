@@ -25,7 +25,7 @@
           {
             "lang": "typescript",
             "label": "TypeScript",
-            "source": "import { Haau3 } from \"@haau3/sdk\";\n\nconst haau3 = new Haau3(); // reads HAAU3_API_KEY\n// Open appointment slots, here in Cambridge.\nconst { slots } = await haau3.searchSlots({ city: \"Cambridge\", state: \"MA\", limit: 1 });\nconsole.log(slots[0]);\n"
+            "source": "import { Haau3 } from \"@haau3/sdk\";\n\nconst haau3 = new Haau3(); // reads HAAU3_API_KEY\n// Open appointment slots, here in Cambridge.\nconst { slots } = await haau3.searchSlots({ city: \"Cambridge\", state: \"MA\", limit: 1 });\nconsole.log(slots[0] ?? \"No open slots matched.\");\n"
           }
         ]
       }
