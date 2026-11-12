@@ -222,6 +222,7 @@ try {
 } catch (error) {
   if (error instanceof RefusedError) {
     error.status; // 400, 404, 410 and so on
+    error.code; // why, when the API names it: "not-the-example" from the Sandbox
     error.outcome; // the OperationOutcome; Scheduling's errors carry `problem`
   } else if (error instanceof NoAnswerError) {
     error.reason; // "timeout", "network", "rate-limited", "unavailable", "server-error" or "unreadable"
@@ -229,7 +230,7 @@ try {
     error.detail; // for a timeout or a network failure: what failed, such as "ECONNREFUSED" or "TimeoutError"
   } else if (error instanceof ForbiddenError) {
     // 403: the key was accepted, and it may not make this request
-    error.code; // why, when the API names it: "test-key-outside-sandbox", "live-key-in-sandbox", "phi-agreement-required"
+    error.code; // why, when the API names it: "test-key-outside-sandbox", "live-key-in-sandbox", "phi-agreement-required", "not-open-to-customers"
     error.outcome; // why, in the API's words
   } else if (error instanceof AuthError) {
     // 401: the key was missing, unknown or revoked
@@ -244,8 +245,12 @@ work there (`live-key-in-sandbox`: send a test key). The client sends each key t
 environment, so you meet these with a `baseURL` of your own, or by calling the deprecated
 `sandbox…` methods with a live key. `phi-agreement-required` means the organization
 may not send patient data, and not every resource in the request is labelled as test data:
-`markAsTestData` labels made-up data. Without a code, the body says what the organization may not
-do.
+`markAsTestData` labels made-up data. `not-open-to-customers` means the operation is not yet open
+to customers: an expected answer, not a fault in the request. Without a code, the body says what the
+organization may not do.
+
+A `RefusedError`'s `code` names the API's reason when it gives one: `not-the-example` from the
+Sandbox, which answers each operation's documented example only and refuses any other request.
 
 A client that cannot be made throws a `Haau3Error` before anything is sent, with a `code` to branch
 on, which the `ClientErrorCode` type lists. The message says the same for a person and names where
