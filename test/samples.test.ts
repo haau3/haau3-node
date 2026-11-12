@@ -258,13 +258,15 @@ const keyMode = liveKey.startsWith("haau3_sk_live_") ? "live" : liveKey.startsWi
 /** What a sample must do on this key: answer, or be refused with this code (null for none); undefined when it is not run. */
 function onThisKey({ id, path }: Operation): { answers: true } | { refused: string | null } | undefined {
   const sandbox = path.startsWith("/v1/sandbox/");
-  if (keyMode === "test" && !sandbox) return { refused: "test-key-outside-sandbox" };
+  // A test key sends every sample to the Sandbox's own host, which answers each example request with
+  // its fixed answer, and the first address's two at the same operations there.
+  if (keyMode === "test") return { answers: true };
   if (keyMode === "live" && sandbox) return { refused: "live-key-in-sandbox" };
   if (id === "processMessage") return keyMode === "live" ? { refused: null } : undefined;
   return { answers: true };
 }
 
-describe.skipIf(!live)("each sample, run against the production API", () => {
+describe.skipIf(!live)("each sample, run against the API its key picks", () => {
   for (const operation of operations) {
     const expected = onThisKey(operation);
     it.skipIf(expected === undefined)(`${operation.id}, on a ${keyMode} key`, async () => {

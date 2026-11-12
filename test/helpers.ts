@@ -1,6 +1,9 @@
 import { readFileSync } from "node:fs";
 
-export const KEY = "haau3_sk_test_key_that_must_never_be_printed";
+/** A live key, which goes to production: the planted marker every test checks is never printed. */
+export const KEY = "haau3_sk_live_key_that_must_never_be_printed";
+/** A test key, which goes to the Sandbox: the same marker in the other mode. */
+export const TEST_KEY = "haau3_sk_test_key_that_must_never_be_printed";
 
 /** One request the fake fetch received, as the API would see it. */
 export interface Received {

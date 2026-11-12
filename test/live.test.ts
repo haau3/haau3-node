@@ -2,8 +2,8 @@
 //
 //   HAAU3_LIVE_TEST=1 HAAU3_API_KEY=haau3_sk_... pnpm test test/live.test.ts
 //
-// CI never sets either, so it never runs there. The calls below are the API's services outside the
-// Sandbox, so they skip on a test key (`haau3_sk_test_`), whose calls test/samples.test.ts makes. The
+// CI never sets either, so it never runs there. A test key (`haau3_sk_test_`), or no key with
+// HAAU3_LIVE_TEST=1 alone, calls the Sandbox's own host. The production calls skip on a test key. The
 // patient-data cases need a live key (`haau3_sk_live_`) from an organization with no agreement on
 // file, which is refused real patient data.
 import type { Bundle, Resource } from "fhir/r4.js";
@@ -58,6 +58,33 @@ describe.skipIf(!live || !liveKey)("patient data on the production API, without 
     const refused = await haau3.reconcileMedications(records).catch((error: unknown) => error);
     expect(refused).toBeInstanceOf(ForbiddenError);
     expect((refused as ForbiddenError).code).toBe("phi-agreement-required");
+  });
+});
+
+// The Sandbox, on a test key or with no key at all: HAAU3_LIVE_TEST=1 with HAAU3_API_KEY unset calls it
+// with none, which it allows 30 times an hour from one address, so these are three calls.
+const sandboxRun = process.env.HAAU3_LIVE_TEST === "1" && (testKey || !key);
+
+describe.skipIf(!sandboxRun)("the Sandbox, which the key or the environment picks", () => {
+  const haau3 = sandboxRun ? new Haau3(key ? {} : { environment: "sandbox" }) : (undefined as never);
+  const example = (spec.paths["/v1/fhir/r4/$process-message"] as any).post.requestBody.content["application/fhir+json"];
+
+  it("is sent to sandbox.haau3.com", () => {
+    expect(haau3.environment).toBe("sandbox");
+    expect(haau3.baseURL).toBe("https://sandbox.haau3.com");
+  });
+
+  it("returns the Sandbox's own CapabilityStatement, by its own name and the first address's", async () => {
+    const statement = await haau3.fhirMetadata();
+    expect(statement.resourceType).toBe("CapabilityStatement");
+    expect(statement.implementation?.url).toBe("https://sandbox.haau3.com/v1/fhir/r4");
+    expect(await haau3.sandboxMetadata()).toEqual(statement);
+  });
+
+  it("answers the pharmacy benefit check's example request", async () => {
+    const answer = await haau3.processMessage(Object.values(example.examples as Record<string, { value: Bundle }>)[0]!.value);
+    expect(answer.resourceType).toBe("Bundle");
+    expect(answer.type).toBe("message");
   });
 });
 

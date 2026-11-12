@@ -22,10 +22,13 @@ describe("the README", () => {
   });
 
   it("calls one operation of each service", () => {
-    // A service is a tag of the spec. The FHIR base's own operations, its metadata and the batch, are none.
+    // A service is a tag of the spec. The FHIR base's own operations, its metadata and the batch, are
+    // none, and a deprecated operation shows no service: the README calls what replaced it.
     const serviceOf = new Map<string, string>(
       Object.values(spec.paths).flatMap((item) =>
-        ["get", "post"].filter((m) => item[m]).map((m) => [item[m].operationId as string, item[m].tags[0] as string] as const),
+        ["get", "post"]
+          .filter((m) => item[m] && item[m].deprecated !== true)
+          .map((m) => [item[m].operationId as string, item[m].tags[0] as string] as const),
       ),
     );
     const services = new Set([...serviceOf.values()].filter((tag) => tag !== "FHIR base"));
@@ -34,16 +37,17 @@ describe("the README", () => {
     expect([...services].filter((service) => !shown.has(service))).toEqual([]);
   });
 
-  it("sends the Sandbox's operations through a client of their own, made with a test key", () => {
+  it("calls the Sandbox on a test key, and with no key by naming it, and calls no deprecated operation", () => {
     const readme = read("README.md");
-    const sandboxIds = Object.values(spec.paths).flatMap((item) =>
-      ["get", "post"].filter((m) => item[m]?.tags[0] === "Sandbox").map((m) => item[m].operationId as string),
-    );
-    expect(sandboxIds.length).toBeGreaterThan(0);
     expect(readme).toContain("const sandbox = new Haau3({ apiKey: testKey });");
-    expect(readme).toContain("sandbox.sandboxProcessMessage(");
-    // The live client, made from HAAU3_API_KEY, never sends one: the Sandbox refuses a live key.
-    expect(sandboxIds.filter((id) => readme.includes(`haau3.${id}(`))).toEqual([]);
+    expect(readme).toContain("sandbox.processMessage(");
+    expect(readme).toContain('const sandbox = new Haau3({ environment: "sandbox" });');
+    const deprecated = Object.values(spec.paths).flatMap((item) =>
+      ["get", "post"].filter((m) => item[m]?.deprecated === true).map((m) => item[m].operationId as string),
+    );
+    expect(deprecated).toEqual(["sandboxMetadata", "sandboxProcessMessage"]);
+    const called = new Set([...readme.matchAll(CALL)].map((m) => m[1]!));
+    expect(deprecated.filter((id) => called.has(id))).toEqual([]);
   });
 
   it("shows a batch, built from the builder's methods", () => {
