@@ -8,6 +8,7 @@ import {
   RefusedError,
   apiErrorCode,
   type AnswerBody,
+  type ClientErrorCode,
   type NoAnswerReason,
 } from "./errors.js";
 import type { Problem } from "./generated/types.js";
@@ -256,6 +257,9 @@ const TOKEN_MARKS = "letters, digits and the marks - . _ ~ ! # $ % & ' * + ^ ` |
 /** A value as a message shows it: a string quoted, anything else by its type. */
 const shown = (value: unknown) => (typeof value === "string" ? JSON.stringify(value) : value === null ? "null" : `a ${typeof value}`);
 
+/** A refusal raised while the client is made, carrying the code a caller branches on. */
+const refusal = (code: ClientErrorCode, message: string) => new Haau3Error(message, undefined, { code });
+
 /**
  * The SDK's User-Agent with the caller's app after it, as `name/version (url)`. Each field is checked
  * here, so a value the header cannot carry is refused before anything is sent, naming the field.
@@ -263,27 +267,27 @@ const shown = (value: unknown) => (typeof value === "string" ? JSON.stringify(va
 function userAgentOf(appInfo: AppInfo | undefined): string {
   if (appInfo === undefined) return USER_AGENT;
   if (appInfo === null || typeof appInfo !== "object" || Array.isArray(appInfo)) {
-    throw new Haau3Error(`appInfo takes an object with a name, such as { name: "my-plugin", version: "1.2.0" }: ${shown(appInfo)} is not one.`);
+    throw refusal("invalid-app-info", `appInfo takes an object with a name, such as { name: "my-plugin", version: "1.2.0" }: ${shown(appInfo)} is not one.`);
   }
   const unknown = Object.keys(appInfo).filter((key) => !APP_INFO_FIELDS.includes(key));
   if (unknown.length > 0) {
-    throw new Haau3Error(`appInfo takes name, version and url only: ${unknown.map((key) => JSON.stringify(key)).join(", ")} is not one of them.`);
+    throw refusal("invalid-app-info", `appInfo takes name, version and url only: ${unknown.map((key) => JSON.stringify(key)).join(", ")} is not one of them.`);
   }
   const { name, version, url } = appInfo as { name?: unknown; version?: unknown; url?: unknown };
-  if (name === undefined || name === "") throw new Haau3Error(`appInfo.name is required: your app's name, such as "my-plugin".`);
+  if (name === undefined || name === "") throw refusal("invalid-app-info", `appInfo.name is required: your app's name, such as "my-plugin".`);
   if (typeof name !== "string" || !TOKEN.test(name)) {
-    throw new Haau3Error(`appInfo.name takes ${TOKEN_MARKS}, such as "my-plugin": ${shown(name)} is not one.`);
+    throw refusal("invalid-app-info", `appInfo.name takes ${TOKEN_MARKS}, such as "my-plugin": ${shown(name)} is not one.`);
   }
   let product = name;
   if (version !== undefined && version !== "") {
     if (typeof version !== "string" || !TOKEN.test(version)) {
-      throw new Haau3Error(`appInfo.version takes ${TOKEN_MARKS}, such as "1.2.0": ${shown(version)} is not one.`);
+      throw refusal("invalid-app-info", `appInfo.version takes ${TOKEN_MARKS}, such as "1.2.0": ${shown(version)} is not one.`);
     }
     product += `/${version}`;
   }
   if (url !== undefined && url !== "") {
     if (typeof url !== "string" || !COMMENT_TEXT.test(url) || !isWebURL(url)) {
-      throw new Haau3Error(
+      throw refusal("invalid-app-info",
         `appInfo.url takes an http or https URL with a host and no space, parenthesis or backslash, such as "https://example.com/my-plugin": ${shown(url)} is not one.`,
       );
     }
@@ -393,7 +397,7 @@ function checkedBaseURL(base: string, source: "baseURL" | "HAAU3_BASE_URL"): str
     url = undefined;
   }
   if (!url || !["http:", "https:"].includes(url.protocol) || !url.hostname || url.search || url.hash) {
-    throw new Haau3Error(
+    throw refusal("invalid-base-url",
       `${source} takes an http or https URL with a host, such as https://api.haau3.com: ${JSON.stringify(base)} is not one.`,
     );
   }
@@ -414,7 +418,7 @@ function env(name: "HAAU3_API_KEY" | "HAAU3_BASE_URL" | "HAAU3_ENVIRONMENT"): st
 function checkedEnvironment(value: unknown, source: "environment" | "HAAU3_ENVIRONMENT"): Environment {
   const read = source === "HAAU3_ENVIRONMENT" && typeof value === "string" ? value.trim().toLowerCase() : value;
   if (read === "production" || read === "sandbox") return read;
-  throw new Haau3Error(`${source} takes "production" or "sandbox", and this is neither.`);
+  throw refusal("invalid-environment", `${source} takes "production" or "sandbox", and this is neither.`);
 }
 
 /**
@@ -425,10 +429,10 @@ function checkedEnvironment(value: unknown, source: "environment" | "HAAU3_ENVIR
 function keyOf(options: ClientOptions): { key: string | undefined; from: "apiKey" | "HAAU3_API_KEY" } {
   const from = options.apiKey !== undefined && options.apiKey !== null ? "apiKey" : "HAAU3_API_KEY";
   const given: unknown = from === "apiKey" ? options.apiKey : env("HAAU3_API_KEY");
-  if (given !== undefined && typeof given !== "string") throw new Haau3Error(`${from} takes a string.`);
+  if (given !== undefined && typeof given !== "string") throw refusal("invalid-api-key", `${from} takes a string.`);
   const key = (given ?? "").trim();
   if (key.indexOf("haau3_sk_") > 0) {
-    throw new Haau3Error(`The key in ${from} has something before its haau3_sk_ prefix, such as quotes or "Bearer ". Set the key alone.`);
+    throw refusal("api-key-not-alone", `The key in ${from} has something before its haau3_sk_ prefix, such as quotes or "Bearer ". Set the key alone.`);
   }
   return { key: key || undefined, from };
 }
@@ -467,16 +471,25 @@ const NO_KEY =
  * where it came from and its kind, never by its value, and the way to call with no key is the one its
  * source needs.
  */
-function mismatch(mode: KeyMode, keyFrom: "apiKey" | "HAAU3_API_KEY", environment: Environment, namedIn: string): string | undefined {
+function mismatch(mode: KeyMode, keyFrom: "apiKey" | "HAAU3_API_KEY", environment: Environment, namedIn: string): Haau3Error | undefined {
   const withNoKey = keyFrom === "HAAU3_API_KEY" ? "unset HAAU3_API_KEY to call it with no key" : "pass no key to call it with none";
   if (environment === "production" && mode === "test") {
-    return `The key in ${keyFrom} is a test key (haau3_sk_test_…), which works only in the Sandbox, and ${namedIn} names production. Use a live key there, or name the Sandbox.`;
+    return refusal(
+      "test-key-outside-sandbox",
+      `The key in ${keyFrom} is a test key (haau3_sk_test_…), which works only in the Sandbox, and ${namedIn} names production. Use a live key there, or name the Sandbox.`,
+    );
   }
   if (environment === "sandbox" && mode === "live") {
-    return `The key in ${keyFrom} is a live key (haau3_sk_live_…), which does not work in the Sandbox, and ${namedIn} names the Sandbox. Use a test key there, or ${withNoKey}.`;
+    return refusal(
+      "live-key-in-sandbox",
+      `The key in ${keyFrom} is a live key (haau3_sk_live_…), which does not work in the Sandbox, and ${namedIn} names the Sandbox. Use a test key there, or ${withNoKey}.`,
+    );
   }
   if (environment === "sandbox" && mode === "older") {
-    return `The key in ${keyFrom} was made before test and live keys, so it does not work in the Sandbox, and ${namedIn} names the Sandbox. Create a test key at https://platform.haau3.com, or ${withNoKey}.`;
+    return refusal(
+      "older-key-in-sandbox",
+      `The key in ${keyFrom} was made before test and live keys, so it does not work in the Sandbox, and ${namedIn} names the Sandbox. Create a test key at https://platform.haau3.com, or ${withNoKey}.`,
+    );
   }
   return undefined;
 }
@@ -685,7 +698,7 @@ export abstract class Transport {
 
   constructor(options: ClientOptions = {}) {
     if (inBrowser()) {
-      throw new Haau3Error(
+      throw refusal("in-browser",
         "@haau3/sdk runs on a server only: an API key in a browser is public. Call the API from your server.",
       );
     }
@@ -700,12 +713,12 @@ export abstract class Transport {
         : fromEnvironment !== undefined
           ? checkedEnvironment(fromEnvironment, "HAAU3_ENVIRONMENT")
           : undefined;
-    if (apiKey === undefined && named !== "sandbox") throw new Haau3Error(NO_KEY);
+    if (apiKey === undefined && named !== "sandbox") throw refusal("no-api-key", NO_KEY);
     const mode = apiKey === undefined ? undefined : keyModeOf(apiKey);
     const refused = mode !== undefined && named !== undefined ? mismatch(mode, keyFrom, named, namedIn) : undefined;
-    if (refused !== undefined) throw new Haau3Error(refused);
+    if (refused !== undefined) throw refused;
     const fetchImpl = options.fetch ?? (globalThis as { fetch?: typeof fetch }).fetch;
-    if (!fetchImpl) throw new Haau3Error("No fetch: pass one as the fetch option. Node 22 and newer have one.");
+    if (!fetchImpl) throw refusal("no-fetch", "No fetch: pass one as the fetch option. Node 22 and newer have one.");
     this.#apiKey = apiKey;
     this.#fetch = fetchImpl;
     this.#fetchOptions = options.fetchOptions ?? {};
@@ -724,11 +737,14 @@ export abstract class Transport {
     // test key, at the Sandbox's first address, until that address goes.
     const at = environmentAt(this.baseURL);
     if (at !== undefined && named !== undefined && named !== at) {
-      throw new Haau3Error(`${namedIn} names ${NAMED[named]}, and ${baseFrom} is ${ADDRESS_OF[at]}. Name one environment, or a base URL that is neither's.`);
+      throw refusal("environment-conflicts-with-base-url", `${namedIn} names ${NAMED[named]}, and ${baseFrom} is ${ADDRESS_OF[at]}. Name one environment, or a base URL that is neither's.`);
     }
     if (at === "sandbox" && mode !== undefined && mode !== "test") {
       const kind = mode === "live" ? "is a live key (haau3_sk_live_…)" : "was made before test and live keys";
-      throw new Haau3Error(`The key in ${keyFrom} ${kind}, and ${baseFrom} is ${ADDRESS_OF.sandbox}, which takes test keys only. Use a test key there.`);
+      throw refusal(
+        mode === "live" ? "live-key-in-sandbox" : "older-key-in-sandbox",
+        `The key in ${keyFrom} ${kind}, and ${baseFrom} is ${ADDRESS_OF.sandbox}, which takes test keys only. Use a test key there.`,
+      );
     }
     this.environment = at ?? chosen;
     // The Sandbox's own host, which does not serve its first address: its address, or a stand-in

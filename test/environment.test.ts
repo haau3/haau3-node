@@ -101,7 +101,7 @@ describe("no key", () => {
     expect(Object.keys(error)).not.toContain("requestId");
     expect(Object.keys(error)).not.toContain("correlationId");
     expect(inspect(error)).not.toMatch(/requestId|correlationId/);
-    expect(error.toJSON()).toEqual({ name: "Haau3Error", message: error.message });
+    expect(error.toJSON()).toEqual({ name: "Haau3Error", message: error.message, code: "no-api-key" });
     // The control: an error the API answered still carries its request id.
     const answered = new Haau3Error("answered", "6b1f3c2e-4d5a-4b6c-8d7e-9f0a1b2c3d4e", { correlationId: "a" });
     expect(Object.keys(answered)).toEqual(expect.arrayContaining(["requestId", "correlationId"]));
