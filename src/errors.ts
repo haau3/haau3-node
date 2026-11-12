@@ -48,6 +48,41 @@ const LOGGED = [
   "detail",
 ] as const;
 
+/**
+ * Why `new Haau3()` refused to make a client, before anything was sent: the `code` of the
+ * {@link Haau3Error} it throws. Branch on the code; the message says the same for a person, and
+ * names where the value came from (the option or the variable).
+ *
+ * - `no-api-key`: no key, and the Sandbox is not named as the environment.
+ * - `invalid-api-key`: the key is not a string.
+ * - `api-key-not-alone`: the key has something before its `haau3_sk_` prefix, such as the quotes an
+ *   env file kept, or `Bearer `.
+ * - `test-key-outside-sandbox`: a test key with production named. The API's own name for it.
+ * - `live-key-in-sandbox`: a live key with the Sandbox named, or with the Sandbox's address as the
+ *   base URL. The API's own name for it.
+ * - `older-key-in-sandbox`: the same for a key made before test and live keys.
+ * - `invalid-environment`: an environment other than `"production"` or `"sandbox"`.
+ * - `invalid-base-url`: a base URL that is not an http or https URL with a host and no query.
+ * - `environment-conflicts-with-base-url`: a named environment, and a base URL on the other
+ *   environment's own address.
+ * - `invalid-app-info`: an `appInfo` the User-Agent cannot carry.
+ * - `no-fetch`: no `fetch` in the runtime, and none passed.
+ * - `in-browser`: the client was made in a browser, where an API key is public.
+ */
+export type ClientErrorCode =
+  | "no-api-key"
+  | "invalid-api-key"
+  | "api-key-not-alone"
+  | "test-key-outside-sandbox"
+  | "live-key-in-sandbox"
+  | "older-key-in-sandbox"
+  | "invalid-environment"
+  | "invalid-base-url"
+  | "environment-conflicts-with-base-url"
+  | "invalid-app-info"
+  | "no-fetch"
+  | "in-browser";
+
 /** What every error this package throws has. */
 export class Haau3Error extends Error {
   override name = "Haau3Error";
@@ -55,14 +90,24 @@ export class Haau3Error extends Error {
   declare readonly requestId: string | undefined;
   /** The `correlationId` you sent, as the API returned it in `X-Correlation-Id`, when it answered. */
   declare readonly correlationId: string | undefined;
+  /**
+   * Why, as a code to branch on, when there is one: a {@link ClientErrorCode} when the client could
+   * not be made, or the API's own code on a {@link ForbiddenError}.
+   */
+  declare readonly code: string | undefined;
 
-  constructor(message: string, requestId?: string, options?: ErrorOptions & { correlationId?: string | undefined }) {
+  constructor(
+    message: string,
+    requestId?: string,
+    options?: ErrorOptions & { correlationId?: string | undefined; code?: ClientErrorCode | undefined },
+  ) {
     super(message, options?.cause === undefined ? undefined : { cause: options.cause });
     // Set only when there is a value, so an error raised before anything was sent prints its message
     // alone, never a `requestId: undefined` that reads as if a request had failed.
-    const fields = this as { requestId?: string; correlationId?: string };
+    const fields = this as { requestId?: string; correlationId?: string; code?: string };
     if (requestId !== undefined) fields.requestId = requestId;
     if (options?.correlationId !== undefined) fields.correlationId = options.correlationId;
+    if (options?.code !== undefined) fields.code = options.code;
   }
 
   /**
