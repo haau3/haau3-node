@@ -157,6 +157,11 @@ describe("the errors every operation's own method throws", () => {
     });
   });
 
+  it("an empty expects checks no type either, so a JSON answer that is not FHIR is returned", async () => {
+    const { haau3 } = client(() => answer({ providerLocations: [], total: 0 }));
+    expect(await haau3.get("/v1/scheduling/provider-locations", { query: { limit: "1" }, expects: [] })).toEqual({ providerLocations: [], total: 0 });
+  });
+
   it("names the path as written, never a value or the key, however the error is printed", async () => {
     for (const status of [401, 403, 404, 429, 503]) {
       const error = await client(() => fhirAnswer(outcome("x"), status)).haau3.get(PRACTITIONER, { pathParams: { id: VALUE } }).catch((e: unknown) => e);
