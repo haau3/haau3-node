@@ -204,3 +204,68 @@ describe("a path that does not match its values is refused before anything is se
     await expect(call).rejects.toBeInstanceOf(Haau3Error);
   });
 });
+
+describe("a path value never changes the path", () => {
+  // A URL reads "", "." and ".." as another path: /Practitioner/.. is /v1/fhir/r4/.
+  it.each(["", ".", ".."])("refuses %j, in get() and in a generated method, and sends nothing", async (value) => {
+    const { haau3, received } = client(() => fhirAnswer({ resourceType: "Practitioner" }));
+    for (const call of [() => haau3.get(PRACTITIONER, { pathParams: { id: value } }), () => haau3.readPractitioner(value)]) {
+      const error = await call().catch((e: unknown) => e);
+      expect(error).toBeInstanceOf(Haau3Error);
+      expect((error as Error).message).toMatch(/the value for \{id\} is empty, "\." or "\.\.", which would send the request to another path\./);
+    }
+    expect(received).toHaveLength(0);
+  });
+
+  it("refuses a value that is not a string in a generated method, as get() does", async () => {
+    const { haau3, received } = client(() => fhirAnswer({ resourceType: "Practitioner" }));
+    for (const value of [undefined, null, 7, {}]) {
+      const error = await haau3.readPractitioner(value as unknown as string).catch((e: unknown) => e);
+      expect((error as Error).message).toMatch(/the value for \{id\} must be a string/);
+    }
+    expect(received).toHaveLength(0);
+  });
+
+  it("keeps a value with dots inside it, and sends a lone UTF-16 half as U+FFFD rather than throwing", async () => {
+    const { haau3, received } = client(() => fhirAnswer({ resourceType: "Practitioner" }));
+    await haau3.get(PRACTITIONER, { pathParams: { id: "a..b" } });
+    let call: Promise<unknown> | undefined;
+    expect(() => {
+      call = haau3.get(PRACTITIONER, { pathParams: { id: "x\uD800" } });
+    }).not.toThrow();
+    await call;
+    expect(received.map((r) => r.url.pathname)).toEqual(["/v1/fhir/r4/Practitioner/a..b", "/v1/fhir/r4/Practitioner/x%EF%BF%BD"]);
+  });
+
+  it("fills a {name} written twice, and takes a name with a dash", async () => {
+    const { haau3, received } = client(() => answer({}));
+    await haau3.get("/v1/a/{id}/b/{id}", { pathParams: { id: "x" } });
+    await haau3.get("/v1/a/{my-id}", { pathParams: { "my-id": "y" } });
+    expect(received.map((r) => r.url.pathname)).toEqual(["/v1/a/x/b/x", "/v1/a/y"]);
+  });
+});
+
+describe("what get() and post() refuse before sending", () => {
+  it("a header HTTP cannot carry is not sent, and is never a network failure to retry", async () => {
+    const { haau3, received } = client(() => answer({}));
+    const error = (await haau3.get("/v1/scheduling/publishers", { headers: { "x-extra": "a\nb" }, maxRetries: 2 }).catch((e: unknown) => e)) as Error;
+    expect(error).toBeInstanceOf(Haau3Error);
+    expect(error).not.toBeInstanceOf(NoAnswerError);
+    expect(error.message).toMatch(/was not sent: a header's value is not one HTTP can carry/);
+    expect(received).toHaveLength(0);
+  });
+
+  it("an expects that is not a list", async () => {
+    const { haau3, received } = client(() => fhirAnswer({ resourceType: "Bund" }));
+    const error = await haau3.get("/v1/fhir/r4/metadata", { expects: "Bundle" as unknown as string[] }).catch((e: unknown) => e);
+    expect((error as Error).message).toMatch(/expects is a list of FHIR resource types/);
+    expect(received).toHaveLength(0);
+  });
+
+  it("sends no body for null, as for none", async () => {
+    const { haau3, received } = client(() => fhirAnswer({ resourceType: "Bundle" }));
+    await haau3.post("/v1/fhir/r4", { body: null });
+    expect(received[0]!.body).toBeUndefined();
+    expect(received[0]!.headers["content-type"]).toBeUndefined();
+  });
+});
