@@ -68,3 +68,13 @@ export interface ProcessMessageOptions extends RequestOptions {
    */
   payerAuthorization?: HeaderOf<"processMessage">["Payer-Authorization"];
 }
+
+/** The options of one `sandboxProcessMessage` call: every call's, and the header it declares. */
+export interface SandboxProcessMessageOptions extends RequestOptions {
+  /**
+   * A member's own authorization at their insurer, as production's `processMessage` takes it. The Sandbox's test insurer needs none until the Sandbox has a sign-in, so it is never sent anywhere, stored or logged. It is checked as on production: one that is not `Bearer` and a token, or is over 4,096 characters, is refused, and so is one sent with a request without patient details.
+   *
+   * Sent as `Payer-Authorization`. Checked against the form the API takes for it, at most 4096 characters, before sending; a value it does not take is refused without being repeated, and this option wins over a `Payer-Authorization` in `headers`.
+   */
+  payerAuthorization?: HeaderOf<"sandboxProcessMessage">["Payer-Authorization"];
+}
