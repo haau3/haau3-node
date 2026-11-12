@@ -205,7 +205,14 @@ for (const [path, item] of Object.entries(spec.paths as Record<string, Json>)) {
 }
 operations.sort((a, b) => a.id.localeCompare(b.id));
 const operationIds = new Set(operations.map((op) => op.id));
-for (const op of operations) op.deprecated = deprecation(op.raw, operationIds);
+const deprecatedIds = new Set(operations.filter((op) => op.raw.deprecated === true).map((op) => op.id));
+for (const op of operations) {
+  const found = deprecation(op.raw, operationIds, deprecatedIds);
+  if (found === undefined) continue;
+  // The passage goes under @deprecated, so the description keeps the rest.
+  op.description = found.description;
+  op.deprecated = found.words;
+}
 
 const pascal = (id: string) => id[0]!.toUpperCase() + id.slice(1);
 

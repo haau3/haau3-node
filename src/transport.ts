@@ -69,7 +69,9 @@ export interface ClientOptions {
   /**
    * The environment to call: `"production"` or `"sandbox"`. Defaults to
    * `process.env.HAAU3_ENVIRONMENT`, then the key's mode. Name `"sandbox"` to call the Sandbox with
-   * no key. A key of the other mode is refused when the client is made, before anything is sent.
+   * no key. A key of the other mode (for the Sandbox, a live key or one made before test and live
+   * keys) is refused when the client is made, before anything is sent, and so is a `baseURL` on the
+   * other environment's own address.
    */
   environment?: Environment;
   /**
@@ -405,13 +407,43 @@ function env(name: "HAAU3_API_KEY" | "HAAU3_BASE_URL" | "HAAU3_ENVIRONMENT"): st
 }
 
 /**
- * An environment, refused unless it is one of the two. The value is never repeated, since a variable
- * set by mistake can hold anything.
+ * An environment, refused unless it is one of the two. The variable is read trimmed and in any case,
+ * as a shell or an env file may write it; the option is typed and taken as it is. The value is never
+ * repeated, since a variable set by mistake can hold anything.
  */
 function checkedEnvironment(value: unknown, source: "environment" | "HAAU3_ENVIRONMENT"): Environment {
-  if (value === "production" || value === "sandbox") return value;
+  const read = source === "HAAU3_ENVIRONMENT" && typeof value === "string" ? value.trim().toLowerCase() : value;
+  if (read === "production" || read === "sandbox") return read;
   throw new Haau3Error(`${source} takes "production" or "sandbox", and this is neither.`);
 }
+
+/**
+ * The key, trimmed, from the option or else the variable, with where it came from; undefined when
+ * there is none. A value that is not a string, or that carries anything before its `haau3_sk_`
+ * prefix (quotes an env file kept, or "Bearer "), is refused, naming only where it came from.
+ */
+function keyOf(options: ClientOptions): { key: string | undefined; from: "apiKey" | "HAAU3_API_KEY" } {
+  const from = options.apiKey !== undefined && options.apiKey !== null ? "apiKey" : "HAAU3_API_KEY";
+  const given: unknown = from === "apiKey" ? options.apiKey : env("HAAU3_API_KEY");
+  if (given !== undefined && typeof given !== "string") throw new Haau3Error(`${from} takes a string.`);
+  const key = (given ?? "").trim();
+  if (key.indexOf("haau3_sk_") > 0) {
+    throw new Haau3Error(`The key in ${from} has something before its haau3_sk_ prefix, such as quotes or "Bearer ". Set the key alone.`);
+  }
+  return { key: key || undefined, from };
+}
+
+/** The environment whose own address a base URL is, by its origin, or undefined for any other host. */
+function environmentAt(baseURL: string): Environment | undefined {
+  const origin = new URL(baseURL).origin;
+  return (Object.keys(ENVIRONMENTS) as Environment[]).find((name) => new URL(ENVIRONMENTS[name]).origin === origin);
+}
+
+const ADDRESS_OF: Readonly<Record<Environment, string>> = {
+  production: "production's address, https://api.haau3.com",
+  sandbox: "the Sandbox's address, https://sandbox.haau3.com",
+};
+const NAMED: Readonly<Record<Environment, string>> = { production: "production", sandbox: "the Sandbox" };
 
 /** A key's mode, from its prefix alone: the API checks the rest. */
 type KeyMode = "live" | "test" | "older";
@@ -550,6 +582,8 @@ export interface AnswerContext {
    * entry is a refusal of that entry, not of the key.
    */
   entry?: boolean;
+  /** The request carried no key, so a 401 says that rather than that a key was refused. */
+  noKey?: boolean;
 }
 
 /**
@@ -590,7 +624,13 @@ export function judge<T>(
   if (status === 401 && !context.entry) {
     return {
       ok: false,
-      error: new AuthError(`${name} was refused: the API key was not accepted (401).`, status, requestId, errorBody, timing),
+      error: new AuthError(
+        `${name} was refused: ${context.noKey ? "it was sent with no API key" : "the API key was not accepted"} (401).`,
+        status,
+        requestId,
+        errorBody,
+        timing,
+      ),
     };
   }
   if (status === 403 && !context.entry) {
@@ -649,9 +689,11 @@ export abstract class Transport {
         "@haau3/sdk runs on a server only: an API key in a browser is public. Call the API from your server.",
       );
     }
-    const apiKey = (options.apiKey ?? env("HAAU3_API_KEY")) || undefined;
-    const fromEnvironment = env("HAAU3_ENVIRONMENT");
+    const { key: apiKey, from: keyFrom } = keyOf(options);
     const namedIn = options.environment !== undefined ? "environment" : "HAAU3_ENVIRONMENT";
+    // The variable is read only when no option names the environment, so a stray one never stops a
+    // client that says what it calls.
+    const fromEnvironment = options.environment === undefined ? env("HAAU3_ENVIRONMENT") : undefined;
     const named =
       options.environment !== undefined
         ? checkedEnvironment(options.environment, "environment")
@@ -660,26 +702,38 @@ export abstract class Transport {
           : undefined;
     if (apiKey === undefined && named !== "sandbox") throw new Haau3Error(NO_KEY);
     const mode = apiKey === undefined ? undefined : keyModeOf(apiKey);
-    const keyFrom = options.apiKey ? "apiKey" : "HAAU3_API_KEY";
     const refused = mode !== undefined && named !== undefined ? mismatch(mode, keyFrom, named, namedIn) : undefined;
     if (refused !== undefined) throw new Haau3Error(refused);
-    this.environment = named ?? (mode === "test" ? "sandbox" : "production");
     const fetchImpl = options.fetch ?? (globalThis as { fetch?: typeof fetch }).fetch;
     if (!fetchImpl) throw new Haau3Error("No fetch: pass one as the fetch option. Node 22 and newer have one.");
     this.#apiKey = apiKey;
     this.#fetch = fetchImpl;
     this.#fetchOptions = options.fetchOptions ?? {};
     this.#noStoreTaken = cacheFieldTaken();
+    const chosen = named ?? (mode === "test" ? "sandbox" : "production");
     const fromEnv = env("HAAU3_BASE_URL");
+    const baseFrom = options.baseURL !== undefined ? "baseURL" : "HAAU3_BASE_URL";
     this.baseURL =
       options.baseURL !== undefined
         ? checkedBaseURL(options.baseURL, "baseURL")
         : fromEnv !== undefined
           ? checkedBaseURL(fromEnv, "HAAU3_BASE_URL")
-          : ENVIRONMENTS[this.environment];
-    // The Sandbox's own host: chosen by the key or the environment, named as the base URL, or a
-    // stand-in for it, named with the Sandbox as the environment.
-    this.#onTheSandboxHost = named === "sandbox" || new URL(this.baseURL).origin === ENVIRONMENTS.sandbox;
+          : ENVIRONMENTS[chosen];
+    // A base URL that is one environment's own address is that environment. A named environment
+    // must agree with it, and the Sandbox's address takes test keys only. Production's still takes a
+    // test key, at the Sandbox's first address, until that address goes.
+    const at = environmentAt(this.baseURL);
+    if (at !== undefined && named !== undefined && named !== at) {
+      throw new Haau3Error(`${namedIn} names ${NAMED[named]}, and ${baseFrom} is ${ADDRESS_OF[at]}. Name one environment, or a base URL that is neither's.`);
+    }
+    if (at === "sandbox" && mode !== undefined && mode !== "test") {
+      const kind = mode === "live" ? "is a live key (haau3_sk_live_…)" : "was made before test and live keys";
+      throw new Haau3Error(`The key in ${keyFrom} ${kind}, and ${baseFrom} is ${ADDRESS_OF.sandbox}, which takes test keys only. Use a test key there.`);
+    }
+    this.environment = at ?? chosen;
+    // The Sandbox's own host, which does not serve its first address: its address, or a stand-in
+    // named with the Sandbox as the environment.
+    this.#onTheSandboxHost = at === "sandbox" || (at === undefined && named === "sandbox");
     this.#userAgent = userAgentOf(options.appInfo);
     this.timeout = options.timeout ?? DEFAULT_TIMEOUT;
     this.maxRetries = options.maxRetries ?? DEFAULT_MAX_RETRIES;
@@ -770,6 +824,7 @@ export abstract class Transport {
       retryAfter: retryAfterSeconds(response.headers),
       expects,
       missing: "a body that is not JSON",
+      noKey: this.#apiKey === undefined,
     });
     if (!verdict.ok) throw verdict.error;
     const statusText = statusTextOf(status, response.statusText);
@@ -787,7 +842,8 @@ export abstract class Transport {
       ? new URL(pathOrUrl)
       : new URL(base.pathname.replace(/\/$/, "") + (pathOrUrl.startsWith("/") ? pathOrUrl : `/${pathOrUrl}`), base);
     if (url.origin !== base.origin) {
-      throw new Haau3Error(`Refusing to send the API key to ${url.origin}: the client's baseURL is ${base.origin}.`);
+      const what = this.#apiKey === undefined ? "a request" : "the API key";
+      throw new Haau3Error(`Refusing to send ${what} to ${url.origin}: the client's baseURL is ${base.origin}.`);
     }
     appendQuery(url.searchParams, query);
     return url;

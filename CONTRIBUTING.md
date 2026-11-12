@@ -104,11 +104,12 @@ version on npm with provenance. It is published once a maintainer approves it on
 
 ## Tests
 
-The tests run against a fake `fetch`. `test/live.test.ts` calls the production API, and so does
-`test/samples.test.ts`, which runs every code sample there as a customer would. Both run against
-production only with `HAAU3_LIVE_TEST=1` and a key in `HAAU3_API_KEY`. Run them once with a live key
-(`haau3_sk_live_…`) from an organization with no agreement on file, and once with a test key
-(`haau3_sk_test_…`): what each sample must do follows from the key's mode.
+The tests run against a fake `fetch`. `test/live.test.ts` calls the API, and so does
+`test/samples.test.ts`, which runs every code sample as a customer would. Both run only with
+`HAAU3_LIVE_TEST=1`. Run them once with a live key (`haau3_sk_live_…`) from an organization with no
+agreement on file, which calls production, and once with a test key (`haau3_sk_test_…`), which calls
+the Sandbox, where every sample's example gets its fixed answer. With `HAAU3_LIVE_TEST=1` and no key,
+`test/live.test.ts` calls the Sandbox with none, in three requests.
 
 `scripts/check-consumer.ts` packs the package, installs it into a fresh project and compiles a
 customer's code against it under TypeScript 5.9, 6.0 and 7.0.
