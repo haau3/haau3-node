@@ -266,3 +266,43 @@ describe("status text", () => {
     expect(error.toJSON()).not.toHaveProperty("statusText");
   });
 });
+
+describe("a refusal's code", () => {
+  const notTheExample = {
+    resourceType: "OperationOutcome",
+    issue: [
+      {
+        severity: "error",
+        code: "business-rule",
+        details: { coding: [{ system: "https://haau3.com/fhir/CodeSystem/sandbox-error", code: "not-the-example" }], text: "Not the example." },
+      },
+    ],
+  };
+
+  it("carries the Sandbox's not-the-example from the FHIR base, and in toJSON", async () => {
+    const error = (await failWith(() => fhirAnswer(notTheExample, 400)).readInsurancePlan("x").catch((e: unknown) => e)) as RefusedError;
+    expect(error).toBeInstanceOf(RefusedError);
+    expect(error.code).toBe("not-the-example");
+    expect(error.toJSON()).toMatchObject({ name: "RefusedError", status: 400, code: "not-the-example" });
+  });
+
+  it("carries a problem's code from the other services", async () => {
+    const problem = { type: "https://docs.haau3.com/errors#invalid-request", title: "Invalid request", status: 400, code: "not-the-example" };
+    const error = (await failWith(() => answer(problem, 400, {}, "application/problem+json"))
+      .listPublishers()
+      .catch((e: unknown) => e)) as RefusedError;
+    expect(error).toBeInstanceOf(RefusedError);
+    expect(error.code).toBe("not-the-example");
+  });
+
+  it("has none when the API names none, or names one in a system that is not haau3's (control)", async () => {
+    const plain = (await failWith(() => fhirAnswer(outcome("not-found"), 404)).readInsurancePlan("x").catch((e: unknown) => e)) as RefusedError;
+    expect(plain.code).toBeUndefined();
+    const other = {
+      resourceType: "OperationOutcome",
+      issue: [{ severity: "error", code: "invalid", details: { coding: [{ system: "https://example.org/codes", code: "elsewhere" }] } }],
+    };
+    const foreign = (await failWith(() => fhirAnswer(other, 400)).readInsurancePlan("x").catch((e: unknown) => e)) as RefusedError;
+    expect(foreign.code).toBeUndefined();
+  });
+});
