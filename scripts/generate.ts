@@ -31,6 +31,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import openapiTS, { astToString } from "openapi-typescript";
 import ts from "typescript";
 import { CALL_OPTIONS } from "../src/transport.js";
+import { deprecation } from "./deprecation.js";
 import { keyComment } from "./key-comment.js";
 
 const SPEC = new URL("../openapi/openapi.json", import.meta.url);
@@ -98,6 +99,8 @@ interface Operation {
   headers: HeaderParam[];
   /** The FHIR resource types a success answers with, from its 200 schema. Empty for other answers. */
   expects: string[];
+  /** What to call instead, when the spec marks the operation deprecated (scripts/deprecation.ts). */
+  deprecated?: string | undefined;
   /** The operation as the spec writes it, for its example request. */
   raw: Json;
 }
@@ -201,6 +204,15 @@ for (const [path, item] of Object.entries(spec.paths as Record<string, Json>)) {
   }
 }
 operations.sort((a, b) => a.id.localeCompare(b.id));
+const operationIds = new Set(operations.map((op) => op.id));
+const deprecatedIds = new Set(operations.filter((op) => op.raw.deprecated === true).map((op) => op.id));
+for (const op of operations) {
+  const found = deprecation(op.raw, operationIds, deprecatedIds);
+  if (found === undefined) continue;
+  // The passage goes under @deprecated, so the description keeps the rest.
+  op.description = found.description;
+  op.deprecated = found.words;
+}
 
 const pascal = (id: string) => id[0]!.toUpperCase() + id.slice(1);
 
@@ -222,7 +234,8 @@ const declared = (op: Operation) =>
 function docComment(op: Operation): string {
   const text = [op.summary, op.description].filter(Boolean).join("\n\n").replaceAll("*/", "*\\/");
   const lines = text.split("\n").map((line) => (line ? `   * ${line}` : "   *"));
-  return [`  /**`, ...lines, "   *", `   * \`${op.method} ${op.path}\``, "   */"].join("\n");
+  const deprecated = op.deprecated === undefined ? [] : ["   *", `   * @deprecated ${op.deprecated.replaceAll("*/", "*\\/")}`];
+  return [`  /**`, ...lines, "   *", `   * \`${op.method} ${op.path}\``, ...deprecated, "   */"].join("\n");
 }
 
 // --- methods.ts ---------------------------------------------------------------------------------
@@ -428,7 +441,7 @@ const sections = [...byTag.keys()]
   .map((tag) => {
     const rows = byTag
       .get(tag)!
-      .map((op) => `| [\`${signature(op)}\`](${op.docs}) | \`${op.method} ${op.path}\` | ${op.summary} |`);
+      .map((op) => `| [\`${signature(op)}\`](${op.docs}) | \`${op.method} ${op.path}\` | ${op.deprecated === undefined ? "" : "Deprecated. "}${op.summary} |`);
     return [`## ${tag}`, "", tagText.get(tag) ?? "", "", "| Method | Request | What it does |", "|---|---|---|", ...rows].join("\n");
   });
 

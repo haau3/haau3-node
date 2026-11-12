@@ -2,7 +2,7 @@
 
 # API reference
 
-Every operation of the haau3 platform API (`1.0.0-preview.32`) is a method on `Haau3`, named by its
+Every operation of the haau3 platform API (`1.0.0-preview.33`) is a method on `Haau3`, named by its
 operationId. Each links to its page on docs.haau3.com, which shows its parameters and an example
 exchange. `params` is the query parameters as one object, `body` the request body, and every method
 takes the per-call options (`{ timeout, maxRetries, signal, correlationId, headers, fetchOptions }`) as its last
@@ -123,5 +123,5 @@ The FHIR base without production behind it, to build and test against: the same 
 
 | Method | Request | What it does |
 |---|---|---|
-| [`sandboxProcessMessage(body)`](https://docs.haau3.com/api-reference/sandbox/check-a-test-members-medication-cost-with-a-test-insurer) | `POST /v1/sandbox/fhir/r4/$process-message` | Check a test member's medication cost with a test insurer |
-| [`sandboxMetadata()`](https://docs.haau3.com/api-reference/sandbox/the-sandboxs-capability-statement) | `GET /v1/sandbox/fhir/r4/metadata` | The Sandbox's capability statement |
+| [`sandboxProcessMessage(body)`](https://docs.haau3.com/api-reference/sandbox/check-a-test-members-medication-cost-with-a-test-insurer) | `POST /v1/sandbox/fhir/r4/$process-message` | Deprecated. Check a test member's medication cost with a test insurer |
+| [`sandboxMetadata()`](https://docs.haau3.com/api-reference/sandbox/the-sandboxs-capability-statement) | `GET /v1/sandbox/fhir/r4/metadata` | Deprecated. The Sandbox's capability statement |
