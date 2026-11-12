@@ -92,7 +92,7 @@ export class Haau3Error extends Error {
   declare readonly correlationId: string | undefined;
   /**
    * Why, as a code to branch on, when there is one: a {@link ClientErrorCode} when the client could
-   * not be made, or the API's own code on a {@link ForbiddenError}.
+   * not be made, or the API's own code on a {@link ForbiddenError} or a {@link RefusedError}.
    */
   declare readonly code: string | undefined;
 
@@ -150,10 +150,26 @@ export const API_ERROR_SYSTEM = "https://haau3.com/fhir/CodeSystem/api-error";
  * safe to log.
  */
 export function apiErrorCode(body: AnswerBody | undefined): string | undefined {
+  return codeIn(body, [API_ERROR_SYSTEM]);
+}
+
+/** The Sandbox's own code system: `not-the-example`, for a request that is not an operation's documented example. */
+export const SANDBOX_ERROR_SYSTEM = "https://haau3.com/fhir/CodeSystem/sandbox-error";
+
+/**
+ * The API's own code for why it refused a request with any other 4xx, when it names one: an
+ * `api-error` or `sandbox-error` coding of an OperationOutcome's first issue that has one, or a
+ * problem's `code`. A code, never words, so it is safe to log.
+ */
+export function refusalCode(body: AnswerBody | undefined): string | undefined {
+  return codeIn(body, [API_ERROR_SYSTEM, SANDBOX_ERROR_SYSTEM]);
+}
+
+function codeIn(body: AnswerBody | undefined, systems: readonly string[]): string | undefined {
   if (!body) return undefined;
   if (body.kind === "problem") return typeof body.value.code === "string" ? body.value.code : undefined;
   for (const issue of body.value.issue ?? []) {
-    const coding = issue.details?.coding?.find((c) => c.system === API_ERROR_SYSTEM && typeof c.code === "string");
+    const coding = issue.details?.coding?.find((c) => c.system !== undefined && systems.includes(c.system) && typeof c.code === "string");
     if (coding) return coding.code;
   }
   return undefined;
@@ -207,9 +223,11 @@ export class AuthError extends Haau3Error {
  * - `live-key-in-sandbox`: a live key does not work in the Sandbox. Send a test key.
  * - `phi-agreement-required`: the organization may not send patient data, and not every resource in
  *   the request is labelled as test data. `markAsTestData` labels made-up data.
+ * - `not-open-to-customers`: the operation is not yet open to customers, so it did not run. An
+ *   expected answer, not a fault in the request.
  *
- * Without a code, the key's organization may not make the request, or the operation is not yet open
- * to it; `outcome` (or `problem`) says why, in the API's words. Not an {@link AuthError}, which is a
+ * Without a code, the key's organization may not make the request; `outcome` (or `problem`) says
+ * why, in the API's words. Not an {@link AuthError}, which is a
  * key the API did not accept (401).
  */
 export class ForbiddenError extends Haau3Error {
@@ -249,6 +267,11 @@ export class RefusedError extends Haau3Error {
   readonly status: number;
   /** The status's text: the answer's own, or the standard one (`"Not Found"`). */
   readonly statusText: string;
+  /**
+   * The API's code for why, when it names one: `not-the-example` from the Sandbox, which answers an
+   * operation's documented example only and refuses anything else with a 400 naming it.
+   */
+  readonly code: string | undefined;
   /** How many attempts were made. */
   readonly attempts: number;
   /** Milliseconds from the first attempt to the answer. */
@@ -262,6 +285,7 @@ export class RefusedError extends Haau3Error {
     super(message, requestId, { correlationId: timing?.correlationId });
     this.status = status;
     this.statusText = timing?.statusText ?? "";
+    this.code = refusalCode(body);
     this.attempts = timing?.attempts ?? 1;
     this.durationMs = timing?.durationMs;
     attachBody(this, body);

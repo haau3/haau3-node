@@ -196,6 +196,76 @@ export interface RawResponse extends ResponseMeta {
   body: unknown;
 }
 
+/**
+ * What {@link Transport.get} takes beside the path: the call's own values, and every per-call option.
+ */
+export interface CallOptions extends RequestOptions {
+  /**
+   * A value for each `{name}` in the path, such as `{ id: "Practitioner-1093209884" }` for
+   * `/v1/fhir/r4/Practitioner/{id}`. Each is encoded into the path, and the path as you wrote it, its
+   * `{name}` left in, is what an error's message names, so no value you send ends up in one. Every
+   * `{name}` needs a value, and every value a `{name}`; either missing is refused before sending.
+   */
+  pathParams?: Record<string, string>;
+  /** The query parameters. A list sends the parameter once per value, and `undefined` sends none. */
+  query?: Record<string, QueryValue>;
+  /**
+   * The FHIR resource types the answer may be, such as `["Bundle"]`, as each operation's own method
+   * checks them. Any other answer is a {@link NoAnswerError} with reason `unreadable`. Unset or empty,
+   * any JSON answer is returned. A success that is not JSON, such as a 204, is `unreadable` either way.
+   */
+  expects?: readonly string[];
+}
+
+/** What {@link Transport.post} takes beside the path: {@link CallOptions}, and the body. */
+export interface PostOptions extends CallOptions {
+  /** Sent as it is when it is a string, and as JSON otherwise. */
+  body?: unknown;
+}
+
+/** A path's `{name}` placeholders. */
+const PLACEHOLDER = /\{([^{}]+)\}/g;
+
+/** A UTF-16 half with no other half, which no URL can carry: sent as U+FFFD, as the other SDKs send it. */
+const LONE_SURROGATE = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g;
+
+/**
+ * A path with each `{name}` replaced by its value, encoded, wherever it appears. A value that is not a
+ * string, or is empty, `.` or `..`, is refused before anything is sent: a URL reads those as another
+ * path, so the request would go elsewhere while its message named the template. The message names
+ * the placeholder, never the value.
+ */
+function fillPath(method: string, template: string, pathParams: Record<string, string> | undefined): string {
+  let path = template;
+  for (const [name, value] of Object.entries(pathParams ?? {})) {
+    const notSent = `${method} ${template} was not sent:`;
+    if (typeof value !== "string") throw new Haau3Error(`${notSent} the value for {${name}} must be a string.`);
+    if (value === "" || value === "." || value === "..") {
+      throw new Haau3Error(`${notSent} the value for {${name}} is empty, "." or "..", which would send the request to another path.`);
+    }
+    path = path.replaceAll(`{${name}}`, encodeURIComponent(value.replace(LONE_SURROGATE, "\uFFFD")));
+  }
+  return path;
+}
+
+/**
+ * Refuses, before anything is sent, a path whose `{name}` has no value or a value with no `{name}`:
+ * either would send a request to another address than the one meant. The message names the
+ * placeholder, never a value.
+ */
+function checkPathParams(method: string, path: string, pathParams: Record<string, string> | undefined): void {
+  const names = [...path.matchAll(PLACEHOLDER)].map((match) => match[1]!);
+  const given = pathParams ?? {};
+  const notSent = `${method} ${path} was not sent:`;
+  for (const name of names) {
+    if (!Object.hasOwn(given, name)) throw new Haau3Error(`${notSent} pathParams has no value for {${name}}.`);
+    if (typeof given[name] !== "string") throw new Haau3Error(`${notSent} the value for {${name}} in pathParams must be a string.`);
+  }
+  for (const name of Object.keys(given)) {
+    if (!names.includes(name)) throw new Haau3Error(`${notSent} the path has no {${name}} for pathParams' value.`);
+  }
+}
+
 /** What a generated method passes to {@link Transport.operation}. */
 interface OperationCall {
   method: "GET" | "POST";
@@ -332,6 +402,7 @@ const FORBIDDEN_REASONS: Record<string, string> = {
   "test-key-outside-sandbox": "this is a test key, which works only in the Sandbox",
   "live-key-in-sandbox": "this is a live key, which does not work in the Sandbox",
   "phi-agreement-required": "its organization may not send patient data, and not every resource in this request is labelled as test data",
+  "not-open-to-customers": "the operation is not yet open to customers",
 };
 const FORBIDDEN_GENERAL = "the API key was accepted, and its organization may not make this request";
 
@@ -775,6 +846,49 @@ export abstract class Transport {
   }
 
   /**
+   * Sends a GET to a path on the API and returns its answer, or throws the errors every operation's
+   * own method throws: {@link AuthError}, {@link ForbiddenError}, {@link RefusedError} or
+   * {@link NoAnswerError}. For an operation this version of the SDK has no method for, or one you
+   * call by its path. Its `.withResponse()` gives the request id and timing too.
+   *
+   * ```ts
+   * const practitioner = await haau3.get("/v1/fhir/r4/Practitioner/{id}", {
+   *   pathParams: { id: "Practitioner-1093209884" },
+   *   expects: ["Practitioner"],
+   * });
+   * ```
+   */
+  get<T = unknown>(path: string, options: CallOptions = {}): APIPromise<T> {
+    return this.#call<T>("GET", path, options);
+  }
+
+  /**
+   * Sends a POST to a path on the API, with a body, and returns its answer or throws, as
+   * {@link Transport.get} does.
+   *
+   * ```ts
+   * const dosage = await haau3.post("/v1/fhir/r4/$structure-dosage", { body: parameters, expects: ["Parameters"] });
+   * ```
+   */
+  post<T = unknown>(path: string, options: PostOptions = {}): APIPromise<T> {
+    return this.#call<T>("POST", path, options);
+  }
+
+  #call<T>(method: "GET" | "POST", path: string, options: PostOptions): APIPromise<T> {
+    const { pathParams, query, expects, body, ...callOptions } = options;
+    try {
+      checkPathParams(method, path, pathParams);
+      if (expects !== undefined && !Array.isArray(expects)) {
+        throw new Haau3Error(`${method} ${path} was not sent: expects is a list of FHIR resource types, such as ["Bundle"].`);
+      }
+    } catch (error) {
+      return new APIPromise<T>(Promise.reject(error));
+    }
+    // An empty list names no type, so it checks none, as an unset one does; a null body is no body.
+    return this.operation<T>({ method, path, pathParams, query, body: body ?? undefined, expects: expects?.length ? expects : undefined }, callOptions);
+  }
+
+  /**
    * Runs one operation of the spec and returns its answer, or throws one of the three errors. The
    * answer's `.withResponse()` gives its request id and timing too.
    */
@@ -783,16 +897,12 @@ export abstract class Transport {
       this.#onTheSandboxHost && call.path.startsWith(`${FIRST_ADDRESS}/`)
         ? `/v1/fhir/r4${call.path.slice(FIRST_ADDRESS.length)}`
         : call.path;
-    let path = label;
-    for (const [name, value] of Object.entries(call.pathParams ?? {})) {
-      path = path.replace(`{${name}}`, encodeURIComponent(value));
-    }
-    // A URL that cannot be made rejects the call rather than throwing at it. The request itself
-    // starts now, as the call is made, so an abort right after it reaches the fetch.
+    // A path value or a URL that cannot be sent rejects the call rather than throwing at it. The
+    // request itself starts now, as the call is made, so an abort right after it reaches the fetch.
     let url: URL;
     let declared: Record<string, string>;
     try {
-      url = this.#url(path, call.query as Record<string, QueryValue>);
+      url = this.#url(fillPath(call.method, label, call.pathParams), call.query as Record<string, QueryValue>);
       declared = declaredHeaders(call, options);
     } catch (error) {
       return new APIPromise<T>(Promise.reject(error));
@@ -890,6 +1000,12 @@ export abstract class Transport {
     for (const [name, value] of Object.entries(options.headers ?? {})) headers[name.toLowerCase()] = value;
     // A header the operation declares is sent from its own option, over the same header in `headers`.
     Object.assign(headers, declared);
+    // A header the runtime cannot send is the caller's to fix, never a network failure to retry.
+    try {
+      new Headers(headers);
+    } catch {
+      throw new Haau3Error(`${method} ${label} was not sent: a header's value is not one HTTP can carry, such as one with a line break.`);
+    }
     if (options.correlationId !== undefined) {
       if (!UUID.test(options.correlationId)) {
         throw new Haau3Error(
