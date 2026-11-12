@@ -1,5 +1,6 @@
 import type { OperationOutcome } from "fhir/r4.js";
 import { APIPromise, type ResponseMeta, type WithResponse } from "./api-promise.js";
+import { unloadedEnvFile } from "./env-file.js";
 import {
   AuthError,
   ForbiddenError,
@@ -529,13 +530,30 @@ function keyModeOf(key: string): KeyMode {
 }
 
 /**
- * What the client says when it has no key: both ways to give one, where one comes from, and the
- * Sandbox's way to call with none.
+ * What the client says when it has no key: both ways to give one, where one comes from (the
+ * dashboard, or the command line, which writes it to the project's env file), and the Sandbox's way
+ * to call with none.
  */
 const NO_KEY =
   "No API key. Set HAAU3_API_KEY, or pass it as new Haau3({ apiKey }). Create a free key at " +
-  "https://platform.haau3.com (see https://docs.haau3.com/authentication). To call the Sandbox " +
+  "https://platform.haau3.com, or run npx haau3 login, then npx haau3 keys create, which writes one " +
+  "to this project's env file (see https://docs.haau3.com/authentication). To call the Sandbox " +
   'with no key, set HAAU3_ENVIRONMENT=sandbox, or pass new Haau3({ environment: "sandbox" }).';
+
+/**
+ * What the client says when it has no key and an env file in the current folder sets one: the
+ * program never loaded that file. The file is named; its contents never are.
+ */
+const UNLOADED = (file: string) =>
+  `No API key. HAAU3_API_KEY is not set, but ${file} in this folder sets it, and this program has ` +
+  `not loaded that file. Load it first: run node --env-file=${file}, or call ` +
+  `process.loadEnvFile("${file}") before new Haau3().`;
+
+/** The refusal for no key, naming an env file the program did not load when there is one. */
+function noKey(): Haau3Error {
+  const file = unloadedEnvFile();
+  return refusal("no-api-key", file === undefined ? NO_KEY : UNLOADED(file));
+}
 
 /**
  * Why a key and a named environment cannot go together, or nothing when they can. The key is named by
@@ -784,7 +802,7 @@ export abstract class Transport {
         : fromEnvironment !== undefined
           ? checkedEnvironment(fromEnvironment, "HAAU3_ENVIRONMENT")
           : undefined;
-    if (apiKey === undefined && named !== "sandbox") throw refusal("no-api-key", NO_KEY);
+    if (apiKey === undefined && named !== "sandbox") throw noKey();
     const mode = apiKey === undefined ? undefined : keyModeOf(apiKey);
     const refused = mode !== undefined && named !== undefined ? mismatch(mode, keyFrom, named, namedIn) : undefined;
     if (refused !== undefined) throw refused;

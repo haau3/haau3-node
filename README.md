@@ -31,6 +31,12 @@ Create an API key on [platform.haau3.com](https://platform.haau3.com), then set 
 `HAAU3_API_KEY` or pass it as `apiKey`. To try the API with no key first, call the Sandbox (see
 "The Sandbox" below).
 
+Or make the key from your project's folder with the
+[haau3 command line](https://github.com/haau3/haau3-cli): `npx haau3 login`, then
+`npx haau3 keys create`, which writes it to the project's env file and never shows it. Load that
+file when the program starts, such as with `node --env-file=.env`. Next.js and Vite load it
+themselves.
+
 ```ts
 import { Haau3 } from "@haau3/sdk";
 
@@ -40,8 +46,9 @@ const haau3 = new Haau3(); // reads HAAU3_API_KEY
 ## A first call
 
 ```ts
-const plan = await haau3.readInsurancePlan("H2406-013-000");
-console.log(plan.name); // "AARP Medicare Advantage from UHC FL-0021 (PPO)"
+// Open appointment slots, here in Cambridge.
+const { slots } = await haau3.searchSlots({ city: "Cambridge", state: "MA", limit: 1 });
+console.log(slots[0] ?? "No open slots matched.");
 ```
 
 FHIR answers are [@types/fhir](https://www.npmjs.com/package/@types/fhir)'s R4 types, also
@@ -145,6 +152,12 @@ An agent can read the docs directly:
   - Codex: `codex mcp add haau3 --url https://docs.haau3.com/mcp`
   - Cursor, in `.cursor/mcp.json`: `{ "mcpServers": { "haau3": { "url": "https://docs.haau3.com/mcp" } } }`
   - VS Code: `code --add-mcp '{"name":"haau3","type":"http","url":"https://docs.haau3.com/mcp"}'`
+
+The [haau3 command line](https://github.com/haau3/haau3-cli) lets an agent act without ever seeing
+a key. `npx haau3 doctor --json` checks the project's setup, and `npx haau3 test --json` makes one
+call to each service, in the Sandbox when there is no key. `npx haau3 login`, then
+`npx haau3 keys create`, puts a key in the project's env file after a person approves in the
+browser.
 
 ## Options
 
@@ -272,6 +285,10 @@ The codes are `no-api-key`, `invalid-api-key`, `api-key-not-alone`, `test-key-ou
 `live-key-in-sandbox`, `older-key-in-sandbox`, `invalid-environment`, `invalid-base-url`,
 `environment-conflicts-with-base-url`, `invalid-app-info`, `no-fetch` and `in-browser`. The two the API
 also answers with keep the API's names.
+
+When `HAAU3_API_KEY` is not set but `.env.local` or `.env` in the current folder sets it, the
+`no-api-key` message names that file and how to load it. The SDK looks only for the variable's name
+there, never its value, and only when it has no key.
 
 No answer is never reported as an empty result, and an empty result is never an error. An error's
 message never includes the body the API answered with, and the body (`outcome` or `problem`) is
