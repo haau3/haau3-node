@@ -5,12 +5,12 @@
 import { describe, expect, it } from "vitest";
 
 import { Haau3, Haau3Error, VERSION, type AppInfo, type ClientOptions } from "../src/index.js";
-import { answer, fakeFetch, fhirAnswer, KEY } from "./helpers.js";
+import { answer, fakeFetch, fhirAnswer, KEY, EMPTY_SEARCH } from "./helpers.js";
 
 /** The SDK's own part, as it is sent with no appInfo. */
 const SDK = `haau3-node/${VERSION} (node ${process.versions.node.split(".")[0]})`;
 
-function client(appInfo: AppInfo | undefined, respond: (count: number) => Response = () => answer({ publishers: [] })) {
+function client(appInfo: AppInfo | undefined, respond: (count: number) => Response = () => fhirAnswer(EMPTY_SEARCH)) {
   const { fetch, received } = fakeFetch((_, count) => respond(count));
   const options: ClientOptions = { apiKey: KEY, fetch };
   if (appInfo !== undefined) options.appInfo = appInfo;
@@ -20,39 +20,39 @@ function client(appInfo: AppInfo | undefined, respond: (count: number) => Respon
 describe("appInfo", () => {
   it("adds the app's name after the SDK's own part", async () => {
     const { haau3, received } = client({ name: "my-plugin" });
-    await haau3.listPublishers();
+    await haau3.searchSlot();
     expect(received[0]!.headers["user-agent"]).toBe(`${SDK} my-plugin`);
   });
 
   it("adds its version after a slash", async () => {
     const { haau3, received } = client({ name: "my-plugin", version: "1.2.0" });
-    await haau3.listPublishers();
+    await haau3.searchSlot();
     expect(received[0]!.headers["user-agent"]).toBe(`${SDK} my-plugin/1.2.0`);
   });
 
   it("adds its url in parentheses", async () => {
     const { haau3, received } = client({ name: "my-plugin", version: "1.2.0", url: "https://example.com/my-plugin" });
-    await haau3.listPublishers();
+    await haau3.searchSlot();
     expect(received[0]!.headers["user-agent"]).toBe(`${SDK} my-plugin/1.2.0 (https://example.com/my-plugin)`);
   });
 
   it("takes an empty or undefined version or url as none", async () => {
     const { haau3, received } = client({ name: "my-plugin", version: "", url: undefined });
-    await haau3.listPublishers();
+    await haau3.searchSlot();
     expect(received[0]!.headers["user-agent"]).toBe(`${SDK} my-plugin`);
   });
 
   it("leaves the User-Agent as the SDK's own without it (control)", async () => {
     const { haau3, received } = client(undefined);
-    await haau3.listPublishers();
+    await haau3.searchSlot();
     expect(received[0]!.headers["user-agent"]).toBe(SDK);
   });
 
   it("is sent on every attempt of a retried call", async () => {
     const { fetch, received } = fakeFetch((_, count) =>
-      count === 1 ? answer({}, 503, { "retry-after": "0" }) : answer({ publishers: [] }),
+      count === 1 ? answer({}, 503, { "retry-after": "0" }) : fhirAnswer(EMPTY_SEARCH),
     );
-    await new Haau3({ apiKey: KEY, fetch, maxRetries: 1, appInfo: { name: "my-plugin", version: "1.2.0" } }).listPublishers();
+    await new Haau3({ apiKey: KEY, fetch, maxRetries: 1, appInfo: { name: "my-plugin", version: "1.2.0" } }).searchSlot();
     expect(received).toHaveLength(2);
     expect(received.map((r) => r.headers["user-agent"])).toEqual([`${SDK} my-plugin/1.2.0`, `${SDK} my-plugin/1.2.0`]);
   });
@@ -67,7 +67,7 @@ describe("appInfo", () => {
             entry: [{ resource: { resourceType: "InsurancePlan", id: "H2406-013-000" }, response: { status: "200 OK" } }],
           }),
     );
-    await haau3.request({ method: "GET", path: "/v1/scheduling/publishers" });
+    await haau3.request({ method: "GET", path: "/v1/fhir/r4/Slot" });
     await haau3.batch((b) => [b.readInsurancePlan("H2406-013-000")]);
     expect(received).toHaveLength(2);
     expect(received.map((r) => r.headers["user-agent"])).toEqual([`${SDK} my-plugin/1.2.0`, `${SDK} my-plugin/1.2.0`]);
@@ -75,7 +75,7 @@ describe("appInfo", () => {
 
   it("is replaced whole by a user-agent in a call's headers, as before", async () => {
     const { haau3, received } = client({ name: "my-plugin", version: "1.2.0" });
-    await haau3.listPublishers({ headers: { "User-Agent": "something-else/9" } });
+    await haau3.searchSlot({}, { headers: { "User-Agent": "something-else/9" } });
     expect(received[0]!.headers["user-agent"]).toBe("something-else/9");
   });
 });
@@ -103,7 +103,7 @@ describe("appInfo that the User-Agent cannot carry", () => {
   ];
 
   it.each(refused)("refuses %s when the client is made, sending nothing", (_, appInfo, message) => {
-    const { fetch, received } = fakeFetch(() => answer({ publishers: [] }));
+    const { fetch, received } = fakeFetch(() => fhirAnswer(EMPTY_SEARCH));
     let thrown: unknown;
     try {
       new Haau3({ apiKey: KEY, fetch, appInfo: appInfo as AppInfo });
@@ -117,7 +117,7 @@ describe("appInfo that the User-Agent cannot carry", () => {
 
   it("takes every character a User-Agent token may hold (control)", async () => {
     const { haau3, received } = client({ name: "a-Z_0.9~!#$%&'*+^`|", version: "1.0.0-rc.1+build.5" });
-    await haau3.listPublishers();
+    await haau3.searchSlot();
     expect(received[0]!.headers["user-agent"]).toBe(`${SDK} a-Z_0.9~!#$%&'*+^\`|/1.0.0-rc.1+build.5`);
   });
 });

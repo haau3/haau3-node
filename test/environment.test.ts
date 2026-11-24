@@ -4,7 +4,7 @@
 import { inspect } from "node:util";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Haau3, Haau3Error } from "../src/index.js";
-import { KEY, TEST_KEY, answer, fakeFetch, fhirAnswer } from "./helpers.js";
+import { KEY, TEST_KEY, answer, fakeFetch, fhirAnswer, EMPTY_SEARCH } from "./helpers.js";
 
 /** A key made before test and live keys: no mode in its prefix. */
 const OLDER_KEY = "haau3_sk_older_key_that_must_never_be_printed";
@@ -18,7 +18,7 @@ afterEach(() => {
 /** A client on a recording fetch that answers every request, and what it received. */
 function recorded(options: ConstructorParameters<typeof Haau3>[0] = {}) {
   const { fetch, received } = fakeFetch((request) =>
-    request.url.pathname.startsWith("/v1/scheduling/") ? answer({ publishers: [] }) : fhirAnswer({ resourceType: "CapabilityStatement" }),
+    request.url.pathname.endsWith("/Slot") ? fhirAnswer(EMPTY_SEARCH) : fhirAnswer({ resourceType: "CapabilityStatement" }),
   );
   return { haau3: new Haau3({ fetch, ...options }), received };
 }
@@ -39,7 +39,7 @@ describe("the key's mode picks the host", () => {
     const { haau3, received } = recorded({ apiKey: TEST_KEY });
     expect(haau3.environment).toBe("sandbox");
     expect(haau3.baseURL).toBe(SANDBOX);
-    await haau3.listPublishers();
+    await haau3.searchSlot();
     await haau3.fhirMetadata();
     expect(received.map((r) => r.url.origin)).toEqual([SANDBOX, SANDBOX]);
     expect(received[0]!.headers.authorization).toBe(`Bearer ${TEST_KEY}`);
@@ -50,7 +50,7 @@ describe("the key's mode picks the host", () => {
       const { haau3, received } = recorded({ apiKey });
       expect(haau3.environment).toBe("production");
       expect(haau3.baseURL).toBe(PRODUCTION);
-      await haau3.listPublishers();
+      await haau3.searchSlot();
       expect(received[0]!.url.origin).toBe(PRODUCTION);
     }
   });
@@ -163,7 +163,7 @@ describe("an explicit base URL", () => {
   it("decides where requests go, whatever the key's mode", async () => {
     const { haau3, received } = recorded({ apiKey: TEST_KEY, baseURL: "http://localhost:3001" });
     expect(haau3.environment).toBe("sandbox");
-    await haau3.listPublishers();
+    await haau3.searchSlot();
     expect(received[0]!.url.origin).toBe("http://localhost:3001");
   });
 
@@ -253,13 +253,13 @@ describe("a client with no key", () => {
 });
 
 describe("a key as the environment holds it", () => {
-  const { fetch, received } = fakeFetch(() => answer({ publishers: [] }));
+  const { fetch, received } = fakeFetch(() => fhirAnswer(EMPTY_SEARCH));
 
   it("is trimmed, and sent trimmed", async () => {
     vi.stubEnv("HAAU3_API_KEY", `  ${TEST_KEY}\n`);
     const haau3 = new Haau3({ fetch });
     expect(haau3.baseURL).toBe(SANDBOX);
-    await haau3.listPublishers();
+    await haau3.searchSlot();
     expect(received.at(-1)!.headers.authorization).toBe(`Bearer ${TEST_KEY}`);
   });
 

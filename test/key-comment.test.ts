@@ -9,7 +9,7 @@ const document = { security: [{ bearerAuth: [] }] };
 
 describe("a sample's key comment", () => {
   it("reads a live key for an operation that takes the document's security", () => {
-    expect(keyComment(document, { operationId: "searchSlots" })).toBe("reads HAAU3_API_KEY");
+    expect(keyComment(document, { operationId: "searchSlot" })).toBe("reads HAAU3_API_KEY");
   });
 
   it("reads a test key for an operation that names testKeyAuth", () => {

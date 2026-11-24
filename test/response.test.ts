@@ -64,7 +64,7 @@ describe("timing on errors", () => {
     expect((refused as RefusedError).durationMs).toBeGreaterThanOrEqual(0);
 
     const auth = await new Haau3({ apiKey: KEY, fetch: fakeFetch(() => answer({ type: "x", status: 401 }, 401)).fetch })
-      .listPublishers()
+      .searchSlot()
       .catch((e: unknown) => e);
     expect(auth).toBeInstanceOf(AuthError);
     expect((auth as AuthError).durationMs).toBeGreaterThanOrEqual(0);
@@ -104,9 +104,9 @@ describe("answer types", () => {
     await expect(new Haau3({ apiKey: KEY, fetch }).fhirMetadata()).rejects.toThrow("where a CapabilityStatement or a TerminologyCapabilities was expected");
   });
 
-  it("checks no type on an answer the spec does not mark as FHIR", async () => {
-    const { fetch } = fakeFetch(() => answer({ publishers: [] }));
-    await expect(new Haau3({ apiKey: KEY, fetch }).listPublishers()).resolves.toEqual({ publishers: [] });
+  it("checks no type on an answer to an address off the FHIR base, where no operation names one", async () => {
+    const { fetch } = fakeFetch(() => answer({ output: [] }));
+    await expect(new Haau3({ apiKey: KEY, fetch }).get("/scheduling/$bulk-publish")).resolves.toEqual({ output: [] });
   });
 
   it("checks each page pages() follows is a Bundle", async () => {

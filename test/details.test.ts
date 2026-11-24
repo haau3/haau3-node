@@ -4,7 +4,7 @@
 import { describe, expect, it } from "vitest";
 import { Haau3, NoAnswerError, VERSION } from "../src/index.js";
 import { failureDetail } from "../src/transport.js";
-import { KEY, answer, fakeFetch, fhirAnswer } from "./helpers.js";
+import { KEY, fakeFetch, fhirAnswer, EMPTY_SEARCH } from "./helpers.js";
 
 /** Node's fetch failure: a TypeError "fetch failed" whose cause says what the system saw. */
 const fetchFailed = (cause: unknown) => Object.assign(new TypeError("fetch failed"), { cause });
@@ -73,17 +73,17 @@ describe("statusText, on request()", () => {
 
 describe("the User-Agent", () => {
   it("names the SDK, its version, the language's runtime and its major version", async () => {
-    const { fetch, received } = fakeFetch(() => answer({ publishers: [] }));
-    await new Haau3({ apiKey: KEY, fetch }).listPublishers();
+    const { fetch, received } = fakeFetch(() => fhirAnswer(EMPTY_SEARCH));
+    await new Haau3({ apiKey: KEY, fetch }).searchSlot();
     expect(received[0]!.headers["user-agent"]).toBe(`haau3-node/${VERSION} (node ${process.versions.node.split(".")[0]})`);
   });
 });
 
 describe("a null query value", () => {
   it("is not sent, alone or in a list", async () => {
-    const { fetch, received } = fakeFetch(() => answer({ slots: [], total: 0 }));
-    await new Haau3({ apiKey: KEY, fetch }).searchSlots({ state: null, city: "Boston" } as never);
-    expect(received[0]!.url.search).toBe("?city=Boston");
+    const { fetch, received } = fakeFetch(() => fhirAnswer(EMPTY_SEARCH));
+    await new Haau3({ apiKey: KEY, fetch }).searchSlot({ "location-address-state": null, "location-address-city": "Boston" } as never);
+    expect(received[0]!.url.search).toBe("?location-address-city=Boston");
     await new Haau3({ apiKey: KEY, fetch }).request({ method: "GET", path: "/v1/x", query: { npi: ["1", null, "2"] as never, x: null as never } });
     expect(received[1]!.url.search).toBe("?npi=1&npi=2");
   });

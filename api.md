@@ -2,7 +2,7 @@
 
 # API reference
 
-Every operation of the haau3 platform API (`1.0.0-preview.36`) is a method on `Haau3`, named by its
+Every operation of the haau3 platform API (`1.0.0-preview.39`) is a method on `Haau3`, named by its
 operationId. Each links to its page on docs.haau3.com, which shows its parameters and an example
 exchange. `params` is the query parameters as one object, `body` the request body, and every method
 takes the per-call options (`{ timeout, maxRetries, signal, correlationId, headers, fetchOptions }`) as its last
@@ -13,20 +13,8 @@ An operation that declares a header takes it as one more option, named from the 
 before sending: `processMessage` takes `payerAuthorization`, sent as `Payer-Authorization`; `sandboxProcessMessage` takes `payerAuthorization`, sent as `Payer-Authorization`.
 
 `batch()` sends several of these as one request, each with its own answer or error. It takes
-every operation on the FHIR base except `fhirBatch`, `processMessage` and `reconcileMedications`: 30 of the
-40. See the README's "Several requests in one".
-
-## Scheduling
-
-Provider availability (SMART Scheduling Links): slots and publishers.
-
-| Method | Request | What it does |
-|---|---|---|
-| [`searchProviderLocations(params?)`](https://docs.haau3.com/api-reference/scheduling/search-provider-locations) | `GET /v1/scheduling/provider-locations` | Search provider locations |
-| [`listPublishers()`](https://docs.haau3.com/api-reference/scheduling/list-scheduling-publishers) | `GET /v1/scheduling/publishers` | List scheduling publishers |
-| [`listServiceTypes(params?)`](https://docs.haau3.com/api-reference/scheduling/list-service-types) | `GET /v1/scheduling/service-types` | List service types |
-| [`searchSlots(params?)`](https://docs.haau3.com/api-reference/scheduling/search-appointment-slots) | `GET /v1/scheduling/slots` | Search appointment slots |
-| [`listSpecialties(params?)`](https://docs.haau3.com/api-reference/scheduling/list-specialties) | `GET /v1/scheduling/specialties` | List specialties |
+every operation on the FHIR base except `fhirBatch`, `processMessage` and `reconcileMedications`: 34 of the
+39. See the README's "Several requests in one".
 
 ## FHIR base
 
@@ -36,6 +24,17 @@ What the FHIR R4 base at `/v1/fhir/r4` answers for every service on it: the `Cap
 |---|---|---|
 | [`fhirBatch(body)`](https://docs.haau3.com/api-reference/fhir-base/run-several-operations-in-one-request-batch) | `POST /v1/fhir/r4` | Run several operations in one request (batch) |
 | [`fhirMetadata(params?)`](https://docs.haau3.com/api-reference/fhir-base/capability-statement) | `GET /v1/fhir/r4/metadata` | Capability statement |
+
+## Scheduling
+
+Provider availability from SMART Scheduling Links publishers: Slot and Schedule, searched and read, and the Location, Practitioner, PractitionerRole and HealthcareService they name.
+
+| Method | Request | What it does |
+|---|---|---|
+| [`searchSchedule(params?)`](https://docs.haau3.com/api-reference/scheduling/find-schedules) | `GET /v1/fhir/r4/Schedule` | Find schedules |
+| [`readSchedule(id)`](https://docs.haau3.com/api-reference/scheduling/read-a-schedule) | `GET /v1/fhir/r4/Schedule/{id}` | Read a schedule |
+| [`searchSlot(params?)`](https://docs.haau3.com/api-reference/scheduling/find-slots) | `GET /v1/fhir/r4/Slot` | Find slots |
+| [`readSlot(id)`](https://docs.haau3.com/api-reference/scheduling/read-a-slot) | `GET /v1/fhir/r4/Slot/{id}` | Read a slot |
 
 ## Terminology
 

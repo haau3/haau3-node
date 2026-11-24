@@ -3,20 +3,6 @@
 
 import type { HeaderOf, QueryOf } from "../operations.js";
 import type { RequestOptions } from "../transport.js";
-import type { components } from "./openapi.js";
-
-export type ListPublishersResponse = components["schemas"]["ListPublishersResponse"];
-export type ListServiceTypesResponse = components["schemas"]["ListServiceTypesResponse"];
-export type ListSpecialtiesResponse = components["schemas"]["ListSpecialtiesResponse"];
-export type Problem = components["schemas"]["Problem"];
-export type ProblemIssue = components["schemas"]["ProblemIssue"];
-export type SchedulingProviderLocation = components["schemas"]["SchedulingProviderLocation"];
-export type SchedulingPublisher = components["schemas"]["SchedulingPublisher"];
-export type SchedulingServiceType = components["schemas"]["SchedulingServiceType"];
-export type SchedulingSlot = components["schemas"]["SchedulingSlot"];
-export type SchedulingSpecialty = components["schemas"]["SchedulingSpecialty"];
-export type SearchProviderLocationsResponse = components["schemas"]["SearchProviderLocationsResponse"];
-export type SearchSlotsResponse = components["schemas"]["SearchSlotsResponse"];
 
 /** The query parameters of `checkInsurancePlanNetwork`. */
 export type CheckInsurancePlanNetworkParams = QueryOf<"checkInsurancePlanNetwork">;
@@ -28,10 +14,6 @@ export type CodeSystemValidateCodeParams = QueryOf<"codeSystemValidateCode">;
 export type FhirMetadataParams = QueryOf<"fhirMetadata">;
 /** The query parameters of `listInsurancePlanCounties`. */
 export type ListInsurancePlanCountiesParams = QueryOf<"listInsurancePlanCounties">;
-/** The query parameters of `listServiceTypes`. */
-export type ListServiceTypesParams = QueryOf<"listServiceTypes">;
-/** The query parameters of `listSpecialties`. */
-export type ListSpecialtiesParams = QueryOf<"listSpecialties">;
 /** The query parameters of `searchEndpoint`. */
 export type SearchEndpointParams = QueryOf<"searchEndpoint">;
 /** The query parameters of `searchHealthcareService`. */
@@ -48,12 +30,12 @@ export type SearchOrganizationAffiliationParams = QueryOf<"searchOrganizationAff
 export type SearchPractitionerParams = QueryOf<"searchPractitioner">;
 /** The query parameters of `searchPractitionerRole`. */
 export type SearchPractitionerRoleParams = QueryOf<"searchPractitionerRole">;
-/** The query parameters of `searchProviderLocations`. */
-export type SearchProviderLocationsParams = QueryOf<"searchProviderLocations">;
 /** The query parameters of `searchQuestionnaire`. */
 export type SearchQuestionnaireParams = QueryOf<"searchQuestionnaire">;
-/** The query parameters of `searchSlots`. */
-export type SearchSlotsParams = QueryOf<"searchSlots">;
+/** The query parameters of `searchSchedule`. */
+export type SearchScheduleParams = QueryOf<"searchSchedule">;
+/** The query parameters of `searchSlot`. */
+export type SearchSlotParams = QueryOf<"searchSlot">;
 /** The query parameters of `valueSetExpand`. */
 export type ValueSetExpandParams = QueryOf<"valueSetExpand">;
 /** The query parameters of `valueSetValidateCode`. */

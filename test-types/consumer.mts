@@ -1,7 +1,7 @@
 // Compiled against the packed package by scripts/check-consumer.ts, under each TypeScript version
 // customers use (5.9, 6.0, 7.0), as ES modules. consumer.cts is the same as CommonJS.
 import { AuthError, ForbiddenError, Haau3, markAsTestData, NoAnswerError, RefusedError, type fhir4, type NoAnswerReason } from "@haau3/sdk";
-import type { SchedulingProviderLocation, SchedulingSlot, SearchInsurancePlanParams } from "@haau3/sdk";
+import type { SearchInsurancePlanParams, SearchSlotParams } from "@haau3/sdk";
 import type { AppInfo, BatchResult, BodyOf, Environment, Haau3ErrorJSON, QueryOf, ResponseOf } from "@haau3/sdk";
 import { SPEC_VERSION } from "@haau3/sdk";
 
@@ -44,10 +44,16 @@ export async function tour(): Promise<void> {
     const wrong: fhir4.Location | undefined = haau3.resolve(pharmacies, pharmacy.providedBy, { type: "Organization" });
     void [organization, anything, wrong];
   }
-  const slots = await haau3.searchSlots({ state: "MA", limit: 25 });
-  const slot: SchedulingSlot | undefined = slots.slots[0];
-  const locations = await haau3.searchProviderLocations({ publisher: "haau3" });
-  const location: SchedulingProviderLocation | undefined = locations.providerLocations[0];
+  // A list parameter takes one value as well as several, as the query sends both the same way.
+  const slots = await haau3.searchSlot({ "location-address-state": "MA", _include: "Slot:schedule", "_include:iterate": ["Schedule:actor"] });
+  const slot: fhir4.Slot | undefined = haau3.matches(slots, "Slot")[0];
+  const schedules = await haau3.searchSchedule({ "location-address-city": "Boston", _include: "Schedule:actor" });
+  const location: fhir4.Schedule | undefined = haau3.matches(schedules, "Schedule")[0];
+  const oneInclude: SearchSlotParams = { "_include:iterate": "PractitionerRole:practitioner" };
+  // @ts-expect-error An include the search does not serve is not taken, alone or in a list.
+  void haau3.searchSlot({ _include: "Slot:subject" });
+  // @ts-expect-error The same in a list.
+  void haau3.searchSlot({ _include: ["Slot:subject"] });
   const lookup: fhir4.Parameters = await haau3.codeSystemLookup({ system: "http://loinc.org", code: "2345-7" });
   const counties: fhir4.Parameters = await haau3.listInsurancePlanCounties({ state: "NC" });
   const network: fhir4.Parameters = await haau3.checkInsurancePlanNetwork("H3359-038-000", { npi: ["1518929058"] });
@@ -57,9 +63,9 @@ export async function tour(): Promise<void> {
     type: "batch",
     entry: [{ request: { method: "GET", url: "InsurancePlan/$counties?state=NC" } }],
   });
-  const raw = await haau3.request({ method: "GET", path: "/v1/scheduling/publishers", maxRetries: 0 });
+  const raw = await haau3.request({ method: "GET", path: "/v1/fhir/r4/metadata", maxRetries: 0 });
   const status: number = raw.status;
-  void [plan, slot, location, lookup, counties, network, capabilities, batch, status];
+  void [plan, slot, location, oneInclude, lookup, counties, network, capabilities, batch, status];
 
   // Request ids and timing on a typed call, and fetch options for a framework.
   const answered = await haau3.readInsurancePlan("H2406-013-000", { fetchOptions: { cache: "reload" } }).withResponse();
@@ -93,8 +99,8 @@ export async function tour(): Promise<void> {
   const batched = await haau3.batch((b) => [b.fhirMetadata()]).withResponse();
   // @ts-expect-error A batch cannot carry the medication list.
   void haau3.batch((b) => [b.reconcileMedications({ resourceType: "Bundle", type: "collection" })]);
-  // @ts-expect-error Scheduling is not on the FHIR base.
-  void haau3.batch((b) => [b.searchSlots({ state: "MA" })]);
+  // Scheduling is on the FHIR base, so a batch carries its searches.
+  void haau3.batch((b) => [b.searchSlot({ "location-address-state": "MA" }), b.searchSchedule({ _include: "Schedule:actor" })]);
   // An operation's own types, by name.
   const body: BodyOf<"reconcileMedications"> = { resourceType: "Bundle", type: "collection", entry: [] };
   const query: QueryOf<"codeSystemLookup"> = { system: "http://loinc.org", code: "2345-7" };

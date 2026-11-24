@@ -8,11 +8,9 @@ import {
   NoAnswerError,
   RefusedError,
   apiErrorCode,
-  type AnswerBody,
   type ClientErrorCode,
   type NoAnswerReason,
 } from "./errors.js";
-import type { Problem } from "./generated/types.js";
 import { VERSION } from "./version.js";
 
 /**
@@ -642,12 +640,14 @@ function parseBody(text: string, contentType: string | null): unknown {
   }
 }
 
-function readErrorBody(body: unknown): AnswerBody | undefined {
+/**
+ * The OperationOutcome an error answer carries, which every service on the FHIR base sends. Any
+ * other body, such as the RFC 9457 problem the API answers for an address no service serves, is
+ * not attached: the error still has its status, its message and the request id.
+ */
+function readErrorBody(body: unknown): OperationOutcome | undefined {
   if (!body || typeof body !== "object") return undefined;
-  const record = body as Record<string, unknown>;
-  if (record.resourceType === "OperationOutcome") return { kind: "outcome", value: body as OperationOutcome };
-  if (typeof record.type === "string" && typeof record.status === "number") return { kind: "problem", value: body as Problem };
-  return undefined;
+  return (body as Record<string, unknown>).resourceType === "OperationOutcome" ? (body as OperationOutcome) : undefined;
 }
 
 /** A resource type with its article: "a Bundle", "an InsurancePlan". */

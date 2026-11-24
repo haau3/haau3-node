@@ -11,8 +11,6 @@ import type {
   CodeSystemValidateCodeParams,
   FhirMetadataParams,
   ListInsurancePlanCountiesParams,
-  ListServiceTypesParams,
-  ListSpecialtiesParams,
   ProcessMessageOptions,
   SandboxProcessMessageOptions,
   SearchEndpointParams,
@@ -23,9 +21,9 @@ import type {
   SearchOrganizationAffiliationParams,
   SearchPractitionerParams,
   SearchPractitionerRoleParams,
-  SearchProviderLocationsParams,
   SearchQuestionnaireParams,
-  SearchSlotsParams,
+  SearchScheduleParams,
+  SearchSlotParams,
   ValueSetExpandParams,
   ValueSetValidateCodeParams,
 } from "./types.js";
@@ -121,39 +119,6 @@ export abstract class Operations extends Transport {
   }
 
   /**
-   * List scheduling publishers
-   *
-   * Returns the SMART Scheduling Links publishers (sources) the platform ingests. Requires a valid API key.
-   *
-   * `GET /v1/scheduling/publishers`
-   */
-  listPublishers(options?: RequestOptions): APIPromise<ResponseOf<"listPublishers">> {
-    return this.operation<ResponseOf<"listPublishers">>({ method: "GET", path: "/v1/scheduling/publishers" }, options);
-  }
-
-  /**
-   * List service types
-   *
-   * Returns the distinct service types observed across served slots, each with its `system` and a `count` of the slots carrying it. It is a discovery aid for the `serviceTypeCode` filter on `GET /v1/scheduling/slots`. Requires a valid API key.
-   *
-   * `GET /v1/scheduling/service-types`
-   */
-  listServiceTypes(params?: ListServiceTypesParams, options?: RequestOptions): APIPromise<ResponseOf<"listServiceTypes">> {
-    return this.operation<ResponseOf<"listServiceTypes">>({ method: "GET", path: "/v1/scheduling/service-types", query: params }, options);
-  }
-
-  /**
-   * List specialties
-   *
-   * Returns the distinct specialties observed across served slots, from the provider's `specialties` and the schedule's, each with its `system` and a `count` of the slots carrying it. It is a discovery aid for the `specialty` filter on `GET /v1/scheduling/slots`. Codes are each publisher's own. Requires a valid API key.
-   *
-   * `GET /v1/scheduling/specialties`
-   */
-  listSpecialties(params?: ListSpecialtiesParams, options?: RequestOptions): APIPromise<ResponseOf<"listSpecialties">> {
-    return this.operation<ResponseOf<"listSpecialties">>({ method: "GET", path: "/v1/scheduling/specialties", query: params }, options);
-  }
-
-  /**
    * Check what a medication costs (pharmacy benefit check)
    *
    * FHIR system-level operation `$process-message`, as the CARIN Consumer Real-Time Pharmacy Benefit Check (STU2 ballot, `2.0.0-ballot`) specifies. Not yet open to customers: while its price sources are being licensed, every request from a customer's organization, with or without patient details, is refused with `403` `forbidden`. POST a FHIR `Bundle` of type `message` whose first entry is a MessageHeader with one of two events. `rtpbc-request-non-phi` asks for a medication's price without patient details: a Claim naming the product (an NDC of 11 digits with no dashes, or an RxNorm code) and the quantity, with the patient and the coverage masked, and a pharmacy, up to three ZIP codes, or both. It is answered by the cash-price sources haau3 connects to, each named in the notes on its prices. `rtpbc-request` asks what a medication would cost a member under their coverage: the member's Patient and Coverage, with the payer's identifier in `payor.identifier`, the prescription and its prescriber, and a pharmacy. It is answered by the member's insurer, found by the payer's Payer ID: a `payor.identifier` whose `type` is `payerid` from `http://hl7.org/fhir/us/carin-bb/CodeSystem/C4BBIdentifierType`. An insurer that answers only with the member's own authorization is sent the access token from the member's login with that insurer, in the `Payer-Authorization` header, for that one request; it is never stored, logged or sent anywhere else. No insurer is connected yet. The answer is a `message` Bundle whose MessageHeader answers the request's, with one ClaimResponse that carries either prices and coverage in `item` or the reason there are none in `error`, and for a member's request the request's Patient as it was sent. With prices, `item` is the lowest price at a pharmacy near the ZIP codes or at the pharmacy named, every price is also an `addItem` alternative naming its pharmacy by an Organization in the Bundle and its price source in `programCode`, from `https://haau3.com/fhir/CodeSystem/pharmacy-benefits-price-source`, and `processNote` says where each price came from, when, and which free discount card pays it. Each price repeats the request's product coding, which CARIN requires to carry a display: an RxNorm code sent without one is answered with the display haau3's RxNorm release gives it, and an NDC needs its display sent with it. A check no connected source can answer carries `no-responder-for-coverage`, `no-price-source` or `source-not-available-to-caller` from `https://haau3.com/fhir/CodeSystem/pharmacy-benefits-processing-code`, and a member's request to an insurer that needs the member's authorization carries `payer-authorization-required` when none was sent and `payer-authorization-rejected` when the insurer refused it. A member's request the insurer declines under its own rules carries `insurer-declined-request`, and sending it again gives the same answer. An insurer that prices by NDC is asked about the request's NDC, or, for an RxNorm code, an NDC haau3's RxNorm release holds for the code or one of its branded forms, named in the answer's note; with none held it is not asked and the answer carries `ndc-required`, so send the NDC. Send the prescription's days supply in `MedicationRequest.dispenseRequest.expectedSupplyDuration`, as a whole number of days with the UCUM code `d`; any other days supply is refused with `400`, and an insurer that requires one is not asked about a request without one: the answer carries `days-supply-required`, beside `ndc-required` when the NDC is missing too. A price is an estimate; the pharmacy confirms the price. A member's request receives patient data, so send real patient data only under an executed business associate agreement (BAA) on the Team or Scale plan. Without both, send a member's request only as test data marked as such, the request and every resource in it labelled with the `meta.security` coding `HTEST` from `http://terminology.hl7.org/CodeSystem/v3-ActReason`; anything else is refused with `403` `phi-agreement-required`. A request without patient details needs neither. Nothing a request carries is stored or logged, apart from the request's ids, and every answer is sent with `Cache-Control: no-store`. The operation takes no query parameters and is not offered inside a batch. The contract is published at https://fhir.haau3.com/pharmacy-benefits.html.
@@ -180,6 +145,8 @@ export abstract class Operations extends Transport {
    *
    * Read one healthcare service by id, as returned by a search on this service. A pharmacy service's id (`HealthcareService-pharmacy-{NPI}`) is read back from NPPES.
    *
+   * A scheduling publisher's HealthcareService is read here too, by its id: `HealthcareService-scheduling-` and 32 hexadecimal characters, as a Slot or Schedule search's included resources carry it. It is answered from the scheduling publishers' feeds, served as the publisher published it with `meta.source` and `lastSourceSync`, and is not found by a search of this type.
+   *
    * `GET /v1/fhir/r4/HealthcareService/{id}`
    */
   readHealthcareService(id: string, options?: RequestOptions): APIPromise<ResponseOf<"readHealthcareService">> {
@@ -201,6 +168,8 @@ export abstract class Operations extends Transport {
    * Read a Location
    *
    * Read one location by id, as returned by a search on this service. A pharmacy's store (`Location-pharmacy-{NPI}`, from a pharmacy search on `HealthcareService`) is read back from NPPES.
+   *
+   * A scheduling publisher's Location is read here too, by its id: `Location-scheduling-` and 32 hexadecimal characters, as a Slot or Schedule search's included resources carry it. It is answered from the scheduling publishers' feeds, served as the publisher published it with `meta.source` and `lastSourceSync`, and is not found by a search of this type.
    *
    * `GET /v1/fhir/r4/Location/{id}`
    */
@@ -235,6 +204,8 @@ export abstract class Operations extends Transport {
    *
    * Read one practitioner by id, as returned by a search on this service.
    *
+   * A scheduling publisher's Practitioner is read here too, by its id: `Practitioner-scheduling-` and 32 hexadecimal characters, as a Slot or Schedule search's included resources carry it. It is answered from the scheduling publishers' feeds, served as the publisher published it with `meta.source` and `lastSourceSync`, and is not found by a search of this type.
+   *
    * `GET /v1/fhir/r4/Practitioner/{id}`
    */
   readPractitioner(id: string, options?: RequestOptions): APIPromise<ResponseOf<"readPractitioner">> {
@@ -245,6 +216,8 @@ export abstract class Operations extends Transport {
    * Read a PractitionerRole
    *
    * Read one practitioner role by id, as returned by a search on this service.
+   *
+   * A scheduling publisher's PractitionerRole is read here too, by its id: `PractitionerRole-scheduling-` and 32 hexadecimal characters, as a Slot or Schedule search's included resources carry it. It is answered from the scheduling publishers' feeds, served as the publisher published it with `meta.source` and `lastSourceSync`, and is not found by a search of this type.
    *
    * `GET /v1/fhir/r4/PractitionerRole/{id}`
    */
@@ -263,6 +236,28 @@ export abstract class Operations extends Transport {
    */
   readQuestionnaire(id: string, options?: RequestOptions): APIPromise<ResponseOf<"readQuestionnaire">> {
     return this.operation<ResponseOf<"readQuestionnaire">>({ method: "GET", path: "/v1/fhir/r4/Questionnaire/{id}", pathParams: { id }, expects: ["Questionnaire"] }, options);
+  }
+
+  /**
+   * Read a schedule
+   *
+   * Read one Schedule by its id, as a Slot's `schedule` reference or a Schedule search's `fullUrl` names it: 32 hexadecimal characters. A Schedule is the provider, the place and the service a publisher's Slots belong to; it names its Location and its provider, each read here by id too.
+   *
+   * `GET /v1/fhir/r4/Schedule/{id}`
+   */
+  readSchedule(id: string, options?: RequestOptions): APIPromise<ResponseOf<"readSchedule">> {
+    return this.operation<ResponseOf<"readSchedule">>({ method: "GET", path: "/v1/fhir/r4/Schedule/{id}", pathParams: { id }, expects: ["Schedule"] }, options);
+  }
+
+  /**
+   * Read a slot
+   *
+   * Read one Slot by its id, as a search's `fullUrl` names it: 32 hexadecimal characters. A Slot is served while its publisher lists it, whatever its status or start; one marked as not accepting patients is never served.
+   *
+   * `GET /v1/fhir/r4/Slot/{id}`
+   */
+  readSlot(id: string, options?: RequestOptions): APIPromise<ResponseOf<"readSlot">> {
+    return this.operation<ResponseOf<"readSlot">>({ method: "GET", path: "/v1/fhir/r4/Slot/{id}", pathParams: { id }, expects: ["Slot"] }, options);
   }
 
   /**
@@ -415,17 +410,6 @@ export abstract class Operations extends Transport {
   }
 
   /**
-   * Search provider locations
-   *
-   * Returns the matching slots grouped by provider location: each item in `providerLocations` is one provider at one location, or a location with no provider, with its total slot count and soonest availability, paginated by provider location. Its opaque `key` drills down to its individual slots via `GET /v1/scheduling/slots?providerLocationKey=<key>`. Same filters as `/slots`. Requires a valid API key.
-   *
-   * `GET /v1/scheduling/provider-locations`
-   */
-  searchProviderLocations(params?: SearchProviderLocationsParams, options?: RequestOptions): APIPromise<ResponseOf<"searchProviderLocations">> {
-    return this.operation<ResponseOf<"searchProviderLocations">>({ method: "GET", path: "/v1/scheduling/provider-locations", query: params }, options);
-  }
-
-  /**
    * List or find a questionnaire
    *
    * With no parameters, this lists the questionnaires this service holds copies of. Those render the same way on every request, and that list is what you can rely on.
@@ -445,14 +429,33 @@ export abstract class Operations extends Transport {
   }
 
   /**
-   * Search appointment slots
+   * Find schedules
    *
-   * Returns provider availability slots matching the filters, with pagination. Requires a valid API key.
+   * Search the Schedules of SMART Scheduling Links publishers: each the provider, the place and the service a publisher's Slots belong to. The answer is a FHIR `searchset` Bundle whose matches are Schedules, each as its publisher published it (the guide's Schedule profile), in order of id. Each Schedule's Location and provider come in the same Bundle when asked for: `_include=Schedule:actor`, then `_include:iterate=PractitionerRole:practitioner` and `_include:iterate=HealthcareService:location`. Each included resource comes once, and `total` counts the Schedules only.
    *
-   * `GET /v1/scheduling/slots`
+   * A Schedule search does not reach its Slots: a Schedule matches whether or not it has a free Slot ahead, and nothing here filters by a Slot's time, status or patient type. To find open Slots, search Slots, with `_include=Slot:schedule` for each one's Schedule. Follow the `next` link to continue: its cursor belongs to the one search.
+   *
+   * Every other parameter is refused by name rather than ignored, so a search never quietly answers a different question than the one asked. `_sort`, `_total`, `_summary`, `_elements` and `_revinclude` are not served.
+   *
+   * `GET /v1/fhir/r4/Schedule`
    */
-  searchSlots(params?: SearchSlotsParams, options?: RequestOptions): APIPromise<ResponseOf<"searchSlots">> {
-    return this.operation<ResponseOf<"searchSlots">>({ method: "GET", path: "/v1/scheduling/slots", query: params }, options);
+  searchSchedule(params?: SearchScheduleParams, options?: RequestOptions): APIPromise<ResponseOf<"searchSchedule">> {
+    return this.operation<ResponseOf<"searchSchedule">>({ method: "GET", path: "/v1/fhir/r4/Schedule", query: params, expects: ["Bundle"] }, options);
+  }
+
+  /**
+   * Find slots
+   *
+   * Search open appointment slots from SMART Scheduling Links publishers. The answer is a FHIR `searchset` Bundle whose matches are Slots, each as its publisher published it (the guide's Slot profile), in order of start and then id. Each Slot's Schedule, and the Schedule's Location and provider, come in the same Bundle when asked for: `_include=Slot:schedule`, then `_include:iterate=Schedule:actor`, `_include:iterate=PractitionerRole:practitioner` and `_include:iterate=HealthcareService:location`. Each included resource comes once, and `total` counts the Slots only.
+   *
+   * With no `status` a search returns `free` Slots, and with no `start` Slots starting from now; the `self` link shows both as applied. A Slot marked as not accepting patients is never served. Follow the `next` link to continue: its cursor belongs to the one search.
+   *
+   * Every other parameter is refused by name rather than ignored, so a search never quietly answers a different question than the one asked. `_sort`, `_total`, `_summary`, `_elements` and `_revinclude` are not served.
+   *
+   * `GET /v1/fhir/r4/Slot`
+   */
+  searchSlot(params?: SearchSlotParams, options?: RequestOptions): APIPromise<ResponseOf<"searchSlot">> {
+    return this.operation<ResponseOf<"searchSlot">>({ method: "GET", path: "/v1/fhir/r4/Slot", query: params, expects: ["Bundle"] }, options);
   }
 
   /**

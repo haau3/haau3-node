@@ -88,7 +88,7 @@ function exampleRequestKey({ method, path, op }: Operation): string {
 function expectedOutput({ id, op }: Operation): string {
   const answer = firstExample(op.responses["200"].content);
   // The first call prints its first slot whole, as console.log shows an object.
-  if (id === "searchSlots") return inspect(answer.slots[0]);
+  if (id === "searchSlot") return inspect(answer.entry.find((e: Json) => e.search?.mode === "match").resource);
   if (id === "fhirBatch") return answer.entry.map((e: Json) => String(Number.parseInt(e.response.status, 10))).join("\n");
   if (id === "fhirMetadata" || answer.resourceType === "CapabilityStatement") return answer.resourceType;
   if (answer.resourceType === "Bundle") return String(answer.entry?.length ?? 0);
@@ -225,11 +225,11 @@ describe("the code samples overlay", () => {
     }
   });
 
-  it("writes the slot search as the first call: the city it searches, then the first slot it found, or that none did", () => {
-    const source = sampleOf(operations.find((o) => o.id === "searchSlots")!);
-    expect(source).toMatch(/^\/\/ Open appointment slots, here in [A-Z][\w .'-]*\.$/m);
-    expect(source).toContain("const { slots } = await haau3.searchSlots({ city: ");
-    expect(source.trimEnd().endsWith('console.log(slots[0] ?? "No open slots matched.");')).toBe(true);
+  it("writes the slot search as the first call: what it finds, then the first slot it found, or that none did", () => {
+    const source = sampleOf(operations.find((o) => o.id === "searchSlot")!);
+    expect(source).toMatch(/^\/\/ Open appointment slots of one provider, found by NPI\.$/m);
+    expect(source).toContain('const bundle = await haau3.searchSlot({\n  "provider-identifier": ');
+    expect(source.trimEnd().endsWith('console.log(haau3.matches(bundle, "Slot")[0] ?? "No open slots matched.");')).toBe(true);
   });
 });
 
@@ -239,8 +239,8 @@ describe("the first call, when the search finds no slot", () => {
 
   beforeAll(async () => {
     empty = createServer((_req, res) => {
-      res.writeHead(200, { "content-type": "application/json" });
-      res.end(JSON.stringify({ total: 0, slots: [] }));
+      res.writeHead(200, { "content-type": "application/fhir+json" });
+      res.end(JSON.stringify({ resourceType: "Bundle", type: "searchset", total: 0 }));
     });
     await new Promise<void>((resolve) => empty.listen(0, "127.0.0.1", resolve));
     const address = empty.address();
@@ -250,7 +250,7 @@ describe("the first call, when the search finds no slot", () => {
 
   afterAll(() => new Promise<void>((resolve) => empty.close(() => resolve())));
 
-  const firstCall = () => sampleOf(operations.find((o) => o.id === "searchSlots")!);
+  const firstCall = () => sampleOf(operations.find((o) => o.id === "searchSlot")!);
 
   it("says that no open slot matched", async () => {
     const result = await run(firstCall(), {}, { HAAU3_API_KEY: KEY, HAAU3_BASE_URL: emptyURL });
@@ -260,7 +260,10 @@ describe("the first call, when the search finds no slot", () => {
   });
 
   it("where the sample before the guard printed undefined (the control)", async () => {
-    const unguarded = firstCall().replace('console.log(slots[0] ?? "No open slots matched.");', "console.log(slots[0]);");
+    const unguarded = firstCall().replace(
+      'console.log(haau3.matches(bundle, "Slot")[0] ?? "No open slots matched.");',
+      'console.log(haau3.matches(bundle, "Slot")[0]);',
+    );
     expect(unguarded).not.toBe(firstCall());
     const result = await run(unguarded, {}, { HAAU3_API_KEY: KEY, HAAU3_BASE_URL: emptyURL });
     expect(result.stdout).toBe("undefined\n");

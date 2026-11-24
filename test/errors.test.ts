@@ -54,14 +54,22 @@ describe("the four kinds", () => {
     expect(error.message).toBe("GET /v1/fhir/r4/InsurancePlan/{id} was refused: the API key was not accepted (401).");
   });
 
-  it("carries a problem on a 403 off the FHIR base, as it does an outcome on it", async () => {
-    const problem = { type: "https://docs.haau3.com/errors#forbidden", title: "Forbidden", status: 403, detail: "d", instance: "urn:uuid:x" };
-    const error = (await failWith(() => answer(problem, 403, {}, "application/problem+json"))
-      .searchSlots({ state: "MA" })
-      .catch((e: unknown) => e)) as ForbiddenError;
-    expect(error).toBeInstanceOf(ForbiddenError);
-    expect(error.problem).toEqual(problem);
+  // Every service answers its errors as an OperationOutcome. The API answers an address no service
+  // serves with an RFC 9457 problem instead, and that body is not attached: the error says the same
+  // with its status, its message and the request id.
+  it("attaches no body but an OperationOutcome: a problem off the FHIR base leaves the error without one", async () => {
+    const problem = { type: "https://docs.haau3.com/errors#not-found", title: "Not found", status: 404, detail: "d", instance: "urn:uuid:x" };
+    const error = (await failWith(() => answer(problem, 404, {}, "application/problem+json"))
+      .get("/v1/nowhere")
+      .catch((e: unknown) => e)) as RefusedError;
+    expect(error).toBeInstanceOf(RefusedError);
+    expect(error).toMatchObject({ status: 404, requestId: "6b1f3c2e-4d5a-4b6c-8d7e-9f0a1b2c3d4e" });
+    expect(error.message).toBe("GET /v1/nowhere was refused (404).");
     expect(error.outcome).toBeUndefined();
+    expect(Object.getOwnPropertyNames(error)).not.toContain("problem");
+    // Control: the same refusal as an OperationOutcome is attached.
+    const fhir = (await failWith(() => fhirAnswer(outcome("no"), 404)).get("/v1/nowhere").catch((e: unknown) => e)) as RefusedError;
+    expect(fhir.outcome?.issue[0]?.diagnostics).toBe("no");
   });
 
   it("answers other 4xx with RefusedError, telling 404 from 410", async () => {
@@ -70,15 +78,6 @@ describe("the four kinds", () => {
       expect(error).toBeInstanceOf(RefusedError);
       expect((error as RefusedError).status).toBe(status);
     }
-  });
-
-  it("carries Scheduling's problem, not an outcome, off the FHIR base", async () => {
-    const problem = { type: "https://docs.haau3.com/errors#invalid-request", title: "Invalid request", status: 400, detail: "d", instance: "urn:uuid:x" };
-    const error = (await failWith(() => answer(problem, 400, {}, "application/problem+json"))
-      .searchSlots({ state: "MA" })
-      .catch((e: unknown) => e)) as RefusedError;
-    expect(error.problem).toEqual(problem);
-    expect(error.outcome).toBeUndefined();
   });
 
   it("answers 429, 5xx and a body that is not JSON with NoAnswerError, naming the reason", async () => {
@@ -139,9 +138,8 @@ describe("a body is readable and never printed", () => {
   });
 });
 
-// A 403 names its reason when the API names it by a code of its own: in an OperationOutcome's
-// `api-error` coding on a FHIR base, or in a problem's `code` elsewhere. The message says it in
-// words chosen by the code, never the body's.
+// A 403 names its reason when the API names it by a code of its own, in an OperationOutcome's
+// `api-error` coding. The message says it in words chosen by the code, never the body's.
 describe("a 403's code", () => {
   const API_ERROR = "https://haau3.com/fhir/CodeSystem/api-error";
   const coded = (code: string, system = API_ERROR) => ({
@@ -173,7 +171,7 @@ describe("a 403's code", () => {
     );
   });
 
-  it("reads the code from a problem off the FHIR bases", async () => {
+  it("reads no code from a problem, a body no service sends", async () => {
     const problem = {
       type: "https://docs.haau3.com/errors#forbidden",
       title: "Forbidden",
@@ -183,10 +181,11 @@ describe("a 403's code", () => {
       code: "test-key-outside-sandbox",
     };
     const error = (await failWith(() => answer(problem, 403, {}, "application/problem+json"))
-      .searchSlots({ state: "MA" })
+      .get("/v1/nowhere")
       .catch((e: unknown) => e)) as ForbiddenError;
-    expect(error.code).toBe("test-key-outside-sandbox");
-    expect(error.message).toBe("GET /v1/scheduling/slots was refused: this is a test key, which works only in the Sandbox (403).");
+    expect(error).toBeInstanceOf(ForbiddenError);
+    expect(error.code).toBeUndefined();
+    expect(error.message).toBe("GET /v1/nowhere was refused: the API key was accepted, and its organization may not make this request (403).");
   });
 
   it("names patient data not all labelled as test data, and never as a refused key", async () => {
@@ -286,13 +285,13 @@ describe("a refusal's code", () => {
     expect(error.toJSON()).toMatchObject({ name: "RefusedError", status: 400, code: "not-the-example" });
   });
 
-  it("carries a problem's code from the other services", async () => {
+  it("reads none from a problem, a body no service sends", async () => {
     const problem = { type: "https://docs.haau3.com/errors#invalid-request", title: "Invalid request", status: 400, code: "not-the-example" };
     const error = (await failWith(() => answer(problem, 400, {}, "application/problem+json"))
-      .listPublishers()
+      .get("/v1/nowhere")
       .catch((e: unknown) => e)) as RefusedError;
     expect(error).toBeInstanceOf(RefusedError);
-    expect(error.code).toBe("not-the-example");
+    expect(error.code).toBeUndefined();
   });
 
   it("has none when the API names none, or names one in a system that is not haau3's (control)", async () => {

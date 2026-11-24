@@ -1,5 +1,4 @@
 import type { OperationOutcome } from "fhir/r4.js";
-import type { Problem } from "./generated/types.js";
 
 /**
  * Why a request got no answer:
@@ -115,7 +114,7 @@ export class Haau3Error extends Error {
 
   /**
    * The error as a plain object that is safe to log: its name, its message and every field that is
-   * set, and never the body the API answered with (`outcome`, `problem`) or the `cause`.
+   * set, and never the body the API answered with (`outcome`) or the `cause`.
    * `JSON.stringify(error)` and loggers that call `toJSON` print this.
    *
    * ```ts
@@ -131,29 +130,25 @@ export class Haau3Error extends Error {
 }
 
 /**
- * Attaches the body the API answered with, readable by code but never printed: the property is
- * not enumerable, so `console.log(error)`, `util.inspect` and `JSON.stringify` leave it out. A body
- * can repeat what the request carried, and for some operations that is a patient's data.
+ * Attaches the OperationOutcome the API answered with as `outcome`, readable by code but never
+ * printed: the property is not enumerable, so `console.log(error)`, `util.inspect` and
+ * `JSON.stringify` leave it out. An outcome can repeat what the request carried, and for some
+ * operations that is a patient's data.
  */
-function attachBody(error: Haau3Error, body: AnswerBody | undefined): void {
-  if (!body) return;
-  const key = body.kind === "outcome" ? "outcome" : "problem";
-  Object.defineProperty(error, key, { value: body.value, enumerable: false, writable: false, configurable: false });
+function attachBody(error: Haau3Error, outcome: OperationOutcome | undefined): void {
+  if (!outcome) return;
+  Object.defineProperty(error, "outcome", { value: outcome, enumerable: false, writable: false, configurable: false });
 }
-
-/** An error body as the SDK read it: an OperationOutcome under the FHIR base, a Problem elsewhere. */
-export type AnswerBody = { kind: "outcome"; value: OperationOutcome } | { kind: "problem"; value: Problem };
 
 /** The code system the API names its own reasons in, inside an OperationOutcome's `details.coding`. */
 export const API_ERROR_SYSTEM = "https://haau3.com/fhir/CodeSystem/api-error";
 
 /**
  * The API's own code for why it refused a request, when it names one: the `api-error` coding of an
- * OperationOutcome's first issue that has one, or a problem's `code`. A code, never words, so it is
- * safe to log.
+ * OperationOutcome's first issue that has one. A code, never words, so it is safe to log.
  */
-export function apiErrorCode(body: AnswerBody | undefined): string | undefined {
-  return codeIn(body, [API_ERROR_SYSTEM]);
+export function apiErrorCode(outcome: OperationOutcome | undefined): string | undefined {
+  return codeIn(outcome, [API_ERROR_SYSTEM]);
 }
 
 /** The Sandbox's own code system: `not-the-example`, for a request that is not an operation's documented example. */
@@ -161,17 +156,15 @@ export const SANDBOX_ERROR_SYSTEM = "https://haau3.com/fhir/CodeSystem/sandbox-e
 
 /**
  * The API's own code for why it refused a request with any other 4xx, when it names one: an
- * `api-error` or `sandbox-error` coding of an OperationOutcome's first issue that has one, or a
- * problem's `code`. A code, never words, so it is safe to log.
+ * `api-error` or `sandbox-error` coding of an OperationOutcome's first issue that has one. A code,
+ * never words, so it is safe to log.
  */
-export function refusalCode(body: AnswerBody | undefined): string | undefined {
-  return codeIn(body, [API_ERROR_SYSTEM, SANDBOX_ERROR_SYSTEM]);
+export function refusalCode(outcome: OperationOutcome | undefined): string | undefined {
+  return codeIn(outcome, [API_ERROR_SYSTEM, SANDBOX_ERROR_SYSTEM]);
 }
 
-function codeIn(body: AnswerBody | undefined, systems: readonly string[]): string | undefined {
-  if (!body) return undefined;
-  if (body.kind === "problem") return typeof body.value.code === "string" ? body.value.code : undefined;
-  for (const issue of body.value.issue ?? []) {
+function codeIn(outcome: OperationOutcome | undefined, systems: readonly string[]): string | undefined {
+  for (const issue of outcome?.issue ?? []) {
     const coding = issue.details?.coding?.find((c) => c.system !== undefined && systems.includes(c.system) && typeof c.code === "string");
     if (coding) return coding.code;
   }
@@ -203,12 +196,10 @@ export class AuthError extends Haau3Error {
   readonly attempts: number;
   /** Milliseconds from the first attempt to the answer. */
   readonly durationMs: number | undefined;
-  /** The OperationOutcome the FHIR base answered with. Not enumerable, so it is never printed. */
+  /** The OperationOutcome the API answered with, when it sent one. Not enumerable, so it is never printed. */
   declare readonly outcome?: OperationOutcome;
-  /** The problem the other services answered with. Not enumerable, so it is never printed. */
-  declare readonly problem?: Problem;
 
-  constructor(message: string, status: number, requestId?: string, body?: AnswerBody, timing?: Timing) {
+  constructor(message: string, status: number, requestId?: string, body?: OperationOutcome, timing?: Timing) {
     super(message, requestId, { correlationId: timing?.correlationId });
     this.status = status;
     this.statusText = timing?.statusText ?? "";
@@ -229,8 +220,8 @@ export class AuthError extends Haau3Error {
  * - `not-open-to-customers`: the operation is not yet open to customers, so it did not run. An
  *   expected answer, not a fault in the request.
  *
- * Without a code, the key's organization may not make the request; `outcome` (or `problem`) says
- * why, in the API's words. Not an {@link AuthError}, which is a
+ * Without a code, the key's organization may not make the request; `outcome` says why, in the
+ * API's words. Not an {@link AuthError}, which is a
  * key the API did not accept (401).
  */
 export class ForbiddenError extends Haau3Error {
@@ -244,12 +235,10 @@ export class ForbiddenError extends Haau3Error {
   readonly attempts: number;
   /** Milliseconds from the first attempt to the answer. */
   readonly durationMs: number | undefined;
-  /** The OperationOutcome the FHIR base answered with. Not enumerable, so it is never printed. */
+  /** The OperationOutcome the API answered with, when it sent one. Not enumerable, so it is never printed. */
   declare readonly outcome?: OperationOutcome;
-  /** The problem the other services answered with. Not enumerable, so it is never printed. */
-  declare readonly problem?: Problem;
 
-  constructor(message: string, status: number, requestId?: string, body?: AnswerBody, timing?: Timing) {
+  constructor(message: string, status: number, requestId?: string, body?: OperationOutcome, timing?: Timing) {
     super(message, requestId, { correlationId: timing?.correlationId });
     this.status = status;
     this.statusText = timing?.statusText ?? "";
@@ -279,12 +268,10 @@ export class RefusedError extends Haau3Error {
   readonly attempts: number;
   /** Milliseconds from the first attempt to the answer. */
   readonly durationMs: number | undefined;
-  /** The OperationOutcome the FHIR base answered with. Not enumerable, so it is never printed. */
+  /** The OperationOutcome the API answered with, when it sent one. Not enumerable, so it is never printed. */
   declare readonly outcome?: OperationOutcome;
-  /** The problem the other services answered with. Not enumerable, so it is never printed. */
-  declare readonly problem?: Problem;
 
-  constructor(message: string, status: number, requestId?: string, body?: AnswerBody, timing?: Timing) {
+  constructor(message: string, status: number, requestId?: string, body?: OperationOutcome, timing?: Timing) {
     super(message, requestId, { correlationId: timing?.correlationId });
     this.status = status;
     this.statusText = timing?.statusText ?? "";
@@ -318,10 +305,8 @@ export class NoAnswerError extends Haau3Error {
    * (`"TimeoutError"`). Never a message, which can name the address.
    */
   readonly detail: string | undefined;
-  /** The OperationOutcome the FHIR base answered with. Not enumerable, so it is never printed. */
+  /** The OperationOutcome the API answered with, when it sent one. Not enumerable, so it is never printed. */
   declare readonly outcome?: OperationOutcome;
-  /** The problem the other services answered with. Not enumerable, so it is never printed. */
-  declare readonly problem?: Problem;
 
   constructor(
     message: string,
@@ -335,7 +320,7 @@ export class NoAnswerError extends Haau3Error {
       requestId?: string;
       correlationId?: string | undefined;
       detail?: string;
-      body?: AnswerBody;
+      body?: OperationOutcome;
       cause?: unknown;
     },
   ) {

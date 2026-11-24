@@ -52,8 +52,8 @@ describe("get()", () => {
   });
 
   it("takes a path with no {name} and no pathParams, and JSON outside the FHIR base", async () => {
-    const { haau3, received } = client(() => answer({ publishers: [] }));
-    expect(await haau3.get("/v1/scheduling/publishers")).toEqual({ publishers: [] });
+    const { haau3, received } = client(() => answer({ output: [] }));
+    expect(await haau3.get("/scheduling/$bulk-publish")).toEqual({ output: [] });
     expect(received[0]!.headers.accept).toBe("application/json");
   });
 
@@ -70,7 +70,7 @@ describe("get()", () => {
   it("passes every per-call option on: correlationId, headers and maxRetries", async () => {
     const id = "0b6f2d4e-8c1a-4e3b-9f5d-2a7c6e1b4d90";
     const { haau3, received } = client(() => answer({}, 503));
-    await haau3.get("/v1/scheduling/publishers", { correlationId: id, headers: { "x-extra": "1" }, maxRetries: 0 }).catch(() => undefined);
+    await haau3.get("/v1/fhir/r4/Slot", { correlationId: id, headers: { "x-extra": "1" }, maxRetries: 0 }).catch(() => undefined);
     expect(received).toHaveLength(1);
     expect(received[0]!.headers["x-request-id"]).toBe(id);
     expect(received[0]!.headers["x-extra"]).toBe("1");
@@ -158,8 +158,8 @@ describe("the errors every operation's own method throws", () => {
   });
 
   it("an empty expects checks no type either, so a JSON answer that is not FHIR is returned", async () => {
-    const { haau3 } = client(() => answer({ providerLocations: [], total: 0 }));
-    expect(await haau3.get("/v1/scheduling/provider-locations", { query: { limit: "1" }, expects: [] })).toEqual({ providerLocations: [], total: 0 });
+    const { haau3 } = client(() => answer({ output: [] }));
+    expect(await haau3.get("/scheduling/$bulk-publish", { query: { x: "1" }, expects: [] })).toEqual({ output: [] });
   });
 
   it("names the path as written, never a value or the key, however the error is printed", async () => {
@@ -248,7 +248,7 @@ describe("a path value never changes the path", () => {
 describe("what get() and post() refuse before sending", () => {
   it("a header HTTP cannot carry is not sent, and is never a network failure to retry", async () => {
     const { haau3, received } = client(() => answer({}));
-    const error = (await haau3.get("/v1/scheduling/publishers", { headers: { "x-extra": "a\nb" }, maxRetries: 2 }).catch((e: unknown) => e)) as Error;
+    const error = (await haau3.get("/v1/fhir/r4/Slot", { headers: { "x-extra": "a\nb" }, maxRetries: 2 }).catch((e: unknown) => e)) as Error;
     expect(error).toBeInstanceOf(Haau3Error);
     expect(error).not.toBeInstanceOf(NoAnswerError);
     expect(error.message).toMatch(/was not sent: a header's value is not one HTTP can carry/);
