@@ -19,6 +19,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { inspect } from "node:util";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { slotViews } from "../src/index.js";
 import { FHIR_JSON, KEY, spec } from "./helpers.js";
 
 interface Sample {
@@ -87,8 +88,17 @@ function exampleRequestKey({ method, path, op }: Operation): string {
 /** What a sample prints for its example answer, by the rule the generator writes. */
 function expectedOutput({ id, op }: Operation): string {
   const answer = firstExample(op.responses["200"].content);
-  // The first call prints its first slot whole, as console.log shows an object.
-  if (id === "searchSlot") return inspect(answer.entry.find((e: Json) => e.search?.mode === "match").resource);
+  // The first call prints its first slot through the slot view, as console.log shows an object.
+  if (id === "searchSlot") {
+    const [first] = slotViews(answer);
+    if (!first) return "No open slots matched.";
+    return inspect({
+      start: first.slot.start,
+      practitioner: first.practitioners[0]?.name?.[0]?.text,
+      location: first.locations[0]?.name,
+      bookingLink: first.bookingLink,
+    });
+  }
   if (id === "fhirBatch") return answer.entry.map((e: Json) => String(Number.parseInt(e.response.status, 10))).join("\n");
   if (id === "fhirMetadata" || answer.resourceType === "CapabilityStatement") return answer.resourceType;
   if (answer.resourceType === "Bundle") return String(answer.entry?.length ?? 0);
@@ -221,15 +231,21 @@ describe("the code samples overlay", () => {
       expect(source).toContain('import { Haau3');
       expect(source).toContain("new Haau3();");
       expect(source).not.toMatch(/apiKey|baseURL|haau3_sk_/);
-      if (operation.id !== "fhirBatch") expect(source).toContain(`haau3.${operation.id}(`);
+      // The first call searches slots through the helper that sends the includes the view reads.
+      const method = operation.id === "searchSlot" ? "searchSlotWithIncludes" : operation.id;
+      if (operation.id !== "fhirBatch") expect(source).toContain(`haau3.${method}(`);
     }
   });
 
-  it("writes the slot search as the first call: what it finds, then the first slot it found, or that none did", () => {
+  it("writes the slot search as the first call: through the helper and the slot view, the first slot it found, or that none did", () => {
     const source = sampleOf(operations.find((o) => o.id === "searchSlot")!);
-    expect(source).toMatch(/^\/\/ Open appointment slots of one provider, found by NPI\.$/m);
-    expect(source).toContain('const bundle = await haau3.searchSlot({\n  "provider-identifier": ');
-    expect(source.trimEnd().endsWith('console.log(haau3.matches(bundle, "Slot")[0] ?? "No open slots matched.");')).toBe(true);
+    expect(source).toMatch(/^\/\/ Open appointment slots of one provider, found by NPI, each with its schedule, location and provider\.$/m);
+    expect(source).toContain('const page = await haau3.searchSlotWithIncludes({\n  "provider-identifier": ');
+    // The helper sends the includes, so the sample names none.
+    expect(source).not.toContain("_include");
+    expect(source).toContain("const [view] = haau3.slotViews(page);");
+    expect(source).toContain("practitioner: view.practitioners[0]?.name?.[0]?.text,");
+    expect(source.trimEnd().endsWith('    : "No open slots matched.",\n);')).toBe(true);
   });
 });
 
@@ -260,10 +276,7 @@ describe("the first call, when the search finds no slot", () => {
   });
 
   it("where the sample before the guard printed undefined (the control)", async () => {
-    const unguarded = firstCall().replace(
-      'console.log(haau3.matches(bundle, "Slot")[0] ?? "No open slots matched.");',
-      'console.log(haau3.matches(bundle, "Slot")[0]);',
-    );
+    const unguarded = firstCall().replace('    : "No open slots matched.",', "    : view,");
     expect(unguarded).not.toBe(firstCall());
     const result = await run(unguarded, {}, { HAAU3_API_KEY: KEY, HAAU3_BASE_URL: emptyURL });
     expect(result.stdout).toBe("undefined\n");
