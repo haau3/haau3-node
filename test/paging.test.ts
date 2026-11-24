@@ -1,7 +1,7 @@
 // nextCursor(): the cursor in a search page's next link, for a search continued in a later request.
 import { describe, expect, it } from "vitest";
 import { Haau3, Haau3Error, nextCursor } from "../src/index.js";
-import { fakeFetch, fhirAnswer, KEY } from "./helpers.js";
+import { fakeFetch, fhirAnswer, KEY, spec } from "./helpers.js";
 
 const BASE = "https://api.haau3.com/v1/fhir/r4";
 
@@ -24,9 +24,10 @@ describe("nextCursor()", () => {
     expect(nextCursor({ resourceType: "Bundle", type: "searchset" })).toBeUndefined();
   });
 
-  it("is undefined when the next link carries no page, or an empty one", () => {
-    expect(nextCursor(page({ next: `${BASE}/Slot?status=free` }))).toBeUndefined();
-    expect(nextCursor(page({ next: `${BASE}/Slot?status=free&page=` }))).toBeUndefined();
+  it("throws when the next link carries no page, or an empty one, rather than reading as the last page", () => {
+    const message = "The page's next link carries no page cursor, so the next page is reached only by following the link, as pages() does.";
+    expect(() => nextCursor(page({ next: `${BASE}/Slot?status=free` }))).toThrow(message);
+    expect(() => nextCursor(page({ next: `${BASE}/Slot?status=free&page=` }))).toThrow(message);
   });
 
   it("reads a relative next link", () => {
@@ -34,8 +35,9 @@ describe("nextCursor()", () => {
     expect(nextCursor(page({ next: "?page=abc" }))).toBe("abc");
   });
 
-  it("is undefined when the next link is no URL at all", () => {
-    expect(nextCursor(page({ next: "https://[not-a-host" }))).toBeUndefined();
+  it("throws when the next link is no URL at all", () => {
+    expect(() => nextCursor(page({ next: "https://[not-a-host" }))).toThrow(Haau3Error);
+    expect(() => nextCursor(page({ next: "https://[not-a-host" }))).toThrow("The page's next link is not a URL, so it names no next page.");
   });
 
   it("decodes a percent-encoded cursor, which the client encodes again when it sends it", async () => {
@@ -73,37 +75,36 @@ describe("nextCursor()", () => {
 });
 
 describe("a search continued in a later request with nextCursor()", () => {
-  // The search as the caller keeps it: status and start sent, so nothing in it is the API's default.
-  const search = {
-    status: "free",
-    start: ["ge2026-12-01T00:00:00Z", "lt2026-12-04T00:00:00Z"],
-    "location-address-state": "TX",
+  // The API's own example answer to a Slot search, with the links it wrote: the search as sent in
+  // `self`, and the same search with the cursor in `next`.
+  const op = spec.paths["/v1/fhir/r4/Slot"]!.get;
+  const content = Object.values(op.responses["200"].content)[0] as { examples?: Record<string, { value: unknown }>; example?: unknown };
+  const example = (content.example ?? Object.values(content.examples ?? {})[0]!.value) as {
+    link: { relation: string; url: string }[];
   };
+  const linkOf = (relation: string) => new URL(example.link.find((link) => link.relation === relation)!.url);
+  const sorted = (url: URL) => [...url.searchParams.entries()].map(([name, value]) => `${name}=${value}`).sort();
 
-  it("sends the request the next link names: the same search, with the cursor as page", async () => {
-    // The next link the API would write for that search: every parameter as sent, the includes the
-    // helper sent, and the cursor.
-    const nextLink = new URL(`${BASE}/Slot`);
-    nextLink.searchParams.append("status", "free");
-    for (const start of search.start) nextLink.searchParams.append("start", start);
-    nextLink.searchParams.append("location-address-state", "TX");
-    nextLink.searchParams.append("_include", "Slot:schedule");
-    for (const iterate of ["Schedule:actor", "PractitionerRole:practitioner", "HealthcareService:location"]) {
-      nextLink.searchParams.append("_include:iterate", iterate);
-    }
-    nextLink.searchParams.append("page", "eyJrIjoxfQ");
+  // The search as its caller keeps it: every parameter `self` shows, but the includes the helper sends.
+  const search: Record<string, string | string[] | number> = {};
+  for (const [name, value] of linkOf("self").searchParams) {
+    if (name.startsWith("_include")) continue;
+    const held = search[name];
+    search[name] = name === "_count" ? Number(value) : held === undefined ? (name === "start" ? [value] : value) : [...[held].flat().map(String), value];
+  }
 
-    const { fetch, received } = fakeFetch((_request, count) => fhirAnswer(count === 1 ? page({ next: nextLink.href }) : page()));
+  it("sends the request the API's next link names: the same search, with the cursor as page", async () => {
+    const { fetch, received } = fakeFetch((_request, count) => fhirAnswer(count === 1 ? example : page()));
     const haau3 = new Haau3({ apiKey: KEY, fetch });
 
     const first = await haau3.searchSlotWithIncludes(search);
+    expect(sorted(received[0]!.url)).toEqual(sorted(linkOf("self")));
     const cursor = haau3.nextCursor(first);
-    expect(cursor).toBe("eyJrIjoxfQ");
-    const second = await haau3.searchSlotWithIncludes({ ...search, page: cursor });
-    expect(haau3.nextCursor(second)).toBeUndefined();
+    expect(cursor).toBe(linkOf("next").searchParams.get("page"));
 
-    const sorted = (url: URL) => [...url.searchParams.entries()].map(([name, value]) => `${name}=${value}`).sort();
-    expect(received[1]!.url.pathname).toBe(nextLink.pathname);
-    expect(sorted(received[1]!.url)).toEqual(sorted(nextLink));
+    const second = await haau3.searchSlotWithIncludes({ ...search, page: cursor! });
+    expect(haau3.nextCursor(second)).toBeUndefined();
+    expect(received[1]!.url.pathname).toBe(linkOf("next").pathname);
+    expect(sorted(received[1]!.url)).toEqual(sorted(linkOf("next")));
   });
 });
