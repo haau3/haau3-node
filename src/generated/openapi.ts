@@ -1090,7 +1090,8 @@ export interface operations {
                  * @description `Schedule:actor` adds each included Schedule's Location, PractitionerRole, Practitioner or HealthcareService; `PractitionerRole:practitioner` the Practitioner behind each included role; `HealthcareService:location` the Location of each included HealthcareService. Each needs `_include=Slot:schedule`.
                  * @example [
                  *       "Schedule:actor",
-                 *       "PractitionerRole:practitioner"
+                 *       "PractitionerRole:practitioner",
+                 *       "HealthcareService:location"
                  *     ]
                  */
                 "_include:iterate"?: ("Slot:schedule" | "Schedule:actor" | "PractitionerRole:practitioner" | "HealthcareService:location")[];
@@ -1266,7 +1267,10 @@ export interface operations {
                 _include?: "Schedule:actor"[];
                 /**
                  * @description `PractitionerRole:practitioner` adds the Practitioner behind each included role, and `HealthcareService:location` the Location of each included HealthcareService. Each needs `_include=Schedule:actor`, which may be sent here too.
-                 * @example PractitionerRole:practitioner
+                 * @example [
+                 *       "PractitionerRole:practitioner",
+                 *       "HealthcareService:location"
+                 *     ]
                  */
                 "_include:iterate"?: ("Schedule:actor" | "PractitionerRole:practitioner" | "HealthcareService:location")[];
                 /** @description Page size, 1 to 100, 25 by default. A larger value is refused rather than quietly reduced. */
