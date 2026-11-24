@@ -43,6 +43,9 @@ export function answer(body: unknown, status = 200, headers: Record<string, stri
 export const fhirAnswer = (body: unknown, status = 200, headers: Record<string, string> = {}) =>
   answer(body, status, headers, FHIR_JSON);
 
+/** A search that matched nothing: what the plain calls in these tests are answered with. */
+export const EMPTY_SEARCH = { resourceType: "Bundle", type: "searchset", total: 0 };
+
 /** The pinned spec the SDK is generated from. */
 export const spec = JSON.parse(readFileSync(new URL("../openapi/openapi.json", import.meta.url), "utf8")) as {
   info: { version: string };

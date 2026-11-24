@@ -92,9 +92,9 @@ describe.skipIf(!live || testKey)("the production API", () => {
   const haau3 = live ? new Haau3() : (undefined as never);
 
   it("answers a Scheduling search", async () => {
-    const answer = await haau3.searchProviderLocations({ publisher: "haau3", limit: 1 });
+    const answer = await haau3.searchSlot({ "provider-identifier": "http://hl7.org/fhir/sid/us-npi|2900000227", _count: 1 });
     expect(answer.total).toBeGreaterThan(0);
-    expect(answer.providerLocations).toHaveLength(1);
+    expect(haau3.matches(answer, "Slot")).toHaveLength(1);
   });
 
   it("reads a FHIR resource", async () => {

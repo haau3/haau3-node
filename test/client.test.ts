@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { inspect } from "node:util";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Haau3, Haau3Error, RefusedError, VERSION } from "../src/index.js";
-import { KEY, answer, fakeFetch, fhirAnswer } from "./helpers.js";
+import { KEY, answer, fakeFetch, fhirAnswer, EMPTY_SEARCH } from "./helpers.js";
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -13,8 +13,8 @@ afterEach(() => {
 describe("construction", () => {
   it("reads HAAU3_API_KEY when no apiKey is passed", async () => {
     vi.stubEnv("HAAU3_API_KEY", "haau3_sk_from_the_environment");
-    const { fetch, received } = fakeFetch(() => answer({ publishers: [] }));
-    await new Haau3({ fetch }).listPublishers();
+    const { fetch, received } = fakeFetch(() => fhirAnswer(EMPTY_SEARCH));
+    await new Haau3({ fetch }).searchSlot();
     expect(received[0]!.headers.authorization).toBe("Bearer haau3_sk_from_the_environment");
   });
 
@@ -26,11 +26,11 @@ describe("construction", () => {
 
   it("sends to HAAU3_BASE_URL when no baseURL is passed, and to https://api.haau3.com when neither is set", async () => {
     vi.stubEnv("HAAU3_BASE_URL", "https://stand-in.example/");
-    const { fetch, received } = fakeFetch(() => answer({ publishers: [] }));
+    const { fetch, received } = fakeFetch(() => fhirAnswer(EMPTY_SEARCH));
     const haau3 = new Haau3({ apiKey: KEY, fetch });
     expect(haau3.baseURL).toBe("https://stand-in.example");
-    await haau3.listPublishers();
-    expect(received[0]!.url.href).toBe("https://stand-in.example/v1/scheduling/publishers");
+    await haau3.searchSlot();
+    expect(received[0]!.url.href).toBe("https://stand-in.example/v1/fhir/r4/Slot");
 
     vi.stubEnv("HAAU3_BASE_URL", "");
     expect(new Haau3({ apiKey: KEY, fetch }).baseURL).toBe("https://api.haau3.com");
@@ -61,7 +61,7 @@ describe("construction", () => {
     vi.stubEnv("HAAU3_BASE_URL", "https://stand-in.example");
     const { fetch, received } = fakeFetch(() => answer({}));
     const haau3 = new Haau3({ apiKey: KEY, fetch });
-    await expect(haau3.request({ method: "GET", path: "https://api.haau3.com/v1/scheduling/publishers" })).rejects.toThrow(
+    await expect(haau3.request({ method: "GET", path: "https://api.haau3.com/v1/fhir/r4/Slot" })).rejects.toThrow(
       /Refusing to send the API key to https:\/\/api\.haau3\.com/,
     );
     expect(received).toHaveLength(0);
@@ -95,9 +95,9 @@ describe("construction", () => {
 
 describe("the key never leaves its host", () => {
   it("sends requests to its own baseURL", async () => {
-    const { fetch, received } = fakeFetch(() => answer({ publishers: [] }));
-    await new Haau3({ apiKey: KEY, fetch, baseURL: "http://localhost:3001/" }).listPublishers();
-    expect(received[0]!.url.href).toBe("http://localhost:3001/v1/scheduling/publishers");
+    const { fetch, received } = fakeFetch(() => fhirAnswer(EMPTY_SEARCH));
+    await new Haau3({ apiKey: KEY, fetch, baseURL: "http://localhost:3001/" }).searchSlot();
+    expect(received[0]!.url.href).toBe("http://localhost:3001/v1/fhir/r4/Slot");
   });
 
   it("refuses a request() to another host before sending anything", async () => {
@@ -187,7 +187,7 @@ describe("resources()", () => {
 describe("request()", () => {
   it("returns any status without throwing, with what the API answered", async () => {
     const { fetch } = fakeFetch(() => answer({ type: "x", status: 404 }, 404, {}, "application/problem+json"));
-    const response = await new Haau3({ apiKey: KEY, fetch }).request({ method: "GET", path: "/v1/scheduling/nowhere" });
+    const response = await new Haau3({ apiKey: KEY, fetch }).request({ method: "GET", path: "/v1/nowhere" });
     expect(response).toMatchObject({
       status: 404,
       body: { type: "x", status: 404 },
@@ -233,7 +233,7 @@ describe("the FHIR bases", () => {
     },
   );
 
-  it.each(["/v1/sandbox", "/v1/sandbox/fhirish", "/v1/scheduling/slots"])("asks for and sends plain JSON at %s (the control)", async (path) => {
+  it.each(["/v1/sandbox", "/v1/sandbox/fhirish", "/scheduling/$bulk-publish"])("asks for and sends plain JSON at %s (the control)", async (path) => {
     expect(await headersAt(path)).toEqual({ accept: "application/json", contentType: "application/json" });
   });
 });

@@ -64,7 +64,7 @@ describe("correlationId", () => {
 
   it("comes back on request(), and on a batch and each of its entries' errors", async () => {
     const raw = api(200, { slots: [] });
-    expect((await new Haau3({ apiKey: KEY, fetch: raw.fetch }).request({ method: "GET", path: "/v1/scheduling/slots", correlationId: MINE })).correlationId).toBe(MINE);
+    expect((await new Haau3({ apiKey: KEY, fetch: raw.fetch }).request({ method: "GET", path: "/v1/fhir/r4/Slot", correlationId: MINE })).correlationId).toBe(MINE);
 
     const { fetch } = fakeFetch((request) =>
       fhirAnswer(

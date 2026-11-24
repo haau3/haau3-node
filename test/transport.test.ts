@@ -1,7 +1,7 @@
 // Timeouts, retries, Retry-After and the per-call options.
 import { describe, expect, it } from "vitest";
 import { Haau3, NoAnswerError } from "../src/index.js";
-import { KEY, answer, fakeFetch, fhirAnswer } from "./helpers.js";
+import { KEY, answer, fakeFetch, fhirAnswer, EMPTY_SEARCH } from "./helpers.js";
 
 const PLAN = { resourceType: "InsurancePlan", id: "H2406-013-000" };
 
@@ -27,7 +27,7 @@ describe("retries", () => {
     expect(network.received).toHaveLength(2);
 
     const limited = fakeFetch(() => answer({ type: "x", status: 429 }, 429, { "retry-after": "0" }));
-    await expect(new Haau3({ apiKey: KEY, fetch: limited.fetch }).listPublishers()).rejects.toMatchObject({
+    await expect(new Haau3({ apiKey: KEY, fetch: limited.fetch }).searchSlot()).rejects.toMatchObject({
       reason: "rate-limited",
       status: 429,
       retryAfter: 0,
@@ -59,9 +59,9 @@ describe("retries", () => {
 
 describe("Retry-After", () => {
   it("waits out a short Retry-After", async () => {
-    const { fetch, received } = fakeFetch((_, n) => (n === 1 ? answer({}, 503, { "retry-after": "1" }) : answer({ publishers: [] })));
+    const { fetch, received } = fakeFetch((_, n) => (n === 1 ? answer({}, 503, { "retry-after": "1" }) : fhirAnswer(EMPTY_SEARCH)));
     const started = Date.now();
-    await expect(new Haau3({ apiKey: KEY, fetch }).listPublishers()).resolves.toEqual({ publishers: [] });
+    await expect(new Haau3({ apiKey: KEY, fetch }).searchSlot()).resolves.toEqual(EMPTY_SEARCH);
     expect(Date.now() - started).toBeGreaterThanOrEqual(950);
     expect(received).toHaveLength(2);
   });
@@ -70,7 +70,7 @@ describe("Retry-After", () => {
     // The Developer plan's monthly limit answers with the seconds until next month.
     const { fetch, received } = fakeFetch(() => answer({ type: "x", status: 429 }, 429, { "retry-after": "86400" }));
     const started = Date.now();
-    await expect(new Haau3({ apiKey: KEY, fetch }).listPublishers()).rejects.toMatchObject({
+    await expect(new Haau3({ apiKey: KEY, fetch }).searchSlot()).rejects.toMatchObject({
       reason: "rate-limited",
       retryAfter: 86400,
       attempts: 1,
