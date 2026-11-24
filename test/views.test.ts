@@ -1,9 +1,10 @@
 // The slot and schedule views: each matched Slot or Schedule with the resources the page holds for
 // it, side by side as FHIR resources, read with FHIR's reference rules and no request; and the two
 // search helpers, which send every include their search serves and nothing else.
-import type { Bundle, Extension, HealthcareService, Location, Practitioner, PractitionerRole, Resource, Schedule, Slot } from "fhir/r4.js";
+import type { Bundle, Device, Extension, HealthcareService, Location, Organization, Practitioner, PractitionerRole, Resource, Schedule, Slot } from "fhir/r4.js";
 import { describe, expect, it } from "vitest";
 import { Haau3, Haau3Error, scheduleViews, slotViews } from "../src/index.js";
+import { SCHEDULE_INCLUDES, SLOT_INCLUDES } from "../src/views.js";
 import { EMPTY_SEARCH, KEY, fakeFetch, fhirAnswer, spec } from "./helpers.js";
 
 const BASE = "https://api.haau3.com/v1/fhir/r4";
@@ -105,11 +106,41 @@ describe("the spec's own example answers", () => {
 });
 
 describe("what a Schedule reaches", () => {
-  it("takes its Location actors, then each HealthcareService's locations, each once and in order", () => {
-    const s = schedule("s", "Location/a", "HealthcareService/svc");
+  it("takes its Location actors, then each HealthcareService's locations, each once, whatever order it names them in", () => {
+    const s = schedule("s", "HealthcareService/svc", "Location/a");
     const views = scheduleViews(page([s], [location("a"), service("svc", "b", "a"), location("b")]));
     expect(views[0]!.locations.map((l) => l.id)).toEqual(["a", "b"]);
     expect(views[0]!.healthcareServices.map((h) => h.id)).toEqual(["svc"]);
+  });
+
+  it("leaves out an actor of a type the view does not list, held in the page", () => {
+    const device: Device = { resourceType: "Device", id: "d" };
+    const [view] = scheduleViews(page([schedule("s", "Device/d", "Location/a")], [device, location("a")]));
+    expect(view!.locations.map((l) => l.id)).toEqual(["a"]);
+    expect([view!.practitionerRoles, view!.practitioners, view!.healthcareServices]).toEqual([[], [], []]);
+  });
+
+  it("leaves out a target of another type than its element allows, and keeps the rest of the page", () => {
+    const organization: Organization = { resourceType: "Organization", id: "o" };
+    const r: PractitionerRole = { resourceType: "PractitionerRole", id: "r", practitioner: { reference: "Organization/o" } };
+    const views = scheduleViews(page([schedule("s", "PractitionerRole/r", "Location/a"), schedule("t", "Location/a")], [r, organization, location("a")]));
+    expect(views.map((v) => v.schedule.id)).toEqual(["s", "t"]);
+    expect(views[0]!.practitionerRoles.map((x) => x.id)).toEqual(["r"]);
+    expect(views[0]!.practitioners).toEqual([]);
+  });
+
+  it("resolves a relative reference against the base of the entry that holds it", () => {
+    const OTHER = "https://other.example/fhir";
+    const two: Bundle = {
+      resourceType: "Bundle",
+      type: "searchset",
+      entry: [
+        { fullUrl: `${OTHER}/Schedule/s`, resource: schedule("s", "Location/a"), search: { mode: "match" } },
+        { fullUrl: `${BASE}/Location/a`, resource: { ...location("a"), name: "on the API's base" } as Location, search: { mode: "include" } },
+        { fullUrl: `${OTHER}/Location/a`, resource: { ...location("a"), name: "on the other base" } as Location, search: { mode: "include" } },
+      ],
+    };
+    expect(scheduleViews(two)[0]!.locations.map((l) => l.name)).toEqual(["on the other base"]);
   });
 
   it("does not follow a PractitionerRole's own locations", () => {
@@ -154,6 +185,27 @@ describe("what a Schedule reaches", () => {
   });
 });
 
+describe("contained resources", () => {
+  it("resolve from the entry that contains them, as FHIR says, and what they name too", () => {
+    const containedRole: PractitionerRole = { resourceType: "PractitionerRole", id: "r", practitioner: { reference: "Practitioner/p" } };
+    const containedService: HealthcareService = { resourceType: "HealthcareService", id: "h", location: [{ reference: "Location/b" }] };
+    const s: Schedule = { ...schedule("s", "#r", "#h", "Location/a"), contained: [containedRole, containedService] };
+    const [view] = scheduleViews(page([s], [location("a"), location("b"), practitioner("p")]));
+    expect(view!.practitionerRoles).toEqual([containedRole]);
+    expect(view!.practitioners.map((p) => p.id)).toEqual(["p"]);
+    expect(view!.healthcareServices).toEqual([containedService]);
+    expect(view!.locations.map((l) => l.id)).toEqual(["a", "b"]);
+  });
+
+  it("give a Slot its contained Schedule, and what that Schedule names", () => {
+    const containedSchedule = schedule("s", "Location/a");
+    const x: Slot = { ...slot("x", "s"), schedule: { reference: "#s" }, contained: [containedSchedule] };
+    const [view] = slotViews(page([x], [location("a")]));
+    expect(view!.schedule).toBe(containedSchedule);
+    expect(view!.locations.map((l) => l.id)).toEqual(["a"]);
+  });
+});
+
 describe("whether the place is virtual", () => {
   const virtualOf = (...locations: Location[]) =>
     scheduleViews(page([schedule("s", ...locations.map((l) => `Location/${l.id}`))], locations))[0]!.virtual;
@@ -193,9 +245,26 @@ describe("what a Slot carries", () => {
     expect(view.slot.extension).toHaveLength(2);
   });
 
-  it("reads no patient type from another code system", () => {
+  it("reads no patient type from another code system, nor a code HL7's does not have", () => {
     const view = viewOf([{ url: `${SSL}patient-type`, valueCoding: { system: "http://example.org/other", code: "newpt" } }]);
     expect(view.patientType).toBeUndefined();
+    const unknown = viewOf([{ url: `${SSL}patient-type`, valueCoding: { system: "http://terminology.hl7.org/CodeSystem/accepting-patients", code: "somept" } }]);
+    expect(unknown.patientType).toBeUndefined();
+    // Control: each of HL7's four is read, nopt included.
+    for (const code of ["newpt", "existptonly", "existptfam", "nopt"]) {
+      const known = viewOf([{ url: `${SSL}patient-type`, valueCoding: { system: "http://terminology.hl7.org/CodeSystem/accepting-patients", code } }]);
+      expect(known.patientType).toBe(code);
+    }
+  });
+
+  it("reads the first extension of its URL that carries the value it is read for", () => {
+    const view = viewOf([
+      { url: `${SSL}booking-deep-link`, valueString: "not a url value" },
+      { url: `${SSL}booking-deep-link`, valueUrl: "https://book.example/second" },
+      { url: `${SSL}booking-phone`, valueString: "+1-555-0199" },
+      { url: `${SSL}booking-phone`, valueContactPoint: { system: "phone", value: "+1-555-0100" } },
+    ]);
+    expect([view.bookingLink, view.bookingPhone]).toEqual(["https://book.example/second", "+1-555-0100"]);
   });
 
   it("carries none when the Slot has no extensions", () => {
@@ -221,6 +290,9 @@ describe("which entries are views", () => {
     const bare = page([slot("x", "s")]);
     expect(() => slotViews(bare)).toThrow(Haau3Error);
     expect(() => slotViews(bare)).toThrow(/search with searchSlotWithIncludes, or send _include=Slot:schedule/);
+    // A Slot whose schedule names a resource of another type holds no Schedule either.
+    const elsewhere: Slot = { ...slot("x", "s"), schedule: { reference: "Location/a" } };
+    expect(() => slotViews(page([elsewhere], [location("a")]))).toThrow(/names a Schedule the page does not hold/);
     // Control: the same page with its Schedule included gives its view.
     expect(slotViews(page([slot("x", "s")], [schedule("s")]))).toHaveLength(1);
   });
@@ -254,12 +326,35 @@ describe("the search helpers", () => {
 
   it("searchScheduleWithIncludes does the same for the Schedule search", async () => {
     const { haau3, received } = client();
-    await haau3.searchScheduleWithIncludes();
+    await haau3.searchScheduleWithIncludes({ "location-address-city": "Boston", page: "next-page" });
     expect(received[0]!.url.pathname).toBe("/v1/fhir/r4/Schedule");
     expect(query(received[0]!.url)).toEqual({
+      "location-address-city": ["Boston"],
+      page: ["next-page"],
       _include: ["Schedule:actor"],
       "_include:iterate": ["PractitionerRole:practitioner", "HealthcareService:location"],
     });
+  });
+
+  it("pass a call's options on, as the search does", async () => {
+    const { haau3, received } = client();
+    await haau3.searchSlotWithIncludes({}, { headers: { "x-extra": "slot" } });
+    await haau3.searchScheduleWithIncludes({}, { headers: { "x-extra": "schedule" } });
+    expect(received.map((r) => r.headers["x-extra"])).toEqual(["slot", "schedule"]);
+  });
+
+  it("send every include their search serves, as the spec lists them", () => {
+    const served = (operationId: string) => {
+      const op = Object.values(spec.paths).map((item) => item.get).find((get) => get?.operationId === operationId)!;
+      const names = (op.parameters as { name?: string; schema?: { items?: { enum?: string[] }; enum?: string[] } }[])
+        .filter((p) => p.name === "_include" || p.name === "_include:iterate")
+        .flatMap((p) => p.schema?.items?.enum ?? p.schema?.enum ?? []);
+      return [...new Set(names)].sort();
+    };
+    const sent = (includes: { _include: string; "_include:iterate": readonly string[] }) => [includes._include, ...includes["_include:iterate"]].sort();
+    expect(sent(SLOT_INCLUDES)).toEqual(served("searchSlot"));
+    expect(sent(SCHEDULE_INCLUDES)).toEqual(served("searchSchedule"));
+    expect(served("searchSlot")).toHaveLength(4);
   });
 
   it("answers .withResponse() as the search does", async () => {
@@ -276,11 +371,19 @@ describe("the search helpers", () => {
       [() => haau3.searchSlotWithIncludes({ _include: "Slot:schedule" } as never), "searchSlot"],
       [() => haau3.searchSlotWithIncludes({ "_include:iterate": ["Schedule:actor"] } as never), "searchSlot"],
       [() => haau3.searchScheduleWithIncludes({ _include: "Schedule:actor" } as never), "searchSchedule"],
+      [() => haau3.searchSlotWithIncludes({ _include: null } as never), "searchSlot"],
+      [() => haau3.searchSlotWithIncludes({ "_include:iterate": [] } as never), "searchSlot"],
     ] as const) {
       const error = await call().catch((e: unknown) => e);
       expect(error).toBeInstanceOf(Haau3Error);
       expect((error as Error).message).toContain(`call ${plain}.`);
     }
     expect(received).toHaveLength(0);
+  });
+
+  it("take an include left undefined as none, as the search does", async () => {
+    const { haau3, received } = client();
+    await haau3.searchSlotWithIncludes({ _include: undefined } as never);
+    expect(query(received[0]!.url)._include).toEqual(["Slot:schedule"]);
   });
 });

@@ -3,7 +3,7 @@
 import { AuthError, ForbiddenError, Haau3, markAsTestData, NoAnswerError, RefusedError, type fhir4, type NoAnswerReason } from "@haau3/sdk";
 import type { SearchInsurancePlanParams, SearchSlotParams } from "@haau3/sdk";
 import type { AppInfo, BatchResult, BodyOf, Environment, Haau3ErrorJSON, QueryOf, ResponseOf } from "@haau3/sdk";
-import { SPEC_VERSION, slotViews, type ScheduleView, type SlotView } from "@haau3/sdk";
+import { SPEC_VERSION, slotViews, type PatientType, type ScheduleView, type SearchSlotWithIncludesParams, type SlotView } from "@haau3/sdk";
 
 const haau3 = new Haau3({ apiKey: "haau3_sk_example", timeout: 10_000, maxRetries: 0 });
 // A library built on the SDK names itself in the User-Agent; a version read from the environment may be unset.
@@ -63,7 +63,18 @@ export async function tour(): Promise<void> {
   const plainViews: SlotView[] = slotViews(included);
   // @ts-expect-error The helper sends the includes itself.
   void haau3.searchSlotWithIncludes({ _include: "Slot:schedule" });
-  void [scheduleView, plainViews];
+  // Nor does it take a Slot search's parameters that may hold one; its own type is the one to build.
+  const anySearch: SearchSlotParams = { "location-address-state": "MA" };
+  // @ts-expect-error A SearchSlotParams may hold an include.
+  void haau3.searchSlotWithIncludes(anySearch);
+  const helperSearch: SearchSlotWithIncludesParams = { "location-address-state": "MA" };
+  void haau3.searchSlotWithIncludes(helperSearch);
+  // ...and the same value still suits the plain search.
+  void haau3.searchSlot(helperSearch);
+  const accepts: PatientType | undefined = haau3.slotViews(included)[0]?.patientType;
+  // @ts-expect-error A patient type is one of HL7's four codes.
+  const notACode: PatientType = "everyone";
+  void [scheduleView, plainViews, accepts, notACode];
   const lookup: fhir4.Parameters = await haau3.codeSystemLookup({ system: "http://loinc.org", code: "2345-7" });
   const counties: fhir4.Parameters = await haau3.listInsurancePlanCounties({ state: "NC" });
   const network: fhir4.Parameters = await haau3.checkInsurancePlanNetwork("H3359-038-000", { npi: ["1518929058"] });

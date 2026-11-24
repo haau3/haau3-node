@@ -29,4 +29,8 @@ describe("the first call's parameters", () => {
     expect(() => firstCallParams("searchSlot", more)).toThrow(/the example's _include is not/);
     expect(() => firstCallParams("searchSlot", NPI)).toThrow(/the example's _include is not/);
   });
+
+  it("are refused when the example sends no query at all", () => {
+    expect(() => firstCallParams("searchSlot", undefined)).toThrow("searchSlot: the first call's example sends no query parameters.");
+  });
 });
