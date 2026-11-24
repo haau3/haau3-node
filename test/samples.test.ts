@@ -92,9 +92,10 @@ function expectedOutput({ id, op }: Operation): string {
   if (id === "searchSlot") {
     const [first] = slotViews(answer);
     if (!first) return "No open slots matched.";
+    const name = first.practitioners[0]?.name?.[0];
     return inspect({
       start: first.slot.start,
-      practitioner: first.practitioners[0]?.name?.[0]?.text,
+      practitioner: name?.text ?? [name?.given?.join(" "), name?.family].filter(Boolean).join(" "),
       location: first.locations[0]?.name,
       bookingLink: first.bookingLink,
     });
@@ -244,7 +245,9 @@ describe("the code samples overlay", () => {
     // The helper sends the includes, so the sample names none.
     expect(source).not.toContain("_include");
     expect(source).toContain("const [view] = haau3.slotViews(page);");
-    expect(source).toContain("practitioner: view.practitioners[0]?.name?.[0]?.text,");
+    // A name's text, or its given and family names when the publisher sent no text.
+    expect(source).toContain("const name = view?.practitioners[0]?.name?.[0];");
+    expect(source).toContain('practitioner: name?.text ?? [name?.given?.join(" "), name?.family].filter(Boolean).join(" "),');
     expect(source.trimEnd().endsWith('    : "No open slots matched.",\n);')).toBe(true);
   });
 });
