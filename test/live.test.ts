@@ -10,6 +10,7 @@ import type { Bundle, Resource } from "fhir/r4.js";
 import { describe, expect, it } from "vitest";
 import {
   designations,
+  escapeSearchValue,
   ForbiddenError,
   Haau3,
   lookupResult,
@@ -152,6 +153,15 @@ describe.skipIf(!live || testKey)("the production API", () => {
     const changed = await haau3.searchSlotWithIncludes({ ...search, status: "free,busy", page: cursor! }).catch((error: unknown) => error);
     expect(changed).toBeInstanceOf(RefusedError);
     expect((changed as RefusedError).status).toBe(400);
+  });
+
+  it("answers a city with a comma escaped by escapeSearchValue, and refuses it unescaped", async () => {
+    // Measured 2026-11-24: "Austin," unescaped is a 400 (an empty value), escaped a search that finds none.
+    const escaped = await haau3.searchSlot({ "location-address-city": escapeSearchValue("Austin,"), _count: 1 });
+    expect(escaped.total).toBe(0);
+    const unescaped = await haau3.searchSlot({ "location-address-city": "Austin,", _count: 1 }).catch((error: unknown) => error);
+    expect(unescaped).toBeInstanceOf(RefusedError);
+    expect((unescaped as RefusedError).status).toBe(400);
   });
 
   it("sends a batch, each entry with its own answer or error", async () => {

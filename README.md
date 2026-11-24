@@ -417,6 +417,22 @@ that resource as `from`, and otherwise is the one entry whose address ends in th
 is found in `from`'s `contained`. It is `undefined` when the page does not hold the resource, and
 throws when two entries could be the one meant or the resource is not of `type`.
 
+## A value a person typed
+
+`escapeSearchValue()` escapes FHIR's special characters in a search value (`\`, `,`, `$` and `|` each
+take a `\` before them), so the API reads what a person typed as the one value it is:
+
+```ts
+import { escapeSearchValue } from "@haau3/sdk";
+
+const typedCity = "Austin, TX"; // what a person typed
+const page = await haau3.searchSlotWithIncludes({ "location-address-city": escapeSearchValue(typedCity) });
+```
+
+Unescaped, a comma separates values the API reads as "or", so `Austin, TX` asks for two cities, and a
+trailing comma is refused with a `400`. Never escape a value you built with `,` or `|` on purpose, such
+as a list of codes or a `system|code` token.
+
 ## Slots and schedules
 
 A Slot search answers a FHIR Bundle whose matches are `Slot`s; each Slot's `Schedule`, and the
