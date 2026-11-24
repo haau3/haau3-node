@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.5.0](https://github.com/haau3/haau3-node/compare/v0.4.5...v0.5.0) (2026-11-24)
+
+
+### ⚠ BREAKING CHANGES
+
+* Scheduling is searched as FHIR Slot and Schedule, the five Scheduling methods are gone, and errors carry the OperationOutcome alone ([#94](https://github.com/haau3/haau3-node/issues/94))
+
+### Features
+
+* Scheduling is searched as FHIR Slot and Schedule, the five Scheduling methods are gone, and errors carry the OperationOutcome alone ([#94](https://github.com/haau3/haau3-node/issues/94)) ([94e24dd](https://github.com/haau3/haau3-node/commit/94e24dd3cdb2df078b7879bf1300cbf69484e3f4))
+* slot and schedule views, and search helpers that send every include ([#98](https://github.com/haau3/haau3-node/issues/98)) ([dcef76a](https://github.com/haau3/haau3-node/commit/dcef76aa70c8b245e078abe69d6fc7c1b3c93ed2))
+
+
+### Bug Fixes
+
+* the API's spec at 1.0.0-preview.40 ([#97](https://github.com/haau3/haau3-node/issues/97)) ([173fbf7](https://github.com/haau3/haau3-node/commit/173fbf7bfd55acbbbf76402a00a70a834fe873a6))
+
 ## [0.4.5](https://github.com/haau3/haau3-node/compare/v0.4.4...v0.4.5) (2026-11-16)
 
 
