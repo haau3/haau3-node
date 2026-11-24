@@ -137,6 +137,23 @@ describe.skipIf(!live || testKey)("the production API", () => {
     expect(pages).toBe(2);
   });
 
+  it("continues a Slot search in a later request with nextCursor, and refuses the cursor with a filter changed", async () => {
+    // The search as a stateless caller keeps it: its moment chosen once, status sent.
+    const search = { status: "free", start: [`ge${new Date().toISOString()}`], _count: 1 };
+    const first = await haau3.searchSlotWithIncludes(search);
+    const cursor = haau3.nextCursor(first);
+    expect(cursor).toBeDefined();
+    const second = await haau3.searchSlotWithIncludes({ ...search, page: cursor! });
+    const [one] = haau3.matches(first, "Slot");
+    const [two] = haau3.matches(second, "Slot");
+    expect(two?.id).toBeDefined();
+    expect(two?.id).not.toBe(one?.id);
+    // Measured 2026-11-24: the page size may change, and a filter may not.
+    const changed = await haau3.searchSlotWithIncludes({ ...search, status: "free,busy", page: cursor! }).catch((error: unknown) => error);
+    expect(changed).toBeInstanceOf(RefusedError);
+    expect((changed as RefusedError).status).toBe(400);
+  });
+
   it("sends a batch, each entry with its own answer or error", async () => {
     const [lookup, missing] = await haau3.batch((b) => [
       b.codeSystemLookup({ system: "http://loinc.org", code: "2345-7" }),

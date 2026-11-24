@@ -133,3 +133,28 @@ export function matchesIn<K extends ResourceType = ResourceType>(page: Bundle, t
     .map((entry) => entry.resource)
     .filter((resource) => type === undefined || resource.resourceType === type) as ResourceOf<K>[];
 }
+
+/**
+ * The cursor of a search page's `next` link: the value of its `page` parameter, which a search takes
+ * back as `page` for the page after this one; see {@link Haau3.nextCursor}.
+ */
+export function nextCursor(page: Bundle): string | undefined {
+  const next = page.link?.find((link) => link.relation === "next")?.url;
+  // No next link: this is the last page.
+  if (next === undefined) return undefined;
+  let url: URL;
+  try {
+    // A base only so a relative link can be read; nothing is fetched.
+    url = new URL(next, "https://next-link.invalid");
+  } catch {
+    throw new Haau3Error("The page's next link is not a URL, so it names no next page.");
+  }
+  const cursors = url.searchParams.getAll("page");
+  if (cursors.length > 1) {
+    throw new Haau3Error(`The page's next link carries ${cursors.length} page cursors, so which one continues the search is ambiguous.`);
+  }
+  if (!cursors[0]) {
+    throw new Haau3Error("The page's next link carries no page cursor, so the next page is reached only by following the link, as pages() does.");
+  }
+  return cursors[0];
+}

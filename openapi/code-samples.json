@@ -37,7 +37,7 @@
           {
             "lang": "typescript",
             "label": "TypeScript",
-            "source": "import { Haau3 } from \"@haau3/sdk\";\n\nconst haau3 = new Haau3(); // reads HAAU3_API_KEY\n// Open appointment slots of one provider, found by NPI, each with its schedule, location and provider.\nconst page = await haau3.searchSlotWithIncludes({\n  \"provider-identifier\": \"http://hl7.org/fhir/sid/us-npi|2900000227\",\n  _count: 1,\n});\nconst [view] = haau3.slotViews(page);\nconsole.log(\n  view\n    ? {\n        start: view.slot.start,\n        practitioner: view.practitioners[0]?.name?.[0]?.text,\n        location: view.locations[0]?.name,\n        bookingLink: view.bookingLink,\n      }\n    : \"No open slots matched.\",\n);\n"
+            "source": "import { Haau3 } from \"@haau3/sdk\";\n\nconst haau3 = new Haau3(); // reads HAAU3_API_KEY\n// Open appointment slots of one provider, found by NPI, each with its schedule, location and provider.\nconst page = await haau3.searchSlotWithIncludes({\n  \"provider-identifier\": \"http://hl7.org/fhir/sid/us-npi|2900000227\",\n  _count: 1,\n});\nconst [view] = haau3.slotViews(page);\n// A name's text, or its given and family names when the publisher sent no text.\nconst name = view?.practitioners[0]?.name?.[0];\nconsole.log(\n  view\n    ? {\n        start: view.slot.start,\n        practitioner: name?.text ?? ([name?.given?.join(\" \"), name?.family].filter(Boolean).join(\" \") || undefined),\n        location: view.locations[0]?.name,\n        bookingLink: view.bookingLink,\n      }\n    : \"No open slots matched.\",\n);\n"
           }
         ]
       }

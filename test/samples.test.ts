@@ -92,9 +92,10 @@ function expectedOutput({ id, op }: Operation): string {
   if (id === "searchSlot") {
     const [first] = slotViews(answer);
     if (!first) return "No open slots matched.";
+    const name = first.practitioners[0]?.name?.[0];
     return inspect({
       start: first.slot.start,
-      practitioner: first.practitioners[0]?.name?.[0]?.text,
+      practitioner: name?.text ?? ([name?.given?.join(" "), name?.family].filter(Boolean).join(" ") || undefined),
       location: first.locations[0]?.name,
       bookingLink: first.bookingLink,
     });
@@ -244,7 +245,9 @@ describe("the code samples overlay", () => {
     // The helper sends the includes, so the sample names none.
     expect(source).not.toContain("_include");
     expect(source).toContain("const [view] = haau3.slotViews(page);");
-    expect(source).toContain("practitioner: view.practitioners[0]?.name?.[0]?.text,");
+    // A name's text, or its given and family names when the publisher sent no text.
+    expect(source).toContain("const name = view?.practitioners[0]?.name?.[0];");
+    expect(source).toContain('practitioner: name?.text ?? ([name?.given?.join(" "), name?.family].filter(Boolean).join(" ") || undefined),');
     expect(source.trimEnd().endsWith('    : "No open slots matched.",\n);')).toBe(true);
   });
 });
@@ -280,6 +283,83 @@ describe("the first call, when the search finds no slot", () => {
     expect(unguarded).not.toBe(firstCall());
     const result = await run(unguarded, {}, { HAAU3_API_KEY: KEY, HAAU3_BASE_URL: emptyURL });
     expect(result.stdout).toBe("undefined\n");
+  });
+});
+
+describe("the first call's practitioner, when the publisher sent no name text", () => {
+  // Most publishers name a Practitioner by its given and family names alone. The stand-in answers the
+  // first call with one such Slot, or with one whose Schedule names a Location and no provider.
+  const API = "https://api.haau3.com/v1/fhir/r4";
+  const SLOT_LINK = "http://hl7.org/fhir/uv/smart-scheduling-links/StructureDefinition/booking-deep-link";
+  const answerWith = (actors: object[], more: object[]) => ({
+    resourceType: "Bundle",
+    type: "searchset",
+    total: 1,
+    entry: [
+      {
+        fullUrl: `${API}/Slot/s1`,
+        search: { mode: "match" },
+        resource: {
+          resourceType: "Slot",
+          id: "s1",
+          schedule: { reference: "Schedule/sc1" },
+          status: "free",
+          start: "2026-12-01T09:00:00-05:00",
+          end: "2026-12-01T09:30:00-05:00",
+          extension: [{ url: SLOT_LINK, valueUrl: "https://example.org/book" }],
+        },
+      },
+      { fullUrl: `${API}/Schedule/sc1`, search: { mode: "include" }, resource: { resourceType: "Schedule", id: "sc1", actor: actors } },
+      { fullUrl: `${API}/Location/l1`, search: { mode: "include" }, resource: { resourceType: "Location", id: "l1", name: "Main Street Clinic" } },
+      ...more,
+    ],
+  });
+  const role = {
+    fullUrl: `${API}/PractitionerRole/r1`,
+    search: { mode: "include" },
+    resource: { resourceType: "PractitionerRole", id: "r1", practitioner: { reference: "Practitioner/p1" } },
+  };
+  const practitioner = {
+    fullUrl: `${API}/Practitioner/p1`,
+    search: { mode: "include" },
+    resource: { resourceType: "Practitioner", id: "p1", name: [{ given: ["Ana", "Maria"], family: "Lee" }] },
+  };
+
+  let body: unknown;
+  let standIn: Server;
+  let standInURL: string;
+
+  beforeAll(async () => {
+    standIn = createServer((_req, res) => {
+      res.writeHead(200, { "content-type": FHIR_JSON });
+      res.end(JSON.stringify(body));
+    });
+    await new Promise<void>((resolve) => standIn.listen(0, "127.0.0.1", resolve));
+    const address = standIn.address();
+    if (!address || typeof address === "string") throw new Error("The stand-in has no port.");
+    standInURL = `http://127.0.0.1:${address.port}`;
+  });
+
+  afterAll(() => new Promise<void>((resolve) => standIn.close(() => resolve())));
+
+  const firstCall = () => sampleOf(operations.find((o) => o.id === "searchSlot")!);
+
+  it("prints the given and family names", async () => {
+    body = answerWith([{ reference: "Location/l1" }, { reference: "PractitionerRole/r1" }], [role, practitioner]);
+    const result = await run(firstCall(), {}, { HAAU3_API_KEY: KEY, HAAU3_BASE_URL: standInURL });
+    expect(result.stderr).toBe("");
+    expect(result.stdout).toBe(
+      `${inspect({ start: "2026-12-01T09:00:00-05:00", practitioner: "Ana Maria Lee", location: "Main Street Clinic", bookingLink: "https://example.org/book" })}\n`,
+    );
+  });
+
+  it("prints undefined, not an empty name, when the Schedule names no provider", async () => {
+    body = answerWith([{ reference: "Location/l1" }], []);
+    const result = await run(firstCall(), {}, { HAAU3_API_KEY: KEY, HAAU3_BASE_URL: standInURL });
+    expect(result.stderr).toBe("");
+    expect(result.stdout).toBe(
+      `${inspect({ start: "2026-12-01T09:00:00-05:00", practitioner: undefined, location: "Main Street Clinic", bookingLink: "https://example.org/book" })}\n`,
+    );
   });
 });
 

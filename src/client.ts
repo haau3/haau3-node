@@ -1,7 +1,7 @@
 import type { Bundle, Dosage, FhirResource, Parameters, ParametersParameter, Reference } from "fhir/r4.js";
 import { APIPromise, type WithResponse } from "./api-promise.js";
 import { batchBundle, readBatch, type BatchEntry, type BatchResults } from "./batch.js";
-import { matchesIn, resolveIn, type ResolveOptions, type ResourceOf, type ResourceType } from "./bundles.js";
+import { matchesIn, nextCursor as nextCursorOf, resolveIn, type ResolveOptions, type ResourceOf, type ResourceType } from "./bundles.js";
 import { NoAnswerError } from "./errors.js";
 import { parameter as partNamed, parameters as partsNamed, reviewFlags as reviewOf, type DosageReview } from "./parameters.js";
 import {
@@ -80,6 +80,34 @@ export class Haau3 extends Operations {
       followed.add(url.href);
       page = await this.answer<Bundle>("GET", url, undefined, options, url.pathname, ["Bundle"]);
     }
+  }
+
+  /**
+   * The cursor for the page after this one, with no request: the `page` value of the page's `next`
+   * link, or undefined on the last page. It is for a search continued in a later request, such as a
+   * web page's "Load more", where {@link pages} cannot hold the page between requests.
+   *
+   * ```ts
+   * // The search, its moment chosen once and kept: the cursor belongs to it.
+   * const search = { status: "free", start: [`ge${new Date().toISOString()}`] };
+   * const first = await haau3.searchSlotWithIncludes(search);
+   * const cursor = haau3.nextCursor(first); // undefined on the last page
+   * // Later, in another request, with the same search:
+   * if (cursor) await haau3.searchSlotWithIncludes({ ...search, page: cursor });
+   * ```
+   *
+   * A cursor belongs to its search: send it as `page` with every other parameter exactly as before.
+   * A Slot, Schedule or plan search refuses a cursor sent with its search changed (a 400), and that
+   * includes a parameter the API filled in for you, as the page's `self` link shows: send a Slot
+   * search's `status` and `start` yourself when you will page this way. A cursor does not last: the
+   * provider directory's searches say their cursors expire, and a plan search answers 410 once the
+   * plans are updated, so start the search again. {@link pages} follows the link itself.
+   *
+   * Throws a {@link Haau3Error} when the next link is not a URL, or carries no cursor or two. The
+   * plain function `nextCursor()` does the same with no client.
+   */
+  nextCursor(page: Bundle): string | undefined {
+    return nextCursorOf(page);
   }
 
   /**
@@ -165,7 +193,8 @@ export class Haau3 extends Operations {
    * ```ts
    * const page = await haau3.searchSlotWithIncludes({ "location-address-state": "MA" });
    * for (const view of haau3.slotViews(page)) {
-   *   console.log(view.slot.start, view.practitioners[0]?.name?.[0]?.text, view.locations[0]?.name, view.bookingLink);
+   *   const name = view.practitioners[0]?.name?.[0];
+   *   console.log(view.slot.start, name?.text ?? ([name?.given?.join(" "), name?.family].filter(Boolean).join(" ") || undefined), view.locations[0]?.name, view.bookingLink);
    * }
    * ```
    *
@@ -195,7 +224,10 @@ export class Haau3 extends Operations {
    *
    * ```ts
    * const page = await haau3.searchScheduleWithIncludes({ "location-address-city": "Boston" });
-   * for (const view of haau3.scheduleViews(page)) console.log(view.practitioners[0]?.name?.[0]?.text, view.locations[0]?.name);
+   * for (const view of haau3.scheduleViews(page)) {
+   *   const name = view.practitioners[0]?.name?.[0];
+   *   console.log(name?.text ?? ([name?.given?.join(" "), name?.family].filter(Boolean).join(" ") || undefined), view.locations[0]?.name);
+   * }
    * ```
    *
    * The types take no `_include` or `_include:iterate`, and one passed anyway is refused with a

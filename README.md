@@ -53,11 +53,13 @@ const page = await haau3.searchSlotWithIncludes({
   _count: 1,
 });
 const [view] = haau3.slotViews(page);
+// A name's text, or its given and family names when the publisher sent no text.
+const name = view?.practitioners[0]?.name?.[0];
 console.log(
   view
     ? {
         start: view.slot.start,
-        practitioner: view.practitioners[0]?.name?.[0]?.text,
+        practitioner: name?.text ?? ([name?.given?.join(" "), name?.family].filter(Boolean).join(" ") || undefined),
         location: view.locations[0]?.name,
         bookingLink: view.bookingLink,
       }
@@ -353,6 +355,32 @@ for await (const page of haau3.pages(first)) {
 }
 ```
 
+When the next page is asked for in a later request, as a web page's "Load more" does, there is no
+page to hand `pages()`. `nextCursor()` reads the cursor from a page's `next` link, with no request,
+and a search takes it back as `page`:
+
+```ts
+// The search, its moment chosen once and kept: the cursor belongs to it.
+const search = { status: "free", start: [`ge${new Date().toISOString()}`], "location-address-state": "TX" };
+
+const first = await haau3.searchSlotWithIncludes(search);
+const cursor = haau3.nextCursor(first); // undefined on the last page
+
+// Later, in another request, with the same search:
+if (cursor) {
+  const second = await haau3.searchSlotWithIncludes({ ...search, page: cursor });
+}
+```
+
+A cursor belongs to its search: send it with every other parameter exactly as before. A Slot,
+Schedule or plan search refuses a cursor sent with its search changed (a `400`), and that includes a
+parameter the API fills in for you, as the page's `self` link shows: for a Slot search, send `status`
+and `start` yourself when you will page this way, since their defaults are free Slots from the moment
+of the first request. A cursor does not last: the provider directory's searches say their cursors
+expire, and a plan search answers `410` once the plans are updated, so start the search again.
+`nextCursor()` throws a `Haau3Error` when a next link is not a URL, or carries no cursor or two. The
+plain function `nextCursor()` does the same with no client.
+
 `resources()` yields every resource the search found, across every page:
 
 ```ts
@@ -401,7 +429,8 @@ FHIR resource the API served:
 const page = await haau3.searchSlotWithIncludes({ "location-address-state": "MA", _count: 10 });
 
 for (const view of haau3.slotViews(page)) {
-  const who = view.practitioners[0]?.name?.[0]?.text ?? view.healthcareServices[0]?.name;
+  const name = view.practitioners[0]?.name?.[0];
+  const who = name?.text ?? ([name?.given?.join(" "), name?.family].filter(Boolean).join(" ") || view.healthcareServices[0]?.name);
   console.log(view.slot.start, who, view.locations[0]?.name, view.bookingLink ?? view.bookingPhone);
 }
 ```
