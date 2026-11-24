@@ -52,6 +52,15 @@ export {
   type PropertyParts,
   type ValidationResult,
 } from "./terminology.js";
+export {
+  scheduleViews,
+  slotViews,
+  type PatientType,
+  type ScheduleView,
+  type SearchScheduleWithIncludesParams,
+  type SearchSlotWithIncludesParams,
+  type SlotView,
+} from "./views.js";
 export type { BatchBuilder } from "./generated/batch.js";
 export type * from "./generated/types.js";
 export { VERSION } from "./version.js";

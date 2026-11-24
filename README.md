@@ -47,14 +47,22 @@ const haau3 = new Haau3(); // reads HAAU3_API_KEY
 ## A first call
 
 ```ts
-// Open appointment slots of one provider, found by NPI.
-const bundle = await haau3.searchSlot({
+// Open appointment slots of one provider, found by NPI, each with its schedule, location and provider.
+const page = await haau3.searchSlotWithIncludes({
   "provider-identifier": "http://hl7.org/fhir/sid/us-npi|2900000227",
-  _include: "Slot:schedule",
-  "_include:iterate": ["Schedule:actor", "PractitionerRole:practitioner"],
   _count: 1,
 });
-console.log(haau3.matches(bundle, "Slot")[0] ?? "No open slots matched.");
+const [view] = haau3.slotViews(page);
+console.log(
+  view
+    ? {
+        start: view.slot.start,
+        practitioner: view.practitioners[0]?.name?.[0]?.text,
+        location: view.locations[0]?.name,
+        bookingLink: view.bookingLink,
+      }
+    : "No open slots matched.",
+);
 ```
 
 FHIR answers are [@types/fhir](https://www.npmjs.com/package/@types/fhir)'s R4 types, also
@@ -380,6 +388,58 @@ that `fullUrl`; a relative one is resolved against the address of the entry hold
 that resource as `from`, and otherwise is the one entry whose address ends in that type and id; `#id`
 is found in `from`'s `contained`. It is `undefined` when the page does not hold the resource, and
 throws when two entries could be the one meant or the resource is not of `type`.
+
+## Slots and schedules
+
+A Slot search answers a FHIR Bundle whose matches are `Slot`s; each Slot's `Schedule`, and the
+`Location` and provider the Schedule names, come in the same Bundle when the search asks for them
+with `_include`. `searchSlotWithIncludes()` sends every include the Slot search serves, and
+`slotViews()` hands you each matched Slot with what the page holds for it, side by side, each the
+FHIR resource the API served:
+
+```ts
+const page = await haau3.searchSlotWithIncludes({ "location-address-state": "MA", _count: 10 });
+
+for (const view of haau3.slotViews(page)) {
+  const who = view.practitioners[0]?.name?.[0]?.text ?? view.healthcareServices[0]?.name;
+  console.log(view.slot.start, who, view.locations[0]?.name, view.bookingLink ?? view.bookingPhone);
+}
+```
+
+| Field | What it holds |
+|---|---|
+| `slot` | The matched `Slot`. |
+| `schedule` | Its `Schedule`. Every Slot names one. |
+| `locations` | Every `Location` the Schedule reaches: its Location actors, then the Locations of each `HealthcareService` it names. |
+| `practitionerRoles` | The `PractitionerRole`s the Schedule names. |
+| `practitioners` | The `Practitioner`s it names, then the Practitioner behind each role. |
+| `healthcareServices` | The `HealthcareService`s it names. |
+| `bookingLink` | The Slot's booking link, from its `booking-deep-link` extension. |
+| `bookingPhone` | The number to book it by, from its `booking-phone` extension. |
+| `patientType` | Whom it accepts, from its `patient-type` extension, as one of HL7's four codes: `newpt`, `existptonly`, `existptfam` or `nopt` (the API never serves a `nopt` Slot). |
+| `virtual` | `true` when a Location's physical type is `vi`, and `false` otherwise: a Location is physical unless it says it is virtual, and a place that is both is two Locations. |
+
+Each list keeps the order the Schedule names them in, holds each resource once, and is empty when
+there is none: a Schedule may name a Location and no provider. The three extensions are read under
+SMART Scheduling Links 1.0.0's own URLs; the Slot itself keeps whatever its publisher sent. Nothing
+is fetched and nothing is replaced in place. A resource the page does not hold is left out, and so
+is one of another type than the reference's element allows; a contained resource is found in the
+entry that contains it, as FHIR says. `resolve()` finds anything else a reference names.
+
+`slotViews()` throws a `Haau3Error` in two cases. A Slot names a Schedule the page does not hold,
+which happens when the page was searched without its includes, so the message says to search with
+`searchSlotWithIncludes()`. Or, as `resolve()` does, two entries could each be the one a reference
+names.
+
+The helper takes `SearchSlotWithIncludesParams`: every parameter `searchSlot()` takes but the
+includes, which its types refuse, and it sends nothing else, so the API's defaults hold: free Slots,
+from now. To send your own includes, call `searchSlot()`. A page's `next` link is followed with
+`pages()`, and `slotViews()` reads each page.
+
+`searchScheduleWithIncludes()` and `scheduleViews()` do the same for the Schedule search: each
+matched Schedule with its `locations`, `practitionerRoles`, `practitioners`, `healthcareServices`
+and `virtual`. `slotViews()` and `scheduleViews()` are plain functions too, for a page read
+elsewhere.
 
 ## Reading a Parameters answer
 

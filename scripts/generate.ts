@@ -17,8 +17,8 @@
 // - openapi/code-samples.json: a TypeScript sample for every operation, as an OpenAPI Overlay that
 //   adds `x-codeSamples` to the spec, so a documentation site can show a call beside each operation.
 //   Each sample is a whole program that sends the operation's example request from the spec and
-//   prints one field of the answer, except the slot search, a quickstart's first call, which prints
-//   the first slot it found. Its client line says which key HAAU3_API_KEY must hold, from the
+//   prints one field of the answer, except the slot search, a quickstart's first call, which sends
+//   it through searchSlotWithIncludes and prints the first slot it found, through its slot view. Its client line says which key HAAU3_API_KEY must hold, from the
 //   operation's security (scripts/key-comment.ts). test/samples.test.ts runs every one, as it is
 //   written, against a stand-in API, and scripts/check-consumer.ts compiles them against the packed
 //   package.
@@ -30,6 +30,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import openapiTS, { astToString } from "openapi-typescript";
 import ts from "typescript";
 import { CALL_OPTIONS } from "../src/transport.js";
+import { firstCallParams } from "./first-call.js";
 import { deprecation } from "./deprecation.js";
 import { keyComment } from "./key-comment.js";
 
@@ -623,18 +624,31 @@ function batchCall(request: Json): string {
 const FIRST_CALL = "searchSlot";
 
 /**
- * The first call: the slot search's example, which finds a provider's open slots by NPI, with the
- * first slot it found printed whole, since one field says nothing of what a slot is. A search that
- * finds nothing says so, rather than printing `undefined`.
+ * The first call: the slot search's example, which finds a provider's open slots by NPI, sent through
+ * searchSlotWithIncludes, with the first slot it found printed through its slot view: when it starts,
+ * who, where and how to book. A search that finds nothing says so, rather than printing `undefined`.
+ * The example must send exactly the helper's includes (scripts/first-call.ts).
  */
 function firstCallSample(op: Operation): string {
+  const [example] = exampleArgs(op);
+  const rest = firstCallParams(op.id, example);
   return program(
     op,
     [IMPORT],
     [
-      "// Open appointment slots of one provider, found by NPI.",
-      callLine("", `const bundle = await haau3.${op.id}`, exampleArgs(op), ";"),
-      'console.log(haau3.matches(bundle, "Slot")[0] ?? "No open slots matched.");',
+      "// Open appointment slots of one provider, found by NPI, each with its schedule, location and provider.",
+      callLine("", "const page = await haau3.searchSlotWithIncludes", [rest], ";"),
+      "const [view] = haau3.slotViews(page);",
+      "console.log(",
+      "  view",
+      "    ? {",
+      "        start: view.slot.start,",
+      "        practitioner: view.practitioners[0]?.name?.[0]?.text,",
+      "        location: view.locations[0]?.name,",
+      "        bookingLink: view.bookingLink,",
+      "      }",
+      '    : "No open slots matched.",',
+      ");",
     ],
   );
 }
