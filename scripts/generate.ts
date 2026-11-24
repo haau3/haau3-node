@@ -646,7 +646,7 @@ function firstCallSample(op: Operation): string {
       "  view",
       "    ? {",
       "        start: view.slot.start,",
-      '        practitioner: name?.text ?? [name?.given?.join(" "), name?.family].filter(Boolean).join(" "),',
+      '        practitioner: name?.text ?? ([name?.given?.join(" "), name?.family].filter(Boolean).join(" ") || undefined),',
       "        location: view.locations[0]?.name,",
       "        bookingLink: view.bookingLink,",
       "      }",

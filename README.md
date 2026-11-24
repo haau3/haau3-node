@@ -59,7 +59,7 @@ console.log(
   view
     ? {
         start: view.slot.start,
-        practitioner: name?.text ?? [name?.given?.join(" "), name?.family].filter(Boolean).join(" "),
+        practitioner: name?.text ?? ([name?.given?.join(" "), name?.family].filter(Boolean).join(" ") || undefined),
         location: view.locations[0]?.name,
         bookingLink: view.bookingLink,
       }
@@ -360,21 +360,26 @@ page to hand `pages()`. `nextCursor()` reads the cursor from a page's `next` lin
 and a search takes it back as `page`:
 
 ```ts
-// The search, kept as it was first sent: the cursor belongs to it.
-const search = { status: "free", start: ["ge2026-12-01T00:00:00Z", "lt2026-12-04T00:00:00Z"], "location-address-state": "TX" };
+// The search, its moment chosen once and kept: the cursor belongs to it.
+const search = { status: "free", start: [`ge${new Date().toISOString()}`], "location-address-state": "TX" };
 
 const first = await haau3.searchSlotWithIncludes(search);
 const cursor = haau3.nextCursor(first); // undefined on the last page
 
-// Later, in another request:
-const second = await haau3.searchSlotWithIncludes({ ...search, page: cursor });
+// Later, in another request, with the same search:
+if (cursor) {
+  const second = await haau3.searchSlotWithIncludes({ ...search, page: cursor });
+}
 ```
 
-Send the cursor with every other parameter exactly as before, or the API refuses it with a `400`.
-A parameter the API fills in for you is part of the search too, as the page's `self` link shows, so
-send it yourself when you will page this way: for a Slot search, `status` and `start`, whose
-defaults are free Slots from the moment of the first request. The plain function `nextCursor()`
-does the same with no client.
+A cursor belongs to its search: send it with every other parameter exactly as before. A Slot,
+Schedule or plan search refuses a cursor sent with its search changed (a `400`), and that includes a
+parameter the API fills in for you, as the page's `self` link shows: for a Slot search, send `status`
+and `start` yourself when you will page this way, since their defaults are free Slots from the moment
+of the first request. A cursor does not last: the provider directory's searches say their cursors
+expire, and a plan search answers `410` once the plans are updated, so start the search again.
+`nextCursor()` throws a `Haau3Error` when a next link is not a URL, or carries no cursor or two. The
+plain function `nextCursor()` does the same with no client.
 
 `resources()` yields every resource the search found, across every page:
 
