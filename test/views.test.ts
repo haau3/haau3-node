@@ -83,7 +83,7 @@ describe("the spec's own example answers", () => {
     expect(view!.practitionerRoles).toHaveLength(1);
     expect(view!.practitioners.map((p) => p.name?.[0]?.text)).toEqual(["Dr. Wei Example"]);
     expect(view!.healthcareServices).toEqual([]);
-    // The guide's own `ph` is not `vi`, so the place is stated and not virtual.
+    // The guide's own `ph` is not `vi`, so the place is physical.
     expect(view!.virtual).toBe(false);
     expect(view!.patientType).toBe("existptonly");
     expect(view!.bookingLink).toMatch(/^https:\/\/docs\.haau3\.com\//);
@@ -210,12 +210,13 @@ describe("whether the place is virtual", () => {
   const virtualOf = (...locations: Location[]) =>
     scheduleViews(page([schedule("s", ...locations.map((l) => `Location/${l.id}`))], locations))[0]!.virtual;
 
-  it("is true when any Location is vi, false when one states another type, and undefined when none states one", () => {
+  it("is true when any Location is vi, and false otherwise: another type, none stated, or no Location", () => {
     expect(virtualOf(location("a", { system: PHYSICAL_TYPE, code: "vi" }))).toBe(true);
     expect(virtualOf(location("a", { system: PHYSICAL_TYPE, code: "bu" }), location("b", { system: PHYSICAL_TYPE, code: "vi" }))).toBe(true);
     expect(virtualOf(location("a", { system: PHYSICAL_TYPE, code: "bu" }))).toBe(false);
-    expect(virtualOf(location("a"))).toBeUndefined();
-    expect(virtualOf()).toBeUndefined();
+    // A Location is physical unless it says it is virtual.
+    expect(virtualOf(location("a"))).toBe(false);
+    expect(virtualOf()).toBe(false);
   });
 
   it("reads vi only in HL7's physical type code system (control)", () => {

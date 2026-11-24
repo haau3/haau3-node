@@ -56,7 +56,7 @@ export async function tour(): Promise<void> {
     const place: fhir4.Location | undefined = view.locations[0];
     const who: fhir4.Practitioner | undefined = view.practitioners[0];
     const link: string | undefined = view.bookingLink;
-    const virtual: boolean | undefined = view.virtual;
+    const virtual: boolean = view.virtual;
     void [scheduleId, place, who, link, virtual];
   }
   const scheduleView: ScheduleView | undefined = haau3.scheduleViews(await haau3.searchScheduleWithIncludes())[0];
