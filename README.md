@@ -416,20 +416,25 @@ for (const view of haau3.slotViews(page)) {
 | `healthcareServices` | The `HealthcareService`s it names. |
 | `bookingLink` | The Slot's booking link, from its `booking-deep-link` extension. |
 | `bookingPhone` | The number to book it by, from its `booking-phone` extension. |
-| `patientType` | Whom it accepts, from its `patient-type` extension: `newpt`, `existptonly` or `existptfam`. |
-| `virtual` | `true` when a Location's physical type is `vi`, `false` when one states another, `undefined` when none states one. |
+| `patientType` | Whom it accepts, from its `patient-type` extension, as one of HL7's four codes: `newpt`, `existptonly`, `existptfam` or `nopt` (the API never serves a `nopt` Slot). |
+| `virtual` | `true` when a Location's physical type is `vi`; `false` when one states another, since a physical type that is not virtual is physical; `undefined` when none states one. |
 
 Each list keeps the order the Schedule names them in, holds each resource once, and is empty when
 there is none: a Schedule may name a Location and no provider. The three extensions are read under
 SMART Scheduling Links 1.0.0's own URLs; the Slot itself keeps whatever its publisher sent. Nothing
-is fetched and nothing is replaced in place: a resource the page does not hold is left out, and
-`resolve()` finds anything else a reference names. A page searched without the includes holds no
-Schedule for its Slots, so `slotViews()` throws a `Haau3Error` saying to search with
-`searchSlotWithIncludes()`.
+is fetched and nothing is replaced in place. A resource the page does not hold is left out, and so
+is one of another type than the reference's element allows; a contained resource is found in the
+entry that contains it, as FHIR says. `resolve()` finds anything else a reference names.
 
-The helper takes every parameter `searchSlot()` takes but the includes, and sends nothing else, so
-the API's defaults hold: free Slots, from now. To send your own includes, call `searchSlot()`. A
-page's `next` link is followed with `pages()`, and `slotViews()` reads each page.
+`slotViews()` throws a `Haau3Error` in two cases. A Slot names a Schedule the page does not hold,
+which happens when the page was searched without its includes, so the message says to search with
+`searchSlotWithIncludes()`. Or, as `resolve()` does, two entries could each be the one a reference
+names.
+
+The helper takes `SearchSlotWithIncludesParams`: every parameter `searchSlot()` takes but the
+includes, which its types refuse, and it sends nothing else, so the API's defaults hold: free Slots,
+from now. To send your own includes, call `searchSlot()`. A page's `next` link is followed with
+`pages()`, and `slotViews()` reads each page.
 
 `searchScheduleWithIncludes()` and `scheduleViews()` do the same for the Schedule search: each
 matched Schedule with its `locations`, `practitionerRoles`, `practitioners`, `healthcareServices`

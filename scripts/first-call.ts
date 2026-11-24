@@ -7,8 +7,11 @@ import { SLOT_INCLUDES } from "../src/views.js";
 /** A parameter's values as a sorted list, so one value and a list of one compare equal. */
 const valuesOf = (value: unknown): string[] => (value === undefined ? [] : [value].flat().map(String).sort());
 
-export function firstCallParams(operationId: string, example: Record<string, unknown>): Record<string, unknown> {
-  const { _include: include, "_include:iterate": iterate, ...rest } = example;
+export function firstCallParams(operationId: string, example: unknown): Record<string, unknown> {
+  if (example === null || typeof example !== "object" || Array.isArray(example)) {
+    throw new Error(`${operationId}: the first call's example sends no query parameters.`);
+  }
+  const { _include: include, "_include:iterate": iterate, ...rest } = example as Record<string, unknown>;
   for (const [name, sent, wanted] of [
     ["_include", include, SLOT_INCLUDES._include],
     ["_include:iterate", iterate, SLOT_INCLUDES["_include:iterate"]],

@@ -1,4 +1,16 @@
-import type { Bundle, Extension, HealthcareService, Location, Practitioner, PractitionerRole, Schedule, Slot } from "fhir/r4.js";
+import type {
+  Bundle,
+  Extension,
+  FhirResource,
+  HealthcareService,
+  Location,
+  Practitioner,
+  PractitionerRole,
+  Reference,
+  Resource,
+  Schedule,
+  Slot,
+} from "fhir/r4.js";
 import { matchesIn, resolveIn } from "./bundles.js";
 import { Haau3Error } from "./errors.js";
 import type { QueryOf } from "./operations.js";
@@ -9,11 +21,19 @@ const BOOKING_DEEP_LINK = `${SMART_SCHEDULING_LINKS}booking-deep-link`;
 const BOOKING_PHONE = `${SMART_SCHEDULING_LINKS}booking-phone`;
 const PATIENT_TYPE = `${SMART_SCHEDULING_LINKS}patient-type`;
 
-/** HL7's code system for whom a provider accepts: `newpt`, `existptonly`, `existptfam`, `nopt`. */
+/** HL7's code system for whom a provider accepts, and its four codes. */
 const ACCEPTING_PATIENTS = "http://terminology.hl7.org/CodeSystem/accepting-patients";
+const PATIENT_TYPES = ["newpt", "existptonly", "existptfam", "nopt"] as const;
 
 /** HL7's code system for a Location's physical type, in which `vi` is a virtual location. */
 const LOCATION_PHYSICAL_TYPE = "http://terminology.hl7.org/CodeSystem/location-physical-type";
+
+/**
+ * Whom a Slot accepts, as HL7's `accepting-patients` code system names it: `newpt` new and existing
+ * patients, `existptonly` existing patients only, `existptfam` existing patients and their
+ * families, `nopt` none. The API never serves a `nopt` Slot.
+ */
+export type PatientType = (typeof PATIENT_TYPES)[number];
 
 /**
  * The includes {@link Haau3.searchSlotWithIncludes} sends: every one the Slot search serves, so each
@@ -31,9 +51,13 @@ export const SCHEDULE_INCLUDES = {
   "_include:iterate": ["PractitionerRole:practitioner", "HealthcareService:location"],
 } as const;
 
-type WithoutIncludes<Params> = Omit<Params, "_include" | "_include:iterate">;
+/** A search's parameters less its includes, which the helper sends itself, so the types refuse one. */
+type WithoutIncludes<Params> = Omit<Params, "_include" | "_include:iterate"> & { _include?: never; "_include:iterate"?: never };
 
-/** What {@link Haau3.searchSlotWithIncludes} takes: the Slot search's parameters, less its includes. */
+/**
+ * What {@link Haau3.searchSlotWithIncludes} takes: the Slot search's parameters, less its includes.
+ * A `SearchSlotParams` that may hold an include is refused by the types: build this one instead.
+ */
 export type SearchSlotWithIncludesParams = WithoutIncludes<QueryOf<"searchSlot">>;
 
 /** What {@link Haau3.searchScheduleWithIncludes} takes: the Schedule search's parameters, less its includes. */
@@ -60,8 +84,9 @@ export interface ScheduleView {
   healthcareServices: HealthcareService[];
   /**
    * Whether the place is virtual: true when any of `locations` has the physical type `vi`
-   * (`http://terminology.hl7.org/CodeSystem/location-physical-type`), false when one states a
-   * physical type and none is `vi`, and undefined when none states one. Never guessed.
+   * (`http://terminology.hl7.org/CodeSystem/location-physical-type`); false when one states a
+   * physical type and none is `vi`, since a physical type that is not virtual is physical; and
+   * undefined when none states one.
    */
   virtual: boolean | undefined;
 }
@@ -78,35 +103,58 @@ export interface SlotView extends ScheduleView {
   /** The phone number to book the Slot by: its `booking-phone` extension's value. */
   bookingPhone: string | undefined;
   /**
-   * Whom the Slot accepts, from its `patient-type` extension, as a code of
-   * `http://terminology.hl7.org/CodeSystem/accepting-patients`: `newpt` for new and existing
-   * patients, `existptonly` for existing ones, `existptfam` for existing ones and their families.
-   * Undefined when the Slot carries none, or one from another code system.
+   * Whom the Slot accepts, from its `patient-type` extension, as a code of HL7's
+   * `http://terminology.hl7.org/CodeSystem/accepting-patients`. Undefined when the Slot carries none,
+   * or one from another code system.
    */
-  patientType: string | undefined;
+  patientType: PatientType | undefined;
+}
+
+/** The Bundle entry a resource is held in: itself, or for a contained resource the one containing it. */
+type Holders = Map<Resource, Resource>;
+
+/**
+ * The resource a reference names, of one of `types`, found from `from` by FHIR's rules for a Bundle,
+ * with no request. A contained resource resolves from the entry that contains it, as FHIR says. A
+ * resource of another type than the element allows is left out, as one the page does not hold is.
+ */
+function follow<K extends FhirResource["resourceType"]>(
+  page: Bundle,
+  holders: Holders,
+  reference: Reference | undefined,
+  from: Resource,
+  types: readonly K[],
+): Extract<FhirResource, { resourceType: K }> | undefined {
+  const holder = holders.get(from) ?? from;
+  const found = resolveIn(page, reference, { from: holder });
+  if (found === undefined || !(types as readonly string[]).includes(found.resourceType)) return undefined;
+  if (!holders.has(found)) holders.set(found, reference?.reference?.startsWith("#") ? holder : found);
+  return found as Extract<FhirResource, { resourceType: K }>;
 }
 
 function once<T>(list: T[], item: T): void {
   if (!list.includes(item)) list.push(item);
 }
 
+const ACTOR_TYPES = ["Location", "PractitionerRole", "Practitioner", "HealthcareService"] as const;
+
 /** What a Schedule names and reaches in one page, found by FHIR's reference rules, with no request. */
-function reached(page: Bundle, schedule: Schedule): ScheduleView {
+function reached(page: Bundle, holders: Holders, schedule: Schedule): ScheduleView {
   const view: ScheduleView = { schedule, locations: [], practitionerRoles: [], practitioners: [], healthcareServices: [], virtual: undefined };
   for (const actor of schedule.actor ?? []) {
-    const found = resolveIn(page, actor, { from: schedule });
+    const found = follow(page, holders, actor, schedule, ACTOR_TYPES);
     if (found?.resourceType === "Location") once(view.locations, found);
     else if (found?.resourceType === "PractitionerRole") once(view.practitionerRoles, found);
     else if (found?.resourceType === "Practitioner") once(view.practitioners, found);
     else if (found?.resourceType === "HealthcareService") once(view.healthcareServices, found);
   }
   for (const role of view.practitionerRoles) {
-    const practitioner = resolveIn(page, role.practitioner, { from: role, type: "Practitioner" });
+    const practitioner = follow(page, holders, role.practitioner, role, ["Practitioner"]);
     if (practitioner) once(view.practitioners, practitioner);
   }
   for (const service of view.healthcareServices) {
     for (const reference of service.location ?? []) {
-      const location = resolveIn(page, reference, { from: service, type: "Location" });
+      const location = follow(page, holders, reference, service, ["Location"]);
       if (location) once(view.locations, location);
     }
   }
@@ -125,55 +173,59 @@ function virtualOf(locations: Location[]): boolean | undefined {
   return stated ? false : undefined;
 }
 
-function extension(slot: Slot, url: string): Extension | undefined {
-  return slot.extension?.find((one) => one.url === url);
+/** The value of the first extension under `url` that carries the value it is read for. */
+function extensionValue<T>(slot: Slot, url: string, read: (extension: Extension) => T | undefined): T | undefined {
+  for (const extension of slot.extension ?? []) {
+    if (extension.url !== url) continue;
+    const value = read(extension);
+    if (value !== undefined) return value;
+  }
+  return undefined;
 }
+
+const isPatientType = (code: string | undefined): code is PatientType => (PATIENT_TYPES as readonly (string | undefined)[]).includes(code);
 
 /**
  * Each Schedule a search page matched, with its Locations and provider; see
  * {@link Haau3.scheduleViews}.
  */
 export function scheduleViews(page: Bundle): ScheduleView[] {
-  return matchesIn(page, "Schedule").map((schedule) => reached(page, schedule));
+  const holders: Holders = new Map();
+  return matchesIn(page, "Schedule").map((schedule) => reached(page, holders, schedule));
 }
 
 /** Each Slot a search page matched, with its Schedule, Locations and provider; see {@link Haau3.slotViews}. */
 export function slotViews(page: Bundle): SlotView[] {
+  const holders: Holders = new Map();
   return matchesIn(page, "Slot").map((slot) => {
-    const schedule = resolveIn(page, slot.schedule, { from: slot, type: "Schedule" });
+    const schedule = follow(page, holders, slot.schedule, slot, ["Schedule"]);
     if (!schedule) {
       throw new Haau3Error(
-        "A Slot in this page names a Schedule the page does not hold, so the page was searched without its includes: " +
-          "search with searchSlotWithIncludes, or send _include=Slot:schedule.",
+        "A Slot in this page names a Schedule the page does not hold. Every Slot names one, and a search with its includes " +
+          "holds it: search with searchSlotWithIncludes, or send _include=Slot:schedule.",
       );
     }
-    const coding = extension(slot, PATIENT_TYPE)?.valueCoding;
     return {
       slot,
-      ...reached(page, schedule),
-      bookingLink: extension(slot, BOOKING_DEEP_LINK)?.valueUrl,
-      bookingPhone: extension(slot, BOOKING_PHONE)?.valueContactPoint?.value,
-      patientType: coding?.system === ACCEPTING_PATIENTS ? coding.code : undefined,
+      ...reached(page, holders, schedule),
+      bookingLink: extensionValue(slot, BOOKING_DEEP_LINK, (e) => e.valueUrl),
+      bookingPhone: extensionValue(slot, BOOKING_PHONE, (e) => e.valueContactPoint?.value),
+      patientType: extensionValue(slot, PATIENT_TYPE, (e) =>
+        e.valueCoding?.system === ACCEPTING_PATIENTS && isPatientType(e.valueCoding.code) ? e.valueCoding.code : undefined,
+      ),
     };
   });
 }
 
 /**
- * The parameters a helper sends: the caller's, then the includes. An include passed anyway, by code
- * the types do not reach, is refused rather than replaced, since the call would then answer
- * something other than what its caller wrote.
+ * Refuses an include passed to a helper anyway, from code the types do not check, rather than
+ * replacing it, since the call would then answer something other than what its caller wrote.
  */
-export function withIncludes<Params extends object, Includes extends object>(
-  helper: string,
-  plain: string,
-  params: Params | undefined,
-  includes: Includes,
-): Params & Includes {
+export function refuseIncludes(helper: string, plain: string, params: object | undefined): void {
   const given = (params ?? {}) as Record<string, unknown>;
   for (const name of ["_include", "_include:iterate"]) {
     if (given[name] !== undefined) {
       throw new Haau3Error(`${helper} sends every include its search serves, so it takes no ${name}: to send your own, call ${plain}.`);
     }
   }
-  return { ...(params as Params), ...includes };
 }

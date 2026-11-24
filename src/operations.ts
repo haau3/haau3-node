@@ -9,10 +9,9 @@ type ParametersOf<Op extends OperationId> = operations[Op]["parameters"];
 
 /**
  * A parameter the spec takes as a list, such as `_include`, takes one value as well: the query sends
- * one value and a list of one the same way, so `_include: "Slot:schedule"` needs no brackets. The
- * list may be read-only, such as one written `as const`.
+ * one value and a list of one the same way, so `_include: "Slot:schedule"` needs no brackets.
  */
-type OneOrMany<T> = T extends readonly (infer Item)[] ? Item | readonly Item[] : T;
+type OneOrMany<T> = T extends readonly (infer Item)[] ? Item | T : T;
 
 /** An operation's query parameters. A parameter that takes a list takes one value too. */
 export type QueryOf<Op extends OperationId> =

@@ -630,7 +630,7 @@ const FIRST_CALL = "searchSlot";
  * The example must send exactly the helper's includes (scripts/first-call.ts).
  */
 function firstCallSample(op: Operation): string {
-  const [example] = exampleArgs(op) as [Json];
+  const [example] = exampleArgs(op);
   const rest = firstCallParams(op.id, example);
   return program(
     op,

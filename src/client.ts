@@ -22,7 +22,7 @@ import {
   scheduleViews as scheduleViewsOf,
   SLOT_INCLUDES,
   slotViews as slotViewsOf,
-  withIncludes,
+  refuseIncludes,
   type ScheduleView,
   type SearchScheduleWithIncludesParams,
   type SearchSlotWithIncludesParams,
@@ -169,16 +169,20 @@ export class Haau3 extends Operations {
    * }
    * ```
    *
-   * An `_include` passed anyway is refused with a {@link Haau3Error}: to send your own, call
-   * {@link searchSlot}.
+   * The types take no `_include` or `_include:iterate`, and one passed anyway is refused with a
+   * {@link Haau3Error}, sending nothing: to send your own, call {@link searchSlot}.
    */
   searchSlotWithIncludes(params?: SearchSlotWithIncludesParams, options?: RequestOptions): APIPromise<ResponseOf<"searchSlot">> {
-    let query: QueryOf<"searchSlot">;
     try {
-      query = withIncludes("searchSlotWithIncludes", "searchSlot", params, SLOT_INCLUDES);
+      refuseIncludes("searchSlotWithIncludes", "searchSlot", params);
     } catch (error) {
       return new APIPromise<ResponseOf<"searchSlot">>(Promise.reject(error));
     }
+    const query: QueryOf<"searchSlot"> = {
+      ...params,
+      _include: SLOT_INCLUDES._include,
+      "_include:iterate": [...SLOT_INCLUDES["_include:iterate"]],
+    };
     return this.searchSlot(query, options);
   }
 
@@ -194,16 +198,20 @@ export class Haau3 extends Operations {
    * for (const view of haau3.scheduleViews(page)) console.log(view.practitioners[0]?.name?.[0]?.text, view.locations[0]?.name);
    * ```
    *
-   * An `_include` passed anyway is refused with a {@link Haau3Error}: to send your own, call
-   * {@link searchSchedule}.
+   * The types take no `_include` or `_include:iterate`, and one passed anyway is refused with a
+   * {@link Haau3Error}, sending nothing: to send your own, call {@link searchSchedule}.
    */
   searchScheduleWithIncludes(params?: SearchScheduleWithIncludesParams, options?: RequestOptions): APIPromise<ResponseOf<"searchSchedule">> {
-    let query: QueryOf<"searchSchedule">;
     try {
-      query = withIncludes("searchScheduleWithIncludes", "searchSchedule", params, SCHEDULE_INCLUDES);
+      refuseIncludes("searchScheduleWithIncludes", "searchSchedule", params);
     } catch (error) {
       return new APIPromise<ResponseOf<"searchSchedule">>(Promise.reject(error));
     }
+    const query: QueryOf<"searchSchedule"> = {
+      ...params,
+      _include: SCHEDULE_INCLUDES._include,
+      "_include:iterate": [...SCHEDULE_INCLUDES["_include:iterate"]],
+    };
     return this.searchSchedule(query, options);
   }
 

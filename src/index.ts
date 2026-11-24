@@ -55,6 +55,7 @@ export {
 export {
   scheduleViews,
   slotViews,
+  type PatientType,
   type ScheduleView,
   type SearchScheduleWithIncludesParams,
   type SearchSlotWithIncludesParams,
