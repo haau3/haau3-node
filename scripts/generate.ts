@@ -626,7 +626,8 @@ const FIRST_CALL = "searchSlot";
 /**
  * The first call: the slot search's example, which finds a provider's open slots by NPI, sent through
  * searchSlotWithIncludes, with the first slot it found printed through its slot view: when it starts,
- * who, where and how to book. A search that finds nothing says so, rather than printing `undefined`.
+ * who (the name's text, or its given and family names when the publisher sent no text), where and
+ * how to book. A search that finds nothing says so, rather than printing `undefined`.
  * The example must send exactly the helper's includes (scripts/first-call.ts).
  */
 function firstCallSample(op: Operation): string {
@@ -639,11 +640,13 @@ function firstCallSample(op: Operation): string {
       "// Open appointment slots of one provider, found by NPI, each with its schedule, location and provider.",
       callLine("", "const page = await haau3.searchSlotWithIncludes", [rest], ";"),
       "const [view] = haau3.slotViews(page);",
+      "// A name's text, or its given and family names when the publisher sent no text.",
+      "const name = view?.practitioners[0]?.name?.[0];",
       "console.log(",
       "  view",
       "    ? {",
       "        start: view.slot.start,",
-      "        practitioner: view.practitioners[0]?.name?.[0]?.text,",
+      '        practitioner: name?.text ?? [name?.given?.join(" "), name?.family].filter(Boolean).join(" "),',
       "        location: view.locations[0]?.name,",
       "        bookingLink: view.bookingLink,",
       "      }",

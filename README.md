@@ -53,11 +53,13 @@ const page = await haau3.searchSlotWithIncludes({
   _count: 1,
 });
 const [view] = haau3.slotViews(page);
+// A name's text, or its given and family names when the publisher sent no text.
+const name = view?.practitioners[0]?.name?.[0];
 console.log(
   view
     ? {
         start: view.slot.start,
-        practitioner: view.practitioners[0]?.name?.[0]?.text,
+        practitioner: name?.text ?? [name?.given?.join(" "), name?.family].filter(Boolean).join(" "),
         location: view.locations[0]?.name,
         bookingLink: view.bookingLink,
       }
@@ -353,6 +355,27 @@ for await (const page of haau3.pages(first)) {
 }
 ```
 
+When the next page is asked for in a later request, as a web page's "Load more" does, there is no
+page to hand `pages()`. `nextCursor()` reads the cursor from a page's `next` link, with no request,
+and a search takes it back as `page`:
+
+```ts
+// The search, kept as it was first sent: the cursor belongs to it.
+const search = { status: "free", start: ["ge2026-12-01T00:00:00Z", "lt2026-12-04T00:00:00Z"], "location-address-state": "TX" };
+
+const first = await haau3.searchSlotWithIncludes(search);
+const cursor = haau3.nextCursor(first); // undefined on the last page
+
+// Later, in another request:
+const second = await haau3.searchSlotWithIncludes({ ...search, page: cursor });
+```
+
+Send the cursor with every other parameter exactly as before, or the API refuses it with a `400`.
+A parameter the API fills in for you is part of the search too, as the page's `self` link shows, so
+send it yourself when you will page this way: for a Slot search, `status` and `start`, whose
+defaults are free Slots from the moment of the first request. The plain function `nextCursor()`
+does the same with no client.
+
 `resources()` yields every resource the search found, across every page:
 
 ```ts
@@ -401,7 +424,8 @@ FHIR resource the API served:
 const page = await haau3.searchSlotWithIncludes({ "location-address-state": "MA", _count: 10 });
 
 for (const view of haau3.slotViews(page)) {
-  const who = view.practitioners[0]?.name?.[0]?.text ?? view.healthcareServices[0]?.name;
+  const name = view.practitioners[0]?.name?.[0];
+  const who = name?.text ?? ([name?.given?.join(" "), name?.family].filter(Boolean).join(" ") || view.healthcareServices[0]?.name);
   console.log(view.slot.start, who, view.locations[0]?.name, view.bookingLink ?? view.bookingPhone);
 }
 ```
