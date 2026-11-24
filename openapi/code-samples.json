@@ -2,70 +2,10 @@
   "overlay": "1.2.0",
   "info": {
     "title": "TypeScript samples for every operation of the haau3 platform API",
-    "version": "1.0.0-preview.36"
+    "version": "1.0.0-preview.39"
   },
   "extends": "https://api.haau3.com/openapi.json",
   "actions": [
-    {
-      "target": "$.paths['/v1/scheduling/provider-locations'].get",
-      "update": {
-        "x-codeSamples": [
-          {
-            "lang": "typescript",
-            "label": "TypeScript",
-            "source": "import { Haau3 } from \"@haau3/sdk\";\n\nconst haau3 = new Haau3(); // reads HAAU3_API_KEY\nconst found = await haau3.searchProviderLocations({ publisher: \"haau3\", limit: 1 });\nconsole.log(found.total);\n"
-          }
-        ]
-      }
-    },
-    {
-      "target": "$.paths['/v1/scheduling/slots'].get",
-      "update": {
-        "x-codeSamples": [
-          {
-            "lang": "typescript",
-            "label": "TypeScript",
-            "source": "import { Haau3 } from \"@haau3/sdk\";\n\nconst haau3 = new Haau3(); // reads HAAU3_API_KEY\n// Open appointment slots, here in Cambridge.\nconst { slots } = await haau3.searchSlots({ city: \"Cambridge\", state: \"MA\", limit: 1 });\nconsole.log(slots[0] ?? \"No open slots matched.\");\n"
-          }
-        ]
-      }
-    },
-    {
-      "target": "$.paths['/v1/scheduling/publishers'].get",
-      "update": {
-        "x-codeSamples": [
-          {
-            "lang": "typescript",
-            "label": "TypeScript",
-            "source": "import { Haau3 } from \"@haau3/sdk\";\n\nconst haau3 = new Haau3(); // reads HAAU3_API_KEY\nconst found = await haau3.listPublishers();\nconsole.log(found.publishers.length);\n"
-          }
-        ]
-      }
-    },
-    {
-      "target": "$.paths['/v1/scheduling/service-types'].get",
-      "update": {
-        "x-codeSamples": [
-          {
-            "lang": "typescript",
-            "label": "TypeScript",
-            "source": "import { Haau3 } from \"@haau3/sdk\";\n\nconst haau3 = new Haau3(); // reads HAAU3_API_KEY\nconst found = await haau3.listServiceTypes();\nconsole.log(found.serviceTypes.length);\n"
-          }
-        ]
-      }
-    },
-    {
-      "target": "$.paths['/v1/scheduling/specialties'].get",
-      "update": {
-        "x-codeSamples": [
-          {
-            "lang": "typescript",
-            "label": "TypeScript",
-            "source": "import { Haau3 } from \"@haau3/sdk\";\n\nconst haau3 = new Haau3(); // reads HAAU3_API_KEY\nconst found = await haau3.listSpecialties();\nconsole.log(found.specialties.length);\n"
-          }
-        ]
-      }
-    },
     {
       "target": "$.paths['/v1/fhir/r4/metadata'].get",
       "update": {
@@ -86,6 +26,54 @@
             "lang": "typescript",
             "label": "TypeScript",
             "source": "import { Haau3 } from \"@haau3/sdk\";\n\nconst haau3 = new Haau3(); // reads HAAU3_API_KEY\nconst results = await haau3.batch((b) => [\n  b.codeSystemLookup({ system: \"http://loinc.org\", code: \"2345-7\", property: \"SHORTNAME\" }),\n  b.codeSystemLookup({ system: \"http://loinc.org\", code: \"8867-4\", property: \"SHORTNAME\" }),\n  b.listInsurancePlanCounties({ state: \"DE\" }),\n]);\nfor (const result of results) console.log(result.ok ? result.status : result.error.message);\n"
+          }
+        ]
+      }
+    },
+    {
+      "target": "$.paths['/v1/fhir/r4/Slot'].get",
+      "update": {
+        "x-codeSamples": [
+          {
+            "lang": "typescript",
+            "label": "TypeScript",
+            "source": "import { Haau3 } from \"@haau3/sdk\";\n\nconst haau3 = new Haau3(); // reads HAAU3_API_KEY\nconst bundle = await haau3.searchSlot({\n  \"provider-identifier\": \"http://hl7.org/fhir/sid/us-npi|2900000227\",\n  _include: \"Slot:schedule\",\n  \"_include:iterate\": [\"Schedule:actor\", \"PractitionerRole:practitioner\"],\n  _count: 1,\n});\nconsole.log(bundle.entry?.length ?? 0);\n"
+          }
+        ]
+      }
+    },
+    {
+      "target": "$.paths['/v1/fhir/r4/Slot/{id}'].get",
+      "update": {
+        "x-codeSamples": [
+          {
+            "lang": "typescript",
+            "label": "TypeScript",
+            "source": "import { Haau3 } from \"@haau3/sdk\";\n\nconst haau3 = new Haau3(); // reads HAAU3_API_KEY\nconst slot = await haau3.readSlot(\"b12a0a00667b5e27ac040aa56d5d7c69\");\nconsole.log(slot.id);\n"
+          }
+        ]
+      }
+    },
+    {
+      "target": "$.paths['/v1/fhir/r4/Schedule'].get",
+      "update": {
+        "x-codeSamples": [
+          {
+            "lang": "typescript",
+            "label": "TypeScript",
+            "source": "import { Haau3 } from \"@haau3/sdk\";\n\nconst haau3 = new Haau3(); // reads HAAU3_API_KEY\nconst bundle = await haau3.searchSchedule({\n  \"provider-identifier\": \"http://hl7.org/fhir/sid/us-npi|2900000227\",\n  _include: \"Schedule:actor\",\n  \"_include:iterate\": \"PractitionerRole:practitioner\",\n});\nconsole.log(bundle.entry?.length ?? 0);\n"
+          }
+        ]
+      }
+    },
+    {
+      "target": "$.paths['/v1/fhir/r4/Schedule/{id}'].get",
+      "update": {
+        "x-codeSamples": [
+          {
+            "lang": "typescript",
+            "label": "TypeScript",
+            "source": "import { Haau3 } from \"@haau3/sdk\";\n\nconst haau3 = new Haau3(); // reads HAAU3_API_KEY\nconst schedule = await haau3.readSchedule(\"e859c18cc8cc1a6ab1c9b7b63c5c60a1\");\nconsole.log(schedule.id);\n"
           }
         ]
       }

@@ -18,6 +18,8 @@ import type {
   SearchPractitionerParams,
   SearchPractitionerRoleParams,
   SearchQuestionnaireParams,
+  SearchScheduleParams,
+  SearchSlotParams,
   ValueSetExpandParams,
   ValueSetValidateCodeParams,
 } from "./types.js";
@@ -173,6 +175,24 @@ export class BatchBuilder {
   }
 
   /**
+   * Read a schedule, as one entry of a batch. Called as `Haau3.readSchedule` is.
+   *
+   * `GET /v1/fhir/r4/Schedule/{id}`
+   */
+  readSchedule(id: string): BatchEntry<ResponseOf<"readSchedule">> {
+    return entry<ResponseOf<"readSchedule">>({ method: "GET", path: "/v1/fhir/r4/Schedule/{id}", pathParams: { id }, expects: ["Schedule"] });
+  }
+
+  /**
+   * Read a slot, as one entry of a batch. Called as `Haau3.readSlot` is.
+   *
+   * `GET /v1/fhir/r4/Slot/{id}`
+   */
+  readSlot(id: string): BatchEntry<ResponseOf<"readSlot">> {
+    return entry<ResponseOf<"readSlot">>({ method: "GET", path: "/v1/fhir/r4/Slot/{id}", pathParams: { id }, expects: ["Slot"] });
+  }
+
+  /**
    * Find endpoints, as one entry of a batch. Called as `Haau3.searchEndpoint` is.
    *
    * `GET /v1/fhir/r4/Endpoint`
@@ -251,6 +271,24 @@ export class BatchBuilder {
    */
   searchQuestionnaire(params?: SearchQuestionnaireParams): BatchEntry<ResponseOf<"searchQuestionnaire">> {
     return entry<ResponseOf<"searchQuestionnaire">>({ method: "GET", path: "/v1/fhir/r4/Questionnaire", query: params, expects: ["Bundle"] });
+  }
+
+  /**
+   * Find schedules, as one entry of a batch. Called as `Haau3.searchSchedule` is.
+   *
+   * `GET /v1/fhir/r4/Schedule`
+   */
+  searchSchedule(params?: SearchScheduleParams): BatchEntry<ResponseOf<"searchSchedule">> {
+    return entry<ResponseOf<"searchSchedule">>({ method: "GET", path: "/v1/fhir/r4/Schedule", query: params, expects: ["Bundle"] });
+  }
+
+  /**
+   * Find slots, as one entry of a batch. Called as `Haau3.searchSlot` is.
+   *
+   * `GET /v1/fhir/r4/Slot`
+   */
+  searchSlot(params?: SearchSlotParams): BatchEntry<ResponseOf<"searchSlot">> {
+    return entry<ResponseOf<"searchSlot">>({ method: "GET", path: "/v1/fhir/r4/Slot", query: params, expects: ["Bundle"] });
   }
 
   /**

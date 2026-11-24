@@ -3,106 +3,6 @@
 
 import type * as fhir4 from "fhir/r4.js";
 export interface paths {
-    "/v1/scheduling/provider-locations": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Search provider locations
-         * @description Returns the matching slots grouped by provider location: each item in `providerLocations` is one provider at one location, or a location with no provider, with its total slot count and soonest availability, paginated by provider location. Its opaque `key` drills down to its individual slots via `GET /v1/scheduling/slots?providerLocationKey=<key>`. Same filters as `/slots`. Requires a valid API key.
-         */
-        get: operations["searchProviderLocations"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/scheduling/slots": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Search appointment slots
-         * @description Returns provider availability slots matching the filters, with pagination. Requires a valid API key.
-         */
-        get: operations["searchSlots"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/scheduling/publishers": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List scheduling publishers
-         * @description Returns the SMART Scheduling Links publishers (sources) the platform ingests. Requires a valid API key.
-         */
-        get: operations["listPublishers"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/scheduling/service-types": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List service types
-         * @description Returns the distinct service types observed across served slots, each with its `system` and a `count` of the slots carrying it. It is a discovery aid for the `serviceTypeCode` filter on `GET /v1/scheduling/slots`. Requires a valid API key.
-         */
-        get: operations["listServiceTypes"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/scheduling/specialties": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List specialties
-         * @description Returns the distinct specialties observed across served slots, from the provider's `specialties` and the schedule's, each with its `system` and a `count` of the slots carrying it. It is a discovery aid for the `specialty` filter on `GET /v1/scheduling/slots`. Codes are each publisher's own. Requires a valid API key.
-         */
-        get: operations["listSpecialties"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/v1/fhir/r4/metadata": {
         parameters: {
             query?: never;
@@ -137,6 +37,94 @@ export interface paths {
          * @description POST a FHIR `Bundle` with `type: batch` to send several requests in one round trip. Each entry's `request.url` is relative to this base and may be any read, search or operation of any service on it, except `$reconcile-medications` and `$process-message`, which a batch refuses by name: each is marked `x-haau3-batchable: false`, the one place this document says an operation cannot go in a batch. Entries are independent: one that fails, such as a lookup of an unknown code, does not fail the others, and each carries its own status in the `batch-response`. For example, a batch of 50 terminology lookups measured about 4.8 ms per code, against 181 ms each when sent one at a time. Transaction bundles are not accepted: nothing on this base writes, so all or nothing would only turn one bad entry into a wholly failed request. A batch carries at most 100 entries in at most 1 MiB, and has 60 seconds: an entry still running then answers `504` inside the `200`. See https://docs.haau3.com/errors#limits.
          */
         post: operations["fhirBatch"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/fhir/r4/Slot": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Find slots
+         * @description Search open appointment slots from SMART Scheduling Links publishers. The answer is a FHIR `searchset` Bundle whose matches are Slots, each as its publisher published it (the guide's Slot profile), in order of start and then id. Each Slot's Schedule, and the Schedule's Location and provider, come in the same Bundle when asked for: `_include=Slot:schedule`, then `_include:iterate=Schedule:actor`, `_include:iterate=PractitionerRole:practitioner` and `_include:iterate=HealthcareService:location`. Each included resource comes once, and `total` counts the Slots only.
+         *
+         *     With no `status` a search returns `free` Slots, and with no `start` Slots starting from now; the `self` link shows both as applied. A Slot marked as not accepting patients is never served. Follow the `next` link to continue: its cursor belongs to the one search.
+         *
+         *     Every other parameter is refused by name rather than ignored, so a search never quietly answers a different question than the one asked. `_sort`, `_total`, `_summary`, `_elements` and `_revinclude` are not served.
+         */
+        get: operations["searchSlot"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/fhir/r4/Slot/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read a slot
+         * @description Read one Slot by its id, as a search's `fullUrl` names it: 32 hexadecimal characters. A Slot is served while its publisher lists it, whatever its status or start; one marked as not accepting patients is never served.
+         */
+        get: operations["readSlot"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/fhir/r4/Schedule": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Find schedules
+         * @description Search the Schedules of SMART Scheduling Links publishers: each the provider, the place and the service a publisher's Slots belong to. The answer is a FHIR `searchset` Bundle whose matches are Schedules, each as its publisher published it (the guide's Schedule profile), in order of id. Each Schedule's Location and provider come in the same Bundle when asked for: `_include=Schedule:actor`, then `_include:iterate=PractitionerRole:practitioner` and `_include:iterate=HealthcareService:location`. Each included resource comes once, and `total` counts the Schedules only.
+         *
+         *     A Schedule search does not reach its Slots: a Schedule matches whether or not it has a free Slot ahead, and nothing here filters by a Slot's time, status or patient type. To find open Slots, search Slots, with `_include=Slot:schedule` for each one's Schedule. Follow the `next` link to continue: its cursor belongs to the one search.
+         *
+         *     Every other parameter is refused by name rather than ignored, so a search never quietly answers a different question than the one asked. `_sort`, `_total`, `_summary`, `_elements` and `_revinclude` are not served.
+         */
+        get: operations["searchSchedule"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/fhir/r4/Schedule/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read a schedule
+         * @description Read one Schedule by its id, as a Slot's `schedule` reference or a Schedule search's `fullUrl` names it: 32 hexadecimal characters. A Schedule is the provider, the place and the service a publisher's Slots belong to; it names its Location and its provider, each read here by id too.
+         */
+        get: operations["readSchedule"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -273,6 +261,8 @@ export interface paths {
         /**
          * Read a Practitioner
          * @description Read one practitioner by id, as returned by a search on this service.
+         *
+         *     A scheduling publisher's Practitioner is read here too, by its id: `Practitioner-scheduling-` and 32 hexadecimal characters, as a Slot or Schedule search's included resources carry it. It is answered from the scheduling publishers' feeds, served as the publisher published it with `meta.source` and `lastSourceSync`, and is not found by a search of this type.
          */
         get: operations["readPractitioner"];
         put?: never;
@@ -317,6 +307,8 @@ export interface paths {
         /**
          * Read a PractitionerRole
          * @description Read one practitioner role by id, as returned by a search on this service.
+         *
+         *     A scheduling publisher's PractitionerRole is read here too, by its id: `PractitionerRole-scheduling-` and 32 hexadecimal characters, as a Slot or Schedule search's included resources carry it. It is answered from the scheduling publishers' feeds, served as the publisher published it with `meta.source` and `lastSourceSync`, and is not found by a search of this type.
          */
         get: operations["readPractitionerRole"];
         put?: never;
@@ -447,6 +439,8 @@ export interface paths {
         /**
          * Read a HealthcareService
          * @description Read one healthcare service by id, as returned by a search on this service. A pharmacy service's id (`HealthcareService-pharmacy-{NPI}`) is read back from NPPES.
+         *
+         *     A scheduling publisher's HealthcareService is read here too, by its id: `HealthcareService-scheduling-` and 32 hexadecimal characters, as a Slot or Schedule search's included resources carry it. It is answered from the scheduling publishers' feeds, served as the publisher published it with `meta.source` and `lastSourceSync`, and is not found by a search of this type.
          */
         get: operations["readHealthcareService"];
         put?: never;
@@ -487,6 +481,8 @@ export interface paths {
         /**
          * Read a Location
          * @description Read one location by id, as returned by a search on this service. A pharmacy's store (`Location-pharmacy-{NPI}`, from a pharmacy search on `HealthcareService`) is read back from NPPES.
+         *
+         *     A scheduling publisher's Location is read here too, by its id: `Location-scheduling-` and 32 hexadecimal characters, as a Slot or Schedule search's included resources carry it. It is answered from the scheduling publishers' feeds, served as the publisher published it with `meta.source` and `lastSourceSync`, and is not found by a search of this type.
          */
         get: operations["readLocation"];
         put?: never;
@@ -779,214 +775,6 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
-        Problem: {
-            /**
-             * Format: uri
-             * @description What kind of problem this is: an anchor on https://docs.haau3.com/errors.
-             * @example https://docs.haau3.com/errors#invalid-request
-             */
-            type: string;
-            /** @description A short summary, the same for every occurrence of the type. */
-            title: string;
-            /** @description The HTTP status code of this response. */
-            status: number;
-            /** @description What went wrong this time, and how to correct it. */
-            detail: string;
-            /**
-             * Format: uri
-             * @description This request's id as `urn:uuid:<id>`, the same id as the `X-Request-Id` header.
-             * @example urn:uuid:0b6f2d4e-8c1a-4e3b-9f5d-2a7c6e1b4d90
-             */
-            instance: string;
-            /**
-             * @description On a 403: why, as a code from `https://haau3.com/fhir/CodeSystem/api-error`, the same one an OperationOutcome carries in `issue.details.coding`.
-             * @example test-key-outside-sandbox
-             */
-            code?: string;
-            /** @description On a 400: one entry per parameter that is not valid. */
-            issues?: components["schemas"]["ProblemIssue"][];
-        };
-        ProblemIssue: {
-            /** @description The parameter, or the field within it, that is not valid. */
-            path: (string | number)[];
-            /** @description Why it is not valid. */
-            message: string;
-        };
-        SchedulingSlot: {
-            id: string;
-            publisher: string;
-            scheduleId: string;
-            /** @enum {string} */
-            status: "free" | "busy" | "busy-unavailable" | "busy-tentative";
-            /** Format: date-time */
-            start: string;
-            /** Format: date-time */
-            end: string;
-            serviceTypeCode?: string;
-            serviceTypeText?: string;
-            serviceTypes?: {
-                system?: string;
-                code?: string;
-                display?: string;
-            }[];
-            specialties?: {
-                system?: string;
-                code?: string;
-                display?: string;
-            }[];
-            appointmentType?: string;
-            /** @enum {string} */
-            acceptingPatients?: "nopt" | "newpt" | "existptonly" | "existptfam";
-            isVirtual?: boolean;
-            /** Format: uri */
-            bookingDeepLink?: string;
-            bookingPhone?: string;
-            location?: {
-                id?: string;
-                identifier?: {
-                    system?: string;
-                    value: string;
-                }[];
-                name?: string;
-                phone?: string[];
-                website?: string[];
-                addressLine?: string[];
-                city?: string;
-                state?: string;
-                postalCode?: string;
-                physicalType?: {
-                    system?: string;
-                    code: string;
-                };
-                description?: string;
-                position?: {
-                    latitude: number;
-                    longitude: number;
-                };
-            };
-            provider?: {
-                id?: string;
-                identifier?: {
-                    system?: string;
-                    value: string;
-                }[];
-                /** @enum {string} */
-                type?: "practitioner" | "practitioner-role" | "healthcare-service";
-                name?: string;
-                specialty?: string;
-                specialties?: {
-                    system?: string;
-                    code?: string;
-                    display?: string;
-                }[];
-            };
-            source?: {
-                publisher: string;
-                resourceId: string;
-                /** Format: date-time */
-                transactionTime: string;
-                /** Format: date-time */
-                syncedAt: string;
-            };
-        };
-        SchedulingProviderLocation: {
-            key: string;
-            publisher: string;
-            provider?: {
-                id?: string;
-                identifier?: {
-                    system?: string;
-                    value: string;
-                }[];
-                /** @enum {string} */
-                type?: "practitioner" | "practitioner-role" | "healthcare-service";
-                name?: string;
-                specialty?: string;
-                specialties?: {
-                    system?: string;
-                    code?: string;
-                    display?: string;
-                }[];
-                npi?: string;
-            };
-            location?: {
-                id?: string;
-                identifier?: {
-                    system?: string;
-                    value: string;
-                }[];
-                name?: string;
-                phone?: string[];
-                website?: string[];
-                addressLine?: string[];
-                city?: string;
-                state?: string;
-                postalCode?: string;
-                physicalType?: {
-                    system?: string;
-                    code: string;
-                };
-                description?: string;
-                position?: {
-                    latitude: number;
-                    longitude: number;
-                };
-            };
-            serviceTypes: {
-                system?: string;
-                code?: string;
-                display?: string;
-            }[];
-            specialties: {
-                system?: string;
-                code?: string;
-                display?: string;
-            }[];
-            /** @enum {string} */
-            bookingMethod: "online" | "phone" | "contact";
-            isVirtual?: boolean;
-            /** @enum {string} */
-            acceptingPatients?: "nopt" | "newpt" | "existptonly" | "existptfam";
-            /** Format: date-time */
-            nextAvailableStart?: string;
-            totalSlots: number;
-        };
-        SchedulingPublisher: {
-            slug: string;
-            displayName: string;
-            /** Format: uri */
-            manifestUrl: string;
-            enabled: boolean;
-        };
-        SchedulingServiceType: {
-            system?: string;
-            code?: string;
-            display?: string;
-            count: number;
-        };
-        SchedulingSpecialty: {
-            system?: string;
-            code?: string;
-            display?: string;
-            count: number;
-        };
-        SearchSlotsResponse: {
-            slots: components["schemas"]["SchedulingSlot"][];
-            total: number;
-        };
-        SearchProviderLocationsResponse: {
-            providerLocations: components["schemas"]["SchedulingProviderLocation"][];
-            total: number;
-        };
-        ListPublishersResponse: {
-            publishers: components["schemas"]["SchedulingPublisher"][];
-        };
-        ListServiceTypesResponse: {
-            serviceTypes: components["schemas"]["SchedulingServiceType"][];
-        };
-        ListSpecialtiesResponse: {
-            specialties: components["schemas"]["SchedulingSpecialty"][];
-        };
         /** @description A FHIR R4 [OperationOutcome](https://hl7.org/fhir/R4/operationoutcome.html). */
         OperationOutcome: fhir4.OperationOutcome;
         /** @description A FHIR R4 [Bundle](https://hl7.org/fhir/R4/bundle.html). */
@@ -1017,21 +805,12 @@ export interface components {
         Questionnaire: fhir4.Questionnaire;
         /** @description A FHIR R4 [InsurancePlan](https://hl7.org/fhir/R4/insuranceplan.html). */
         InsurancePlan: fhir4.InsurancePlan;
+        /** @description A FHIR R4 [Slot](https://hl7.org/fhir/R4/slot.html). */
+        Slot: fhir4.Slot;
+        /** @description A FHIR R4 [Schedule](https://hl7.org/fhir/R4/schedule.html). */
+        Schedule: fhir4.Schedule;
     };
     responses: {
-        /** @description Missing or invalid API key. */
-        ProblemUnauthorized: {
-            headers: {
-                /** @description The scheme to authenticate with: `Bearer realm="api.haau3.com"`, with `error="invalid_token"` when a key was sent and not recognised. */
-                "WWW-Authenticate"?: string;
-                "X-Request-Id": components["headers"]["XRequestId"];
-                "X-Correlation-Id": components["headers"]["XCorrelationId"];
-                [name: string]: unknown;
-            };
-            content: {
-                "application/problem+json": components["schemas"]["Problem"];
-            };
-        };
         /** @description Missing or invalid API key. */
         FhirUnauthorized: {
             headers: {
@@ -1043,17 +822,6 @@ export interface components {
             };
             content: {
                 "application/fhir+json": components["schemas"]["OperationOutcome"];
-            };
-        };
-        /** @description The request's `Accept` header admits no JSON. */
-        ProblemNotAcceptable: {
-            headers: {
-                "X-Request-Id": components["headers"]["XRequestId"];
-                "X-Correlation-Id": components["headers"]["XCorrelationId"];
-                [name: string]: unknown;
-            };
-            content: {
-                "application/problem+json": components["schemas"]["Problem"];
             };
         };
         /** @description The request asked for a format other than JSON (`Accept` or `_format`), or for a FHIR release this endpoint does not serve (the `fhirVersion` media-type parameter). */
@@ -1068,17 +836,6 @@ export interface components {
             };
         };
         /** @description The request body was not sent as JSON: send `Content-Type: application/fhir+json`. */
-        ProblemUnsupportedMediaType: {
-            headers: {
-                "X-Request-Id": components["headers"]["XRequestId"];
-                "X-Correlation-Id": components["headers"]["XCorrelationId"];
-                [name: string]: unknown;
-            };
-            content: {
-                "application/problem+json": components["schemas"]["Problem"];
-            };
-        };
-        /** @description The request body was not sent as JSON: send `Content-Type: application/fhir+json`. */
         FhirUnsupportedMediaType: {
             headers: {
                 "X-Request-Id": components["headers"]["XRequestId"];
@@ -1087,19 +844,6 @@ export interface components {
             };
             content: {
                 "application/fhir+json": components["schemas"]["OperationOutcome"];
-            };
-        };
-        /** @description A limit of the organization's plan was reached: its requests a minute, or the Developer plan's requests a month. Send the request again after `Retry-After`, which for the monthly limit runs to the 1st of the next month (UTC). */
-        ProblemTooManyRequests: {
-            headers: {
-                /** @description How many seconds to wait before sending the request again. */
-                "Retry-After"?: number;
-                "X-Request-Id": components["headers"]["XRequestId"];
-                "X-Correlation-Id": components["headers"]["XCorrelationId"];
-                [name: string]: unknown;
-            };
-            content: {
-                "application/problem+json": components["schemas"]["Problem"];
             };
         };
         /** @description A limit of the organization's plan was reached: its requests a minute, or the Developer plan's requests a month. Send the request again after `Retry-After`, which for the monthly limit runs to the 1st of the next month (UTC). */
@@ -1116,17 +860,6 @@ export interface components {
             };
         };
         /** @description The server failed to process this request. */
-        ProblemServerError: {
-            headers: {
-                "X-Request-Id": components["headers"]["XRequestId"];
-                "X-Correlation-Id": components["headers"]["XCorrelationId"];
-                [name: string]: unknown;
-            };
-            content: {
-                "application/problem+json": components["schemas"]["Problem"];
-            };
-        };
-        /** @description The server failed to process this request. */
         FhirServerError: {
             headers: {
                 "X-Request-Id": components["headers"]["XRequestId"];
@@ -1135,19 +868,6 @@ export interface components {
             };
             content: {
                 "application/fhir+json": components["schemas"]["OperationOutcome"];
-            };
-        };
-        /** @description The API key could not be checked just now. Send the request again after `Retry-After`. */
-        ProblemUnavailable: {
-            headers: {
-                /** @description How many seconds to wait before sending the request again. */
-                "Retry-After"?: number;
-                "X-Request-Id": components["headers"]["XRequestId"];
-                "X-Correlation-Id": components["headers"]["XCorrelationId"];
-                [name: string]: unknown;
-            };
-            content: {
-                "application/problem+json": components["schemas"]["Problem"];
             };
         };
         /** @description The API key could not be checked just now. Send the request again after `Retry-After`. */
@@ -1176,19 +896,6 @@ export interface components {
                 "application/fhir+json": components["schemas"]["OperationOutcome"];
             };
         };
-        /** @description A test key (`haau3_sk_test_…`) works only in the Sandbox, so one sent here is refused before the request runs, with the problem's `code` `test-key-outside-sandbox`. Send a live key. */
-        ProblemForbiddenTestKey: {
-            headers: {
-                /** @description Sent when the API key works only in the other mode: `Bearer realm="api.haau3.com", error="insufficient_scope"`. */
-                "WWW-Authenticate"?: string;
-                "X-Request-Id": components["headers"]["XRequestId"];
-                "X-Correlation-Id": components["headers"]["XCorrelationId"];
-                [name: string]: unknown;
-            };
-            content: {
-                "application/problem+json": components["schemas"]["Problem"];
-            };
-        };
         /** @description A live key (`haau3_sk_live_…`) does not work in the Sandbox, so one sent here is refused before the request runs: coded `forbidden`, with `live-key-in-sandbox` from `https://haau3.com/fhir/CodeSystem/api-error` in `issue.details.coding`. Send a test key. */
         FhirForbiddenLiveKey: {
             headers: {
@@ -1209,7 +916,7 @@ export interface components {
     };
     requestBodies: never;
     headers: {
-        /** @description The id haau3 gave this request, a UUID, on every response. Quote it in a question about the response. A problem carries the same id as its `instance`. */
+        /** @description The id haau3 gave this request, a UUID, on every response. Quote it in a question about the response. */
         XRequestId: string;
         /** @description The `X-Request-Id` you sent, when it was a UUID. */
         XCorrelationId: string;
@@ -1218,361 +925,6 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    searchProviderLocations: {
-        parameters: {
-            query?: {
-                /** @description Slot availability state to return. Defaults to `free`. */
-                status?: "free" | "busy" | "busy-unavailable" | "busy-tentative";
-                /**
-                 * @description Filter to a single publisher (source) by slug, such as `zocdoc` or `defacto`. See `GET /v1/scheduling/publishers` for the available slugs.
-                 * @example haau3
-                 */
-                publisher?: string;
-                /** @description Filter by service type code (as published by the source). A slot matches when any of its `serviceTypes` carries the code. A comma-separated list (up to 100) matches a slot carrying any of them. */
-                serviceTypeCode?: string;
-                /** @description Filter by the provider's National Provider Identifier: a clinician's, or an organization's when a healthcare service is the provider. Ten digits; a comma-separated list (up to 100) matches a slot whose provider carries any of them. Matched as the publisher sent it, in either NPI identifier system, across every publisher. */
-                npi?: string;
-                /** @description Filter by specialty: a slot matches when its provider's `specialties` or its schedule's `specialties` carry the code. Send `code` to match it in any code system, or `system|code` to match it in that system only. Codes are each publisher's own and are not translated between code systems, so one code finds the publishers that use it; `GET /v1/scheduling/specialties` lists them. A specialty sent as text only cannot be matched. A comma-separated list (up to 100) matches any of them. */
-                specialty?: string;
-                /** @description Filter by appointment type. */
-                appointmentType?: string;
-                /** @description Filter to slots accepting patients of this kind (HL7 `accepting-patients` CodeSystem: `newpt` | `existptonly` | `existptfam`). Slots marked `nopt` (not accepting patients) are never served, so `nopt` is not a valid filter value. Lenient: a slot that does not declare an accepting-patients code matches any value (absence never hides a slot); a slot that declares one must equal the requested value. */
-                acceptingPatients?: "newpt" | "existptonly" | "existptfam";
-                /** @description Filter to virtual (`true`) or in-person (`false`) slots. */
-                isVirtual?: boolean;
-                /** @description Filter by the location's city. */
-                city?: string;
-                /** @description Filter by the location's state. */
-                state?: string;
-                /** @description Only slots starting at or after this instant: ISO 8601 with seconds and an offset, such as `2026-07-06T13:00:00-04:00` or `2026-07-06T17:00:00Z`. A value without seconds is refused. When absent, slots start from now unless `includePast=true`. */
-                startAfter?: string;
-                /** @description Only slots starting at or before this instant: ISO 8601 with seconds and an offset, such as `2026-07-06T13:00:00-04:00` or `2026-07-06T17:00:00Z`. A value without seconds is refused. */
-                startBefore?: string;
-                /** @description Include slots that started before now. Defaults to `false`: with no `startAfter`, results start from now. An explicit `startAfter` applies as given either way. */
-                includePast?: boolean;
-                /**
-                 * @description Page size: the number of provider locations, from 1 to 100. Defaults to 25.
-                 * @example 1
-                 */
-                limit?: number;
-                /** @description Number of provider locations to skip for pagination. Defaults to 0. */
-                offset?: number;
-            };
-            header?: {
-                /** @description An id of your own for this request, as a UUID. It comes back in the `X-Correlation-Id` header and is kept with haau3's record of the request. Any value that is not a UUID is ignored. See https://docs.haau3.com/errors#request-ids. */
-                "X-Request-Id"?: components["parameters"]["XRequestId"];
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description The matching provider locations, and their total number before paging. */
-            200: {
-                headers: {
-                    "X-Request-Id": components["headers"]["XRequestId"];
-                    "X-Correlation-Id": components["headers"]["XCorrelationId"];
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SearchProviderLocationsResponse"];
-                };
-            };
-            /** @description A query parameter is not valid, is not one this endpoint takes, or was sent more than once. The problem's `issues` names each one and says why. */
-            400: {
-                headers: {
-                    "X-Request-Id": components["headers"]["XRequestId"];
-                    "X-Correlation-Id": components["headers"]["XCorrelationId"];
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["Problem"];
-                };
-            };
-            401: components["responses"]["ProblemUnauthorized"];
-            403: components["responses"]["ProblemForbiddenTestKey"];
-            406: components["responses"]["ProblemNotAcceptable"];
-            429: components["responses"]["ProblemTooManyRequests"];
-            500: components["responses"]["ProblemServerError"];
-            /** @description The scheduling service is unavailable, or its database did not answer in time. Send the request again after `Retry-After`. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
-            503: {
-                headers: {
-                    /** @description How many seconds to wait before sending the request again. */
-                    "Retry-After"?: number;
-                    "X-Request-Id": components["headers"]["XRequestId"];
-                    "X-Correlation-Id": components["headers"]["XCorrelationId"];
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["Problem"];
-                };
-            };
-        };
-    };
-    searchSlots: {
-        parameters: {
-            query?: {
-                /** @description Slot availability state to return. Defaults to `free`. */
-                status?: "free" | "busy" | "busy-unavailable" | "busy-tentative";
-                /** @description Filter to a single publisher (source) by slug, such as `zocdoc` or `defacto`. See `GET /v1/scheduling/publishers` for the available slugs. */
-                publisher?: string;
-                /** @description Filter by service type code (as published by the source). A slot matches when any of its `serviceTypes` carries the code. A comma-separated list (up to 100) matches a slot carrying any of them. */
-                serviceTypeCode?: string;
-                /** @description Filter by the provider's National Provider Identifier: a clinician's, or an organization's when a healthcare service is the provider. Ten digits; a comma-separated list (up to 100) matches a slot whose provider carries any of them. Matched as the publisher sent it, in either NPI identifier system, across every publisher. */
-                npi?: string;
-                /** @description Filter by specialty: a slot matches when its provider's `specialties` or its schedule's `specialties` carry the code. Send `code` to match it in any code system, or `system|code` to match it in that system only. Codes are each publisher's own and are not translated between code systems, so one code finds the publishers that use it; `GET /v1/scheduling/specialties` lists them. A specialty sent as text only cannot be matched. A comma-separated list (up to 100) matches any of them. */
-                specialty?: string;
-                /** @description Filter by appointment type. */
-                appointmentType?: string;
-                /** @description Filter to slots accepting patients of this kind (HL7 `accepting-patients` CodeSystem: `newpt` | `existptonly` | `existptfam`). Slots marked `nopt` (not accepting patients) are never served, so `nopt` is not a valid filter value. Lenient: a slot that does not declare an accepting-patients code matches any value (absence never hides a slot); a slot that declares one must equal the requested value. */
-                acceptingPatients?: "newpt" | "existptonly" | "existptfam";
-                /** @description Filter to virtual (`true`) or in-person (`false`) slots. */
-                isVirtual?: boolean;
-                /**
-                 * @description Filter by the location's city.
-                 * @example Cambridge
-                 */
-                city?: string;
-                /**
-                 * @description Filter by the location's state.
-                 * @example MA
-                 */
-                state?: string;
-                /** @description Only slots starting at or after this instant: ISO 8601 with seconds and an offset, such as `2026-07-06T13:00:00-04:00` or `2026-07-06T17:00:00Z`. A value without seconds is refused. When absent, slots start from now unless `includePast=true`. */
-                startAfter?: string;
-                /** @description Only slots starting at or before this instant: ISO 8601 with seconds and an offset, such as `2026-07-06T13:00:00-04:00` or `2026-07-06T17:00:00Z`. A value without seconds is refused. */
-                startBefore?: string;
-                /** @description Include slots that started before now. Defaults to `false`: with no `startAfter`, results start from now. An explicit `startAfter` applies as given either way. */
-                includePast?: boolean;
-                /** @description Opaque key of one provider location from `GET /v1/scheduling/provider-locations`. When set, returns exactly that provider location's slots. Treat the value as opaque; do not parse it. */
-                providerLocationKey?: string;
-                /**
-                 * @description Page size, from 1 to 100. Defaults to 25.
-                 * @example 1
-                 */
-                limit?: number;
-                /** @description Number of slots to skip for pagination. Defaults to 0. */
-                offset?: number;
-            };
-            header?: {
-                /** @description An id of your own for this request, as a UUID. It comes back in the `X-Correlation-Id` header and is kept with haau3's record of the request. Any value that is not a UUID is ignored. See https://docs.haau3.com/errors#request-ids. */
-                "X-Request-Id"?: components["parameters"]["XRequestId"];
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Matching slots and the total pre-pagination count. */
-            200: {
-                headers: {
-                    "X-Request-Id": components["headers"]["XRequestId"];
-                    "X-Correlation-Id": components["headers"]["XCorrelationId"];
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SearchSlotsResponse"];
-                };
-            };
-            /** @description A query parameter is not valid, is not one this endpoint takes, or was sent more than once. The problem's `issues` names each one and says why. */
-            400: {
-                headers: {
-                    "X-Request-Id": components["headers"]["XRequestId"];
-                    "X-Correlation-Id": components["headers"]["XCorrelationId"];
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["Problem"];
-                };
-            };
-            401: components["responses"]["ProblemUnauthorized"];
-            403: components["responses"]["ProblemForbiddenTestKey"];
-            406: components["responses"]["ProblemNotAcceptable"];
-            429: components["responses"]["ProblemTooManyRequests"];
-            500: components["responses"]["ProblemServerError"];
-            /** @description The scheduling service is unavailable, or its database did not answer in time. Send the request again after `Retry-After`. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
-            503: {
-                headers: {
-                    /** @description How many seconds to wait before sending the request again. */
-                    "Retry-After"?: number;
-                    "X-Request-Id": components["headers"]["XRequestId"];
-                    "X-Correlation-Id": components["headers"]["XCorrelationId"];
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["Problem"];
-                };
-            };
-        };
-    };
-    listPublishers: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description An id of your own for this request, as a UUID. It comes back in the `X-Correlation-Id` header and is kept with haau3's record of the request. Any value that is not a UUID is ignored. See https://docs.haau3.com/errors#request-ids. */
-                "X-Request-Id"?: components["parameters"]["XRequestId"];
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description The configured publishers. */
-            200: {
-                headers: {
-                    "X-Request-Id": components["headers"]["XRequestId"];
-                    "X-Correlation-Id": components["headers"]["XCorrelationId"];
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ListPublishersResponse"];
-                };
-            };
-            /** @description A query parameter is not valid, is not one this endpoint takes, or was sent more than once. The problem's `issues` names each one and says why. */
-            400: {
-                headers: {
-                    "X-Request-Id": components["headers"]["XRequestId"];
-                    "X-Correlation-Id": components["headers"]["XCorrelationId"];
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["Problem"];
-                };
-            };
-            401: components["responses"]["ProblemUnauthorized"];
-            403: components["responses"]["ProblemForbiddenTestKey"];
-            406: components["responses"]["ProblemNotAcceptable"];
-            429: components["responses"]["ProblemTooManyRequests"];
-            500: components["responses"]["ProblemServerError"];
-            /** @description The scheduling service is unavailable, or its database did not answer in time. Send the request again after `Retry-After`. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
-            503: {
-                headers: {
-                    /** @description How many seconds to wait before sending the request again. */
-                    "Retry-After"?: number;
-                    "X-Request-Id": components["headers"]["XRequestId"];
-                    "X-Correlation-Id": components["headers"]["XCorrelationId"];
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["Problem"];
-                };
-            };
-        };
-    };
-    listServiceTypes: {
-        parameters: {
-            query?: {
-                /** @description Also count slots that started before now. Defaults to `false`, so the counts cover the slots a search with no `startAfter` returns. */
-                includePast?: boolean;
-            };
-            header?: {
-                /** @description An id of your own for this request, as a UUID. It comes back in the `X-Correlation-Id` header and is kept with haau3's record of the request. Any value that is not a UUID is ignored. See https://docs.haau3.com/errors#request-ids. */
-                "X-Request-Id"?: components["parameters"]["XRequestId"];
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description The distinct service types across served slots. */
-            200: {
-                headers: {
-                    "X-Request-Id": components["headers"]["XRequestId"];
-                    "X-Correlation-Id": components["headers"]["XCorrelationId"];
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ListServiceTypesResponse"];
-                };
-            };
-            /** @description A query parameter is not valid, is not one this endpoint takes, or was sent more than once. The problem's `issues` names each one and says why. */
-            400: {
-                headers: {
-                    "X-Request-Id": components["headers"]["XRequestId"];
-                    "X-Correlation-Id": components["headers"]["XCorrelationId"];
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["Problem"];
-                };
-            };
-            401: components["responses"]["ProblemUnauthorized"];
-            403: components["responses"]["ProblemForbiddenTestKey"];
-            406: components["responses"]["ProblemNotAcceptable"];
-            429: components["responses"]["ProblemTooManyRequests"];
-            500: components["responses"]["ProblemServerError"];
-            /** @description The scheduling service is unavailable, or its database did not answer in time. Send the request again after `Retry-After`. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
-            503: {
-                headers: {
-                    /** @description How many seconds to wait before sending the request again. */
-                    "Retry-After"?: number;
-                    "X-Request-Id": components["headers"]["XRequestId"];
-                    "X-Correlation-Id": components["headers"]["XCorrelationId"];
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["Problem"];
-                };
-            };
-        };
-    };
-    listSpecialties: {
-        parameters: {
-            query?: {
-                /** @description Also count slots that started before now. Defaults to `false`, so the counts cover the slots a search with no `startAfter` returns. */
-                includePast?: boolean;
-            };
-            header?: {
-                /** @description An id of your own for this request, as a UUID. It comes back in the `X-Correlation-Id` header and is kept with haau3's record of the request. Any value that is not a UUID is ignored. See https://docs.haau3.com/errors#request-ids. */
-                "X-Request-Id"?: components["parameters"]["XRequestId"];
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description The distinct specialties across served slots. */
-            200: {
-                headers: {
-                    "X-Request-Id": components["headers"]["XRequestId"];
-                    "X-Correlation-Id": components["headers"]["XCorrelationId"];
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ListSpecialtiesResponse"];
-                };
-            };
-            /** @description A query parameter is not valid, is not one this endpoint takes, or was sent more than once. The problem's `issues` names each one and says why. */
-            400: {
-                headers: {
-                    "X-Request-Id": components["headers"]["XRequestId"];
-                    "X-Correlation-Id": components["headers"]["XCorrelationId"];
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["Problem"];
-                };
-            };
-            401: components["responses"]["ProblemUnauthorized"];
-            403: components["responses"]["ProblemForbiddenTestKey"];
-            406: components["responses"]["ProblemNotAcceptable"];
-            429: components["responses"]["ProblemTooManyRequests"];
-            500: components["responses"]["ProblemServerError"];
-            /** @description The scheduling service is unavailable, or its database did not answer in time. Send the request again after `Retry-After`. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
-            503: {
-                headers: {
-                    /** @description How many seconds to wait before sending the request again. */
-                    "Retry-After"?: number;
-                    "X-Request-Id": components["headers"]["XRequestId"];
-                    "X-Correlation-Id": components["headers"]["XCorrelationId"];
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["Problem"];
-                };
-            };
-        };
-    };
     fhirMetadata: {
         parameters: {
             query?: {
@@ -1693,6 +1045,368 @@ export interface operations {
             503: components["responses"]["FhirUnavailable"];
         };
     };
+    searchSlot: {
+        parameters: {
+            query?: {
+                /** @description The Slot's status: `free`, `busy`, `busy-unavailable`, `busy-tentative` or `entered-in-error`, several separated by commas. With no `status`, a search returns `free` Slots, and the `self` link shows it. */
+                status?: string;
+                /** @description When the Slot starts, with a prefix `ge`, `gt`, `le` or `lt`, or none for that day, hour or minute: `start=ge2026-12-01&start=lt2026-12-08` for one week. Any precision from a year to a second; a value with no time is a day in UTC, and a time needs its offset (`Z` or `-05:00`). Send it twice for a window. With no `start`, a search returns Slots starting from now, and the `self` link shows the moment. */
+                start?: string[];
+                /** @description The Slot's appointment type. Any of FHIR's token forms: `code`, `system|code`, `|code` (a code with no system) or `system|` (any code in that system), several separated by commas for any of them. */
+                "appointment-type"?: string;
+                /** @description The Slot's Schedule, as `Schedule/{id}`, its id alone, or its address on this base; several separated by commas. Chained once, as `schedule.service-type`. */
+                schedule?: string;
+                /** @description The Slot's own service type, FHIR's Slot.serviceType. A Slot that names none matches no value: find the Slots of a Schedule offering a service with `schedule.service-type`. Any of FHIR's token forms: `code`, `system|code`, `|code` (a code with no system) or `system|` (any code in that system), several separated by commas for any of them. */
+                "service-type"?: string;
+                /** @description The service type of the Slot's Schedule, FHIR's chained `schedule` and the Schedule's `service-type`: every Slot of a Schedule offering it, whether or not the Slot names a service type of its own. Any of FHIR's token forms: `code`, `system|code`, `|code` (a code with no system) or `system|` (any code in that system), several separated by commas for any of them. */
+                "schedule.service-type"?: string;
+                /** @description The Slot's own specialty, FHIR's Slot.specialty. For a specialty its Schedule or its provider states, use `provider-specialty`. Any of FHIR's token forms: `code`, `system|code`, `|code` (a code with no system) or `system|` (any code in that system), several separated by commas for any of them. */
+                specialty?: string;
+                /** @description A specialty of the provider, as the Slot states it, as its Schedule does (its own `specialty` or the SMART Scheduling Links `schedule-specialty` extension), or as the provider itself does (a PractitionerRole or HealthcareService the Schedule names). Any of FHIR's token forms: `code`, `system|code`, `|code` (a code with no system) or `system|` (any code in that system), several separated by commas for any of them. */
+                "provider-specialty"?: string;
+                /**
+                 * @description An identifier, such as an NPI (`http://hl7.org/fhir/sid/us-npi|1234567890`), of the provider the Slot's Schedule names: a Practitioner, a PractitionerRole or the Practitioner behind it, or a HealthcareService, whichever the publisher used. Any of FHIR's token forms: `code`, `system|code`, `|code` (a code with no system) or `system|` (any code in that system), several separated by commas for any of them.
+                 * @example http://hl7.org/fhir/sid/us-npi|2900000227
+                 */
+                "provider-identifier"?: string;
+                /** @description Who the Slot accepts, from the SMART Scheduling Links `patient-type` extension: `newpt`, `existptonly` and the other codes of `http://terminology.hl7.org/CodeSystem/accepting-patients`. A Slot that carries none matches no value. A Slot not accepting patients (`nopt`) is never served. Any of FHIR's token forms: `code`, `system|code`, `|code` (a code with no system) or `system|` (any code in that system), several separated by commas for any of them. */
+                "patient-type"?: string;
+                /** @description The city of a Location the Slot's Schedule names, or of the Location of a HealthcareService it names: the start of the city's name, ignoring case and accents: `San Jose` finds San José. Several separated by commas. */
+                "location-address-city"?: string;
+                /** @description The state of a Location the Slot's Schedule names, or of the Location of a HealthcareService it names, matched as `location-address-city` is. */
+                "location-address-state"?: string;
+                /** @description The physicalType of a Location the Slot's Schedule names, or of the Location of a HealthcareService it names: `vi` for a virtual one, from `http://terminology.hl7.org/CodeSystem/location-physical-type`. Any of FHIR's token forms: `code`, `system|code`, `|code` (a code with no system) or `system|` (any code in that system), several separated by commas for any of them. */
+                "location-physical-type"?: string;
+                /** @description The Slot's `meta.source`: where the publisher published it, its feed's address followed by `Slot/` and the publisher's own id. Several separated by commas. */
+                _source?: string;
+                /** @description The start of the Slot's `meta.source`: a feed's address, for every Slot it published. Several separated by commas. */
+                "_source:below"?: string;
+                /**
+                 * @description `Slot:schedule` adds each Slot's Schedule to the Bundle. The Location and provider it names, and what they reach, come with `_include:iterate`.
+                 * @example Slot:schedule
+                 */
+                _include?: "Slot:schedule"[];
+                /**
+                 * @description `Schedule:actor` adds each included Schedule's Location, PractitionerRole, Practitioner or HealthcareService; `PractitionerRole:practitioner` the Practitioner behind each included role; `HealthcareService:location` the Location of each included HealthcareService. Each needs `_include=Slot:schedule`.
+                 * @example [
+                 *       "Schedule:actor",
+                 *       "PractitionerRole:practitioner"
+                 *     ]
+                 */
+                "_include:iterate"?: ("Slot:schedule" | "Schedule:actor" | "PractitionerRole:practitioner" | "HealthcareService:location")[];
+                /**
+                 * @description Page size, 1 to 100, 25 by default. A larger value is refused rather than quietly reduced.
+                 * @example 1
+                 */
+                _count?: number;
+                /** @description The next page's cursor, from the `next` link of the page before. It is opaque and belongs to the one search; follow the link rather than building one. */
+                page?: string;
+            };
+            header?: {
+                /** @description An id of your own for this request, as a UUID. It comes back in the `X-Correlation-Id` header and is kept with haau3's record of the request. Any value that is not a UUID is ignored. See https://docs.haau3.com/errors#request-ids. */
+                "X-Request-Id"?: components["parameters"]["XRequestId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A `searchset` Bundle with `total` set: the matching Slots, then the resources `_include` asked for. */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["XRequestId"];
+                    "X-Correlation-Id": components["headers"]["XCorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/fhir+json": components["schemas"]["Bundle"];
+                };
+            };
+            /** @description A parameter this service does not serve, a parameter sent more times than it takes, a value of the wrong form, an include sent without the `:iterate` it needs, or a page that is not this search's. One issue per offending parameter, naming it. */
+            400: {
+                headers: {
+                    "X-Request-Id": components["headers"]["XRequestId"];
+                    "X-Correlation-Id": components["headers"]["XCorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/fhir+json": components["schemas"]["OperationOutcome"];
+                };
+            };
+            401: components["responses"]["FhirUnauthorized"];
+            403: components["responses"]["FhirForbiddenTestKey"];
+            /** @description No such interaction on this base. */
+            404: {
+                headers: {
+                    "X-Request-Id": components["headers"]["XRequestId"];
+                    "X-Correlation-Id": components["headers"]["XCorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/fhir+json": components["schemas"]["OperationOutcome"];
+                };
+            };
+            406: components["responses"]["FhirNotAcceptable"];
+            429: components["responses"]["FhirTooManyRequests"];
+            500: components["responses"]["FhirServerError"];
+            /** @description The scheduling store is down or did not answer in time: send the request again after `Retry-After`. Also the answer, with no `Retry-After`, when Scheduling is not configured on this deployment. Never reported as an empty result. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
+            503: {
+                headers: {
+                    /** @description Sent when waiting will help: the API key could not be checked just now, or the source behind this service is rate limiting requests or did not answer. How many seconds to wait before sending the request again. */
+                    "Retry-After"?: number;
+                    "X-Request-Id": components["headers"]["XRequestId"];
+                    "X-Correlation-Id": components["headers"]["XCorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/fhir+json": components["schemas"]["OperationOutcome"];
+                };
+            };
+        };
+    };
+    readSlot: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description An id of your own for this request, as a UUID. It comes back in the `X-Correlation-Id` header and is kept with haau3's record of the request. Any value that is not a UUID is ignored. See https://docs.haau3.com/errors#request-ids. */
+                "X-Request-Id"?: components["parameters"]["XRequestId"];
+            };
+            path: {
+                /**
+                 * @description The Slot's id, as a search returns it: 32 hexadecimal characters.
+                 * @example b12a0a00667b5e27ac040aa56d5d7c69
+                 */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The `Slot`, as its publisher published it, with a new id, the publisher's own id in `identifier`, `meta.source`, `meta.lastUpdated` and the `lastSourceSync` extension. */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["XRequestId"];
+                    "X-Correlation-Id": components["headers"]["XCorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/fhir+json": components["schemas"]["Slot"];
+                };
+            };
+            /** @description A query parameter was sent: a read takes none. */
+            400: {
+                headers: {
+                    "X-Request-Id": components["headers"]["XRequestId"];
+                    "X-Correlation-Id": components["headers"]["XCorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/fhir+json": components["schemas"]["OperationOutcome"];
+                };
+            };
+            401: components["responses"]["FhirUnauthorized"];
+            403: components["responses"]["FhirForbiddenTestKey"];
+            /** @description No Slot has this id: its publisher no longer lists it, it is marked as not accepting patients, or the id names none. */
+            404: {
+                headers: {
+                    "X-Request-Id": components["headers"]["XRequestId"];
+                    "X-Correlation-Id": components["headers"]["XCorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/fhir+json": components["schemas"]["OperationOutcome"];
+                };
+            };
+            406: components["responses"]["FhirNotAcceptable"];
+            429: components["responses"]["FhirTooManyRequests"];
+            500: components["responses"]["FhirServerError"];
+            /** @description The scheduling store is down or did not answer in time: send the request again after `Retry-After`. Also the answer, with no `Retry-After`, when Scheduling is not configured on this deployment. Never reported as an empty result. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
+            503: {
+                headers: {
+                    /** @description Sent when waiting will help: the API key could not be checked just now, or the source behind this service is rate limiting requests or did not answer. How many seconds to wait before sending the request again. */
+                    "Retry-After"?: number;
+                    "X-Request-Id": components["headers"]["XRequestId"];
+                    "X-Correlation-Id": components["headers"]["XCorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/fhir+json": components["schemas"]["OperationOutcome"];
+                };
+            };
+        };
+    };
+    searchSchedule: {
+        parameters: {
+            query?: {
+                /** @description The Schedule's service type, its own `serviceType`. Any of FHIR's token forms: `code`, `system|code`, `|code` (a code with no system) or `system|` (any code in that system), several separated by commas for any of them. */
+                "service-type"?: string;
+                /** @description The Schedule's own specialty, FHIR's Schedule.specialty. For a specialty the SMART Scheduling Links `schedule-specialty` extension or the provider states, use `provider-specialty`. Any of FHIR's token forms: `code`, `system|code`, `|code` (a code with no system) or `system|` (any code in that system), several separated by commas for any of them. */
+                specialty?: string;
+                /** @description A specialty of the provider, as the Schedule states it (its own `specialty` or the SMART Scheduling Links `schedule-specialty` extension) or as the provider itself does (a PractitionerRole or HealthcareService the Schedule names). Any of FHIR's token forms: `code`, `system|code`, `|code` (a code with no system) or `system|` (any code in that system), several separated by commas for any of them. */
+                "provider-specialty"?: string;
+                /**
+                 * @description An identifier, such as an NPI (`http://hl7.org/fhir/sid/us-npi|1234567890`), of the provider the Schedule names: a Practitioner, a PractitionerRole or the Practitioner behind it, or a HealthcareService, whichever the publisher used. Any of FHIR's token forms: `code`, `system|code`, `|code` (a code with no system) or `system|` (any code in that system), several separated by commas for any of them.
+                 * @example http://hl7.org/fhir/sid/us-npi|2900000227
+                 */
+                "provider-identifier"?: string;
+                /** @description The city of a Location the Schedule names, or of the Location of a HealthcareService it names: the start of the city's name, ignoring case and accents: `San Jose` finds San José. Several separated by commas. */
+                "location-address-city"?: string;
+                /** @description The state of a Location the Schedule names, or of the Location of a HealthcareService it names, matched as `location-address-city` is. */
+                "location-address-state"?: string;
+                /** @description The physicalType of a Location the Schedule names, or of the Location of a HealthcareService it names: `vi` for a virtual one, from `http://terminology.hl7.org/CodeSystem/location-physical-type`. Any of FHIR's token forms: `code`, `system|code`, `|code` (a code with no system) or `system|` (any code in that system), several separated by commas for any of them. */
+                "location-physical-type"?: string;
+                /** @description The Schedule's `meta.source`: where the publisher published it, its feed's address followed by `Schedule/` and the publisher's own id. Several separated by commas. */
+                _source?: string;
+                /** @description The start of the Schedule's `meta.source`: a feed's address, for every Schedule it published. Several separated by commas. */
+                "_source:below"?: string;
+                /**
+                 * @description `Schedule:actor` adds each Schedule's Location, PractitionerRole, Practitioner or HealthcareService. What those reach comes with `_include:iterate`.
+                 * @example Schedule:actor
+                 */
+                _include?: "Schedule:actor"[];
+                /**
+                 * @description `PractitionerRole:practitioner` adds the Practitioner behind each included role, and `HealthcareService:location` the Location of each included HealthcareService. Each needs `_include=Schedule:actor`, which may be sent here too.
+                 * @example PractitionerRole:practitioner
+                 */
+                "_include:iterate"?: ("Schedule:actor" | "PractitionerRole:practitioner" | "HealthcareService:location")[];
+                /** @description Page size, 1 to 100, 25 by default. A larger value is refused rather than quietly reduced. */
+                _count?: number;
+                /** @description The next page's cursor, from the `next` link of the page before. It is opaque and belongs to the one search; follow the link rather than building one. */
+                page?: string;
+            };
+            header?: {
+                /** @description An id of your own for this request, as a UUID. It comes back in the `X-Correlation-Id` header and is kept with haau3's record of the request. Any value that is not a UUID is ignored. See https://docs.haau3.com/errors#request-ids. */
+                "X-Request-Id"?: components["parameters"]["XRequestId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A `searchset` Bundle with `total` set: the matching Schedules, then the resources `_include` asked for. */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["XRequestId"];
+                    "X-Correlation-Id": components["headers"]["XCorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/fhir+json": components["schemas"]["Bundle"];
+                };
+            };
+            /** @description A parameter this service does not serve, among them a Slot's own such as `start` or `status`, a parameter sent more times than it takes, a value of the wrong form, an include sent without the `:iterate` it needs, or a page that is not this search's. One issue per offending parameter, naming it. */
+            400: {
+                headers: {
+                    "X-Request-Id": components["headers"]["XRequestId"];
+                    "X-Correlation-Id": components["headers"]["XCorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/fhir+json": components["schemas"]["OperationOutcome"];
+                };
+            };
+            401: components["responses"]["FhirUnauthorized"];
+            403: components["responses"]["FhirForbiddenTestKey"];
+            /** @description No such interaction on this base. */
+            404: {
+                headers: {
+                    "X-Request-Id": components["headers"]["XRequestId"];
+                    "X-Correlation-Id": components["headers"]["XCorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/fhir+json": components["schemas"]["OperationOutcome"];
+                };
+            };
+            406: components["responses"]["FhirNotAcceptable"];
+            429: components["responses"]["FhirTooManyRequests"];
+            500: components["responses"]["FhirServerError"];
+            /** @description The scheduling store is down or did not answer in time: send the request again after `Retry-After`. Also the answer, with no `Retry-After`, when Scheduling is not configured on this deployment. Never reported as an empty result. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
+            503: {
+                headers: {
+                    /** @description Sent when waiting will help: the API key could not be checked just now, or the source behind this service is rate limiting requests or did not answer. How many seconds to wait before sending the request again. */
+                    "Retry-After"?: number;
+                    "X-Request-Id": components["headers"]["XRequestId"];
+                    "X-Correlation-Id": components["headers"]["XCorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/fhir+json": components["schemas"]["OperationOutcome"];
+                };
+            };
+        };
+    };
+    readSchedule: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description An id of your own for this request, as a UUID. It comes back in the `X-Correlation-Id` header and is kept with haau3's record of the request. Any value that is not a UUID is ignored. See https://docs.haau3.com/errors#request-ids. */
+                "X-Request-Id"?: components["parameters"]["XRequestId"];
+            };
+            path: {
+                /**
+                 * @description The Schedule's id, as a Slot's `schedule` reference names it: 32 hexadecimal characters.
+                 * @example e859c18cc8cc1a6ab1c9b7b63c5c60a1
+                 */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The `Schedule`, as its publisher published it, with a new id, the publisher's own id in `identifier`, `meta.source`, `meta.lastUpdated` and the `lastSourceSync` extension. */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["XRequestId"];
+                    "X-Correlation-Id": components["headers"]["XCorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/fhir+json": components["schemas"]["Schedule"];
+                };
+            };
+            /** @description A query parameter was sent: a read takes none. */
+            400: {
+                headers: {
+                    "X-Request-Id": components["headers"]["XRequestId"];
+                    "X-Correlation-Id": components["headers"]["XCorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/fhir+json": components["schemas"]["OperationOutcome"];
+                };
+            };
+            401: components["responses"]["FhirUnauthorized"];
+            403: components["responses"]["FhirForbiddenTestKey"];
+            /** @description No Schedule has this id, or the id names none. */
+            404: {
+                headers: {
+                    "X-Request-Id": components["headers"]["XRequestId"];
+                    "X-Correlation-Id": components["headers"]["XCorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/fhir+json": components["schemas"]["OperationOutcome"];
+                };
+            };
+            406: components["responses"]["FhirNotAcceptable"];
+            429: components["responses"]["FhirTooManyRequests"];
+            500: components["responses"]["FhirServerError"];
+            /** @description The scheduling store is down or did not answer in time: send the request again after `Retry-After`. Also the answer, with no `Retry-After`, when Scheduling is not configured on this deployment. Never reported as an empty result. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
+            503: {
+                headers: {
+                    /** @description Sent when waiting will help: the API key could not be checked just now, or the source behind this service is rate limiting requests or did not answer. How many seconds to wait before sending the request again. */
+                    "Retry-After"?: number;
+                    "X-Request-Id": components["headers"]["XRequestId"];
+                    "X-Correlation-Id": components["headers"]["XCorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/fhir+json": components["schemas"]["OperationOutcome"];
+                };
+            };
+        };
+    };
     codeSystemLookup: {
         parameters: {
             query: {
@@ -1790,7 +1504,7 @@ export interface operations {
             /** @description No source is configured for this code system on this deployment, no release has been published to it, or its source is rate limiting requests (with `Retry-After`). The service returns no answer rather than guessing one. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
             503: {
                 headers: {
-                    /** @description Sent when waiting will help: the API key could not be checked just now, or the source behind this service is rate limiting requests. How many seconds to wait before sending the request again. */
+                    /** @description Sent when waiting will help: the API key could not be checked just now, or the source behind this service is rate limiting requests or did not answer. How many seconds to wait before sending the request again. */
                     "Retry-After"?: number;
                     "X-Request-Id": components["headers"]["XRequestId"];
                     "X-Correlation-Id": components["headers"]["XCorrelationId"];
@@ -1904,7 +1618,7 @@ export interface operations {
             /** @description No source is configured for this code system on this deployment, no release has been published to it, or its source is rate limiting requests (with `Retry-After`). The service returns no answer rather than guessing one. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
             503: {
                 headers: {
-                    /** @description Sent when waiting will help: the API key could not be checked just now, or the source behind this service is rate limiting requests. How many seconds to wait before sending the request again. */
+                    /** @description Sent when waiting will help: the API key could not be checked just now, or the source behind this service is rate limiting requests or did not answer. How many seconds to wait before sending the request again. */
                     "Retry-After"?: number;
                     "X-Request-Id": components["headers"]["XRequestId"];
                     "X-Correlation-Id": components["headers"]["XCorrelationId"];
@@ -2021,7 +1735,7 @@ export interface operations {
             /** @description No source is configured for this code system on this deployment, no release has been published to it, or its source is rate limiting requests (with `Retry-After`). The service returns no answer rather than guessing one. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
             503: {
                 headers: {
-                    /** @description Sent when waiting will help: the API key could not be checked just now, or the source behind this service is rate limiting requests. How many seconds to wait before sending the request again. */
+                    /** @description Sent when waiting will help: the API key could not be checked just now, or the source behind this service is rate limiting requests or did not answer. How many seconds to wait before sending the request again. */
                     "Retry-After"?: number;
                     "X-Request-Id": components["headers"]["XRequestId"];
                     "X-Correlation-Id": components["headers"]["XCorrelationId"];
@@ -2135,7 +1849,7 @@ export interface operations {
             /** @description No source is configured for this code system on this deployment, no release has been published to it, or its source is rate limiting requests (with `Retry-After`). The service returns no answer rather than guessing one. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
             503: {
                 headers: {
-                    /** @description Sent when waiting will help: the API key could not be checked just now, or the source behind this service is rate limiting requests. How many seconds to wait before sending the request again. */
+                    /** @description Sent when waiting will help: the API key could not be checked just now, or the source behind this service is rate limiting requests or did not answer. How many seconds to wait before sending the request again. */
                     "Retry-After"?: number;
                     "X-Request-Id": components["headers"]["XRequestId"];
                     "X-Correlation-Id": components["headers"]["XCorrelationId"];
@@ -2251,7 +1965,7 @@ export interface operations {
             /** @description No source is configured for this code system on this deployment, no release has been published to it, or its source is rate limiting requests (with `Retry-After`). The service returns no answer rather than guessing one. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
             503: {
                 headers: {
-                    /** @description Sent when waiting will help: the API key could not be checked just now, or the source behind this service is rate limiting requests. How many seconds to wait before sending the request again. */
+                    /** @description Sent when waiting will help: the API key could not be checked just now, or the source behind this service is rate limiting requests or did not answer. How many seconds to wait before sending the request again. */
                     "Retry-After"?: number;
                     "X-Request-Id": components["headers"]["XRequestId"];
                     "X-Correlation-Id": components["headers"]["XCorrelationId"];
@@ -2365,7 +2079,7 @@ export interface operations {
             /** @description No source is configured for this code system on this deployment, no release has been published to it, or its source is rate limiting requests (with `Retry-After`). The service returns no answer rather than guessing one. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
             503: {
                 headers: {
-                    /** @description Sent when waiting will help: the API key could not be checked just now, or the source behind this service is rate limiting requests. How many seconds to wait before sending the request again. */
+                    /** @description Sent when waiting will help: the API key could not be checked just now, or the source behind this service is rate limiting requests or did not answer. How many seconds to wait before sending the request again. */
                     "Retry-After"?: number;
                     "X-Request-Id": components["headers"]["XRequestId"];
                     "X-Correlation-Id": components["headers"]["XCorrelationId"];
@@ -2485,7 +2199,7 @@ export interface operations {
             /** @description No source is configured for this code system on this deployment, no release has been published to it, or its source is rate limiting requests (with `Retry-After`). The service returns no answer rather than guessing one. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
             503: {
                 headers: {
-                    /** @description Sent when waiting will help: the API key could not be checked just now, or the source behind this service is rate limiting requests. How many seconds to wait before sending the request again. */
+                    /** @description Sent when waiting will help: the API key could not be checked just now, or the source behind this service is rate limiting requests or did not answer. How many seconds to wait before sending the request again. */
                     "Retry-After"?: number;
                     "X-Request-Id": components["headers"]["XRequestId"];
                     "X-Correlation-Id": components["headers"]["XCorrelationId"];
@@ -2599,7 +2313,7 @@ export interface operations {
             /** @description No source is configured for this code system on this deployment, no release has been published to it, or its source is rate limiting requests (with `Retry-After`). The service returns no answer rather than guessing one. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
             503: {
                 headers: {
-                    /** @description Sent when waiting will help: the API key could not be checked just now, or the source behind this service is rate limiting requests. How many seconds to wait before sending the request again. */
+                    /** @description Sent when waiting will help: the API key could not be checked just now, or the source behind this service is rate limiting requests or did not answer. How many seconds to wait before sending the request again. */
                     "Retry-After"?: number;
                     "X-Request-Id": components["headers"]["XRequestId"];
                     "X-Correlation-Id": components["headers"]["XCorrelationId"];
@@ -2714,7 +2428,7 @@ export interface operations {
             /** @description The directory, or for a pharmacy the NPI Registry, is rate limiting requests. Send the request again after `Retry-After`. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
             503: {
                 headers: {
-                    /** @description Sent when waiting will help: the API key could not be checked just now, or the source behind this service is rate limiting requests. How many seconds to wait before sending the request again. */
+                    /** @description Sent when waiting will help: the API key could not be checked just now, or the source behind this service is rate limiting requests or did not answer. How many seconds to wait before sending the request again. */
                     "Retry-After"?: number;
                     "X-Request-Id": components["headers"]["XRequestId"];
                     "X-Correlation-Id": components["headers"]["XCorrelationId"];
@@ -2755,7 +2469,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description The Practitioner, as the directory publishes it. */
+            /** @description The Practitioner, as the directory publishes it, or for a scheduling publisher's id as that publisher published it. */
             200: {
                 headers: {
                     "X-Request-Id": components["headers"]["XRequestId"];
@@ -2804,10 +2518,10 @@ export interface operations {
                     "application/fhir+json": components["schemas"]["OperationOutcome"];
                 };
             };
-            /** @description The directory, or for a pharmacy the NPI Registry, is rate limiting requests. Send the request again after `Retry-After`. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
+            /** @description The directory, or for a pharmacy the NPI Registry, is rate limiting requests, or for a scheduling publisher's id the scheduling store did not answer. Send the request again after `Retry-After`. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
             503: {
                 headers: {
-                    /** @description Sent when waiting will help: the API key could not be checked just now, or the source behind this service is rate limiting requests. How many seconds to wait before sending the request again. */
+                    /** @description Sent when waiting will help: the API key could not be checked just now, or the source behind this service is rate limiting requests or did not answer. How many seconds to wait before sending the request again. */
                     "Retry-After"?: number;
                     "X-Request-Id": components["headers"]["XRequestId"];
                     "X-Correlation-Id": components["headers"]["XCorrelationId"];
@@ -2929,7 +2643,7 @@ export interface operations {
             /** @description The directory, or for a pharmacy the NPI Registry, is rate limiting requests. Send the request again after `Retry-After`. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
             503: {
                 headers: {
-                    /** @description Sent when waiting will help: the API key could not be checked just now, or the source behind this service is rate limiting requests. How many seconds to wait before sending the request again. */
+                    /** @description Sent when waiting will help: the API key could not be checked just now, or the source behind this service is rate limiting requests or did not answer. How many seconds to wait before sending the request again. */
                     "Retry-After"?: number;
                     "X-Request-Id": components["headers"]["XRequestId"];
                     "X-Correlation-Id": components["headers"]["XCorrelationId"];
@@ -2970,7 +2684,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description The PractitionerRole, as the directory publishes it. */
+            /** @description The PractitionerRole, as the directory publishes it, or for a scheduling publisher's id as that publisher published it. */
             200: {
                 headers: {
                     "X-Request-Id": components["headers"]["XRequestId"];
@@ -3019,10 +2733,10 @@ export interface operations {
                     "application/fhir+json": components["schemas"]["OperationOutcome"];
                 };
             };
-            /** @description The directory, or for a pharmacy the NPI Registry, is rate limiting requests. Send the request again after `Retry-After`. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
+            /** @description The directory, or for a pharmacy the NPI Registry, is rate limiting requests, or for a scheduling publisher's id the scheduling store did not answer. Send the request again after `Retry-After`. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
             503: {
                 headers: {
-                    /** @description Sent when waiting will help: the API key could not be checked just now, or the source behind this service is rate limiting requests. How many seconds to wait before sending the request again. */
+                    /** @description Sent when waiting will help: the API key could not be checked just now, or the source behind this service is rate limiting requests or did not answer. How many seconds to wait before sending the request again. */
                     "Retry-After"?: number;
                     "X-Request-Id": components["headers"]["XRequestId"];
                     "X-Correlation-Id": components["headers"]["XCorrelationId"];
@@ -3144,7 +2858,7 @@ export interface operations {
             /** @description The directory, or for a pharmacy the NPI Registry, is rate limiting requests. Send the request again after `Retry-After`. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
             503: {
                 headers: {
-                    /** @description Sent when waiting will help: the API key could not be checked just now, or the source behind this service is rate limiting requests. How many seconds to wait before sending the request again. */
+                    /** @description Sent when waiting will help: the API key could not be checked just now, or the source behind this service is rate limiting requests or did not answer. How many seconds to wait before sending the request again. */
                     "Retry-After"?: number;
                     "X-Request-Id": components["headers"]["XRequestId"];
                     "X-Correlation-Id": components["headers"]["XCorrelationId"];
@@ -3237,7 +2951,7 @@ export interface operations {
             /** @description The directory, or for a pharmacy the NPI Registry, is rate limiting requests. Send the request again after `Retry-After`. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
             503: {
                 headers: {
-                    /** @description Sent when waiting will help: the API key could not be checked just now, or the source behind this service is rate limiting requests. How many seconds to wait before sending the request again. */
+                    /** @description Sent when waiting will help: the API key could not be checked just now, or the source behind this service is rate limiting requests or did not answer. How many seconds to wait before sending the request again. */
                     "Retry-After"?: number;
                     "X-Request-Id": components["headers"]["XRequestId"];
                     "X-Correlation-Id": components["headers"]["XCorrelationId"];
@@ -3349,7 +3063,7 @@ export interface operations {
             /** @description The directory, or for a pharmacy the NPI Registry, is rate limiting requests. Send the request again after `Retry-After`. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
             503: {
                 headers: {
-                    /** @description Sent when waiting will help: the API key could not be checked just now, or the source behind this service is rate limiting requests. How many seconds to wait before sending the request again. */
+                    /** @description Sent when waiting will help: the API key could not be checked just now, or the source behind this service is rate limiting requests or did not answer. How many seconds to wait before sending the request again. */
                     "Retry-After"?: number;
                     "X-Request-Id": components["headers"]["XRequestId"];
                     "X-Correlation-Id": components["headers"]["XCorrelationId"];
@@ -3442,7 +3156,7 @@ export interface operations {
             /** @description The directory, or for a pharmacy the NPI Registry, is rate limiting requests. Send the request again after `Retry-After`. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
             503: {
                 headers: {
-                    /** @description Sent when waiting will help: the API key could not be checked just now, or the source behind this service is rate limiting requests. How many seconds to wait before sending the request again. */
+                    /** @description Sent when waiting will help: the API key could not be checked just now, or the source behind this service is rate limiting requests or did not answer. How many seconds to wait before sending the request again. */
                     "Retry-After"?: number;
                     "X-Request-Id": components["headers"]["XRequestId"];
                     "X-Correlation-Id": components["headers"]["XCorrelationId"];
@@ -3585,7 +3299,7 @@ export interface operations {
             /** @description The directory, or for a pharmacy the NPI Registry, is rate limiting requests. Send the request again after `Retry-After`. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
             503: {
                 headers: {
-                    /** @description Sent when waiting will help: the API key could not be checked just now, or the source behind this service is rate limiting requests. How many seconds to wait before sending the request again. */
+                    /** @description Sent when waiting will help: the API key could not be checked just now, or the source behind this service is rate limiting requests or did not answer. How many seconds to wait before sending the request again. */
                     "Retry-After"?: number;
                     "X-Request-Id": components["headers"]["XRequestId"];
                     "X-Correlation-Id": components["headers"]["XCorrelationId"];
@@ -3626,7 +3340,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description The HealthcareService, as the directory publishes it. */
+            /** @description The HealthcareService, as the directory publishes it, or for a scheduling publisher's id as that publisher published it. */
             200: {
                 headers: {
                     "X-Request-Id": components["headers"]["XRequestId"];
@@ -3675,10 +3389,10 @@ export interface operations {
                     "application/fhir+json": components["schemas"]["OperationOutcome"];
                 };
             };
-            /** @description The directory, or for a pharmacy the NPI Registry, is rate limiting requests. Send the request again after `Retry-After`. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
+            /** @description The directory, or for a pharmacy the NPI Registry, is rate limiting requests, or for a scheduling publisher's id the scheduling store did not answer. Send the request again after `Retry-After`. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
             503: {
                 headers: {
-                    /** @description Sent when waiting will help: the API key could not be checked just now, or the source behind this service is rate limiting requests. How many seconds to wait before sending the request again. */
+                    /** @description Sent when waiting will help: the API key could not be checked just now, or the source behind this service is rate limiting requests or did not answer. How many seconds to wait before sending the request again. */
                     "Retry-After"?: number;
                     "X-Request-Id": components["headers"]["XRequestId"];
                     "X-Correlation-Id": components["headers"]["XCorrelationId"];
@@ -3796,7 +3510,7 @@ export interface operations {
             /** @description The directory, or for a pharmacy the NPI Registry, is rate limiting requests. Send the request again after `Retry-After`. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
             503: {
                 headers: {
-                    /** @description Sent when waiting will help: the API key could not be checked just now, or the source behind this service is rate limiting requests. How many seconds to wait before sending the request again. */
+                    /** @description Sent when waiting will help: the API key could not be checked just now, or the source behind this service is rate limiting requests or did not answer. How many seconds to wait before sending the request again. */
                     "Retry-After"?: number;
                     "X-Request-Id": components["headers"]["XRequestId"];
                     "X-Correlation-Id": components["headers"]["XCorrelationId"];
@@ -3837,7 +3551,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description The Location, as the directory publishes it. */
+            /** @description The Location, as the directory publishes it, or for a scheduling publisher's id as that publisher published it. */
             200: {
                 headers: {
                     "X-Request-Id": components["headers"]["XRequestId"];
@@ -3886,10 +3600,10 @@ export interface operations {
                     "application/fhir+json": components["schemas"]["OperationOutcome"];
                 };
             };
-            /** @description The directory, or for a pharmacy the NPI Registry, is rate limiting requests. Send the request again after `Retry-After`. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
+            /** @description The directory, or for a pharmacy the NPI Registry, is rate limiting requests, or for a scheduling publisher's id the scheduling store did not answer. Send the request again after `Retry-After`. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
             503: {
                 headers: {
-                    /** @description Sent when waiting will help: the API key could not be checked just now, or the source behind this service is rate limiting requests. How many seconds to wait before sending the request again. */
+                    /** @description Sent when waiting will help: the API key could not be checked just now, or the source behind this service is rate limiting requests or did not answer. How many seconds to wait before sending the request again. */
                     "Retry-After"?: number;
                     "X-Request-Id": components["headers"]["XRequestId"];
                     "X-Correlation-Id": components["headers"]["XCorrelationId"];
@@ -4001,7 +3715,7 @@ export interface operations {
             /** @description The directory, or for a pharmacy the NPI Registry, is rate limiting requests. Send the request again after `Retry-After`. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
             503: {
                 headers: {
-                    /** @description Sent when waiting will help: the API key could not be checked just now, or the source behind this service is rate limiting requests. How many seconds to wait before sending the request again. */
+                    /** @description Sent when waiting will help: the API key could not be checked just now, or the source behind this service is rate limiting requests or did not answer. How many seconds to wait before sending the request again. */
                     "Retry-After"?: number;
                     "X-Request-Id": components["headers"]["XRequestId"];
                     "X-Correlation-Id": components["headers"]["XCorrelationId"];
@@ -4094,7 +3808,7 @@ export interface operations {
             /** @description The directory, or for a pharmacy the NPI Registry, is rate limiting requests. Send the request again after `Retry-After`. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
             503: {
                 headers: {
-                    /** @description Sent when waiting will help: the API key could not be checked just now, or the source behind this service is rate limiting requests. How many seconds to wait before sending the request again. */
+                    /** @description Sent when waiting will help: the API key could not be checked just now, or the source behind this service is rate limiting requests or did not answer. How many seconds to wait before sending the request again. */
                     "Retry-After"?: number;
                     "X-Request-Id": components["headers"]["XRequestId"];
                     "X-Correlation-Id": components["headers"]["XCorrelationId"];
@@ -4178,7 +3892,7 @@ export interface operations {
             /** @description The source is throttling requests (with `Retry-After`), or is not configured on this deployment. Never returned for a questionnaire this service holds a copy of. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
             503: {
                 headers: {
-                    /** @description Sent when waiting will help: the API key could not be checked just now, or the source behind this service is rate limiting requests. How many seconds to wait before sending the request again. */
+                    /** @description Sent when waiting will help: the API key could not be checked just now, or the source behind this service is rate limiting requests or did not answer. How many seconds to wait before sending the request again. */
                     "Retry-After"?: number;
                     "X-Request-Id": components["headers"]["XRequestId"];
                     "X-Correlation-Id": components["headers"]["XCorrelationId"];
@@ -4271,7 +3985,7 @@ export interface operations {
             /** @description The source is throttling requests (with `Retry-After`), or is not configured on this deployment. Never returned for a questionnaire this service holds a copy of. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
             503: {
                 headers: {
-                    /** @description Sent when waiting will help: the API key could not be checked just now, or the source behind this service is rate limiting requests. How many seconds to wait before sending the request again. */
+                    /** @description Sent when waiting will help: the API key could not be checked just now, or the source behind this service is rate limiting requests or did not answer. How many seconds to wait before sending the request again. */
                     "Retry-After"?: number;
                     "X-Request-Id": components["headers"]["XRequestId"];
                     "X-Correlation-Id": components["headers"]["XCorrelationId"];
@@ -4393,7 +4107,7 @@ export interface operations {
             /** @description No release of the plan files this request needs is being served on this deployment, or, for a county search, where a served release's plans are sold is not loaded yet. The `OperationOutcome` names the program. The service returns no answer rather than guessing one. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
             503: {
                 headers: {
-                    /** @description Sent when waiting will help: the API key could not be checked just now, or the source behind this service is rate limiting requests. How many seconds to wait before sending the request again. */
+                    /** @description Sent when waiting will help: the API key could not be checked just now, or the source behind this service is rate limiting requests or did not answer. How many seconds to wait before sending the request again. */
                     "Retry-After"?: number;
                     "X-Request-Id": components["headers"]["XRequestId"];
                     "X-Correlation-Id": components["headers"]["XCorrelationId"];
@@ -4545,7 +4259,7 @@ export interface operations {
             /** @description No release of the plan files this request needs is being served on this deployment, and the `OperationOutcome` names the program. The service returns no answer rather than guessing one. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
             503: {
                 headers: {
-                    /** @description Sent when waiting will help: the API key could not be checked just now, or the source behind this service is rate limiting requests. How many seconds to wait before sending the request again. */
+                    /** @description Sent when waiting will help: the API key could not be checked just now, or the source behind this service is rate limiting requests or did not answer. How many seconds to wait before sending the request again. */
                     "Retry-After"?: number;
                     "X-Request-Id": components["headers"]["XRequestId"];
                     "X-Correlation-Id": components["headers"]["XCorrelationId"];
@@ -4647,7 +4361,7 @@ export interface operations {
             /** @description No release of the plan files is being served for the plan's program, or the directory is rate limiting requests (with `Retry-After`). No answer is given. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
             503: {
                 headers: {
-                    /** @description Sent when waiting will help: the API key could not be checked just now, or the source behind this service is rate limiting requests. How many seconds to wait before sending the request again. */
+                    /** @description Sent when waiting will help: the API key could not be checked just now, or the source behind this service is rate limiting requests or did not answer. How many seconds to wait before sending the request again. */
                     "Retry-After"?: number;
                     "X-Request-Id": components["headers"]["XRequestId"];
                     "X-Correlation-Id": components["headers"]["XCorrelationId"];
@@ -4742,7 +4456,7 @@ export interface operations {
             /** @description No price was returned, and a price source asked did not answer in time or answered with an error, or the member's insurer did not, or the member's request could not be prepared for the insurer, so a later request may be answered. Coded `source-unavailable` in `issue.details.coding`, with `Retry-After`. A source's own words are never repeated. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
             503: {
                 headers: {
-                    /** @description Sent when waiting will help: the API key could not be checked just now, or the source behind this service is rate limiting requests. How many seconds to wait before sending the request again. */
+                    /** @description Sent when waiting will help: the API key could not be checked just now, or the source behind this service is rate limiting requests or did not answer. How many seconds to wait before sending the request again. */
                     "Retry-After"?: number;
                     "X-Request-Id": components["headers"]["XRequestId"];
                     "X-Correlation-Id": components["headers"]["XCorrelationId"];
@@ -4835,7 +4549,7 @@ export interface operations {
             /** @description RxNorm is not configured on this deployment, no release has been published to it, or the release changed while the request was being answered. No partial list is returned. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
             503: {
                 headers: {
-                    /** @description Sent when waiting will help: the API key could not be checked just now, or the source behind this service is rate limiting requests. How many seconds to wait before sending the request again. */
+                    /** @description Sent when waiting will help: the API key could not be checked just now, or the source behind this service is rate limiting requests or did not answer. How many seconds to wait before sending the request again. */
                     "Retry-After"?: number;
                     "X-Request-Id": components["headers"]["XRequestId"];
                     "X-Correlation-Id": components["headers"]["XCorrelationId"];
@@ -4927,7 +4641,7 @@ export interface operations {
             /** @description The medication carries an RxNorm code, and RxNorm is not configured on this deployment or no release has been published to it. The directions are not structured without it. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
             503: {
                 headers: {
-                    /** @description Sent when waiting will help: the API key could not be checked just now, or the source behind this service is rate limiting requests. How many seconds to wait before sending the request again. */
+                    /** @description Sent when waiting will help: the API key could not be checked just now, or the source behind this service is rate limiting requests or did not answer. How many seconds to wait before sending the request again. */
                     "Retry-After"?: number;
                     "X-Request-Id": components["headers"]["XRequestId"];
                     "X-Correlation-Id": components["headers"]["XCorrelationId"];
