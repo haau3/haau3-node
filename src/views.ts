@@ -84,11 +84,11 @@ export interface ScheduleView {
   healthcareServices: HealthcareService[];
   /**
    * Whether the place is virtual: true when any of `locations` has the physical type `vi`
-   * (`http://terminology.hl7.org/CodeSystem/location-physical-type`); false when one states a
-   * physical type and none is `vi`, since a physical type that is not virtual is physical; and
-   * undefined when none states one.
+   * (`http://terminology.hl7.org/CodeSystem/location-physical-type`), and false otherwise. A
+   * Location is physical unless it says it is virtual, whether it states another physical type or
+   * none, and a place that is both is two Locations, as SMART Scheduling Links models it.
    */
-  virtual: boolean | undefined;
+  virtual: boolean;
 }
 
 /**
@@ -140,7 +140,7 @@ const ACTOR_TYPES = ["Location", "PractitionerRole", "Practitioner", "Healthcare
 
 /** What a Schedule names and reaches in one page, found by FHIR's reference rules, with no request. */
 function reached(page: Bundle, holders: Holders, schedule: Schedule): ScheduleView {
-  const view: ScheduleView = { schedule, locations: [], practitionerRoles: [], practitioners: [], healthcareServices: [], virtual: undefined };
+  const view: ScheduleView = { schedule, locations: [], practitionerRoles: [], practitioners: [], healthcareServices: [], virtual: false };
   for (const actor of schedule.actor ?? []) {
     const found = follow(page, holders, actor, schedule, ACTOR_TYPES);
     if (found?.resourceType === "Location") once(view.locations, found);
@@ -158,19 +158,13 @@ function reached(page: Bundle, holders: Holders, schedule: Schedule): ScheduleVi
       if (location) once(view.locations, location);
     }
   }
-  view.virtual = virtualOf(view.locations);
+  view.virtual = view.locations.some(isVirtual);
   return view;
 }
 
-function virtualOf(locations: Location[]): boolean | undefined {
-  let stated = false;
-  for (const location of locations) {
-    const codings = (location.physicalType?.coding ?? []).filter((coding) => coding.code !== undefined);
-    if (codings.length === 0) continue;
-    stated = true;
-    if (codings.some((coding) => coding.system === LOCATION_PHYSICAL_TYPE && coding.code === "vi")) return true;
-  }
-  return stated ? false : undefined;
+/** Whether a Location says it is virtual: its physical type is HL7's `vi`. Otherwise it is physical. */
+function isVirtual(location: Location): boolean {
+  return (location.physicalType?.coding ?? []).some((coding) => coding.system === LOCATION_PHYSICAL_TYPE && coding.code === "vi");
 }
 
 /** The value of the first extension under `url` that carries the value it is read for. */

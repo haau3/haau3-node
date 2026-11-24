@@ -417,7 +417,7 @@ for (const view of haau3.slotViews(page)) {
 | `bookingLink` | The Slot's booking link, from its `booking-deep-link` extension. |
 | `bookingPhone` | The number to book it by, from its `booking-phone` extension. |
 | `patientType` | Whom it accepts, from its `patient-type` extension, as one of HL7's four codes: `newpt`, `existptonly`, `existptfam` or `nopt` (the API never serves a `nopt` Slot). |
-| `virtual` | `true` when a Location's physical type is `vi`; `false` when one states another, since a physical type that is not virtual is physical; `undefined` when none states one. |
+| `virtual` | `true` when a Location's physical type is `vi`, and `false` otherwise: a Location is physical unless it says it is virtual, and a place that is both is two Locations. |
 
 Each list keeps the order the Schedule names them in, holds each resource once, and is empty when
 there is none: a Schedule may name a Location and no provider. The three extensions are read under
