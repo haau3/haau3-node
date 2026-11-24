@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "haau3 Platform API",
-    "version": "1.0.0-preview.39",
+    "version": "1.0.0-preview.40",
     "description": "The haau3 platform API is in preview: it may change as we build, usually to add features or improve performance. Endpoints require an API key, sent as `Authorization: Bearer <key>`. Requests without a valid key return 401. Create a key in the dashboard at https://platform.haau3.com; a new organization starts on the free Developer plan. From 2026-11-02 a request past one of its plan's limits (requests a minute on every plan, requests a month on Developer) returns 429 with `Retry-After`. Every service is on the FHIR R4 base at `/v1/fhir/r4`, and every error is a FHIR `OperationOutcome`; https://docs.haau3.com/errors lists every status, whether to retry it, and what a method a path does not take answers."
   },
   "servers": [
@@ -1699,7 +1699,8 @@
             },
             "example": [
               "Schedule:actor",
-              "PractitionerRole:practitioner"
+              "PractitionerRole:practitioner",
+              "HealthcareService:location"
             ]
           },
           {
@@ -1742,25 +1743,25 @@
                     "value": {
                       "resourceType": "Bundle",
                       "type": "searchset",
-                      "total": 143,
+                      "total": 141,
                       "link": [
                         {
                           "relation": "self",
-                          "url": "https://api.haau3.com/v1/fhir/r4/Slot?status=free&start=ge2026-11-23T06%3A09%3A32Z&provider-identifier=http%3A%2F%2Fhl7.org%2Ffhir%2Fsid%2Fus-npi%7C2900000227&_include=Slot%3Aschedule&_include:iterate=Schedule%3Aactor&_include:iterate=PractitionerRole%3Apractitioner&_count=1"
+                          "url": "https://api.haau3.com/v1/fhir/r4/Slot?status=free&start=ge2026-11-24T03%3A07%3A33Z&provider-identifier=http%3A%2F%2Fhl7.org%2Ffhir%2Fsid%2Fus-npi%7C2900000227&_include=Slot%3Aschedule&_include:iterate=Schedule%3Aactor&_include:iterate=PractitionerRole%3Apractitioner&_include:iterate=HealthcareService%3Alocation&_count=1"
                         },
                         {
                           "relation": "next",
-                          "url": "https://api.haau3.com/v1/fhir/r4/Slot?status=free&start=ge2026-11-23T06%3A09%3A32Z&provider-identifier=http%3A%2F%2Fhl7.org%2Ffhir%2Fsid%2Fus-npi%7C2900000227&_include=Slot%3Aschedule&_include:iterate=Schedule%3Aactor&_include:iterate=PractitionerRole%3Apractitioner&_count=1&page=eyJ2IjoxLCJrIjpbIjIwMjYtMTEtMjNUMTM6MDA6MDAuMDAwWiIsIjNjZWRkMjAwNmQzZDUwMzY5ZmMzNTVjYjkxM2M4ZTA2Il0sInMiOiIzMzE0NmUxMTNhYzY2ZTE1In0"
+                          "url": "https://api.haau3.com/v1/fhir/r4/Slot?status=free&start=ge2026-11-24T03%3A07%3A33Z&provider-identifier=http%3A%2F%2Fhl7.org%2Ffhir%2Fsid%2Fus-npi%7C2900000227&_include=Slot%3Aschedule&_include:iterate=Schedule%3Aactor&_include:iterate=PractitionerRole%3Apractitioner&_include:iterate=HealthcareService%3Alocation&_count=1&page=eyJ2IjoxLCJrIjpbIjIwMjYtMTEtMjRUMTM6MDA6MDAuMDAwMDAwWiIsIjE0YTQ4OWU4ODg4ZGYzNGQ1MmVjOGUwNDhlNjFiZGM5Il0sInMiOiIzYjQwZmExOTZlOTg1MTkzIn0"
                         }
                       ],
                       "entry": [
                         {
-                          "fullUrl": "https://api.haau3.com/v1/fhir/r4/Slot/3cedd2006d3d50369fc355cb913c8e06",
+                          "fullUrl": "https://api.haau3.com/v1/fhir/r4/Slot/14a489e8888df34d52ec8e048e61bdc9",
                           "resource": {
-                            "id": "3cedd2006d3d50369fc355cb913c8e06",
-                            "end": "2026-11-23T09:00:00-05:00",
+                            "id": "14a489e8888df34d52ec8e048e61bdc9",
+                            "end": "2026-11-24T09:00:00-05:00",
                             "meta": {
-                              "source": "https://api.haau3.com/scheduling/Slot/slot-haau3-rad-20261123-0800",
+                              "source": "https://api.haau3.com/scheduling/Slot/slot-haau3-rad-20261124-0800",
                               "security": [
                                 {
                                   "code": "HTEST",
@@ -1771,12 +1772,12 @@
                               "extension": [
                                 {
                                   "url": "http://hl7.org/fhir/StructureDefinition/lastSourceSync",
-                                  "valueDateTime": "2026-11-23T06:05:51.036Z"
+                                  "valueDateTime": "2026-11-24T00:01:47.571Z"
                                 }
                               ],
                               "lastUpdated": "2026-11-23T03:58:56.265Z"
                             },
-                            "start": "2026-11-23T08:00:00-05:00",
+                            "start": "2026-11-24T08:00:00-05:00",
                             "status": "free",
                             "schedule": {
                               "reference": "Schedule/e859c18cc8cc1a6ab1c9b7b63c5c60a1"
@@ -1790,6 +1791,10 @@
                                 }
                               },
                               {
+                                "url": "http://hl7.org/fhir/uv/smart-scheduling-links/StructureDefinition/booking-deep-link",
+                                "valueUrl": "https://docs.haau3.com/scheduling/slot-publisher?slot=slot-haau3-rad-20261124-0800"
+                              },
+                              {
                                 "url": "http://hl7.org/fhir/uv/smart-scheduling-links/StructureDefinition/booking-phone",
                                 "valueContactPoint": {
                                   "value": "+1-617-555-0100",
@@ -1799,7 +1804,7 @@
                             ],
                             "identifier": [
                               {
-                                "value": "slot-haau3-rad-20261123-0800",
+                                "value": "slot-haau3-rad-20261124-0800",
                                 "system": "https://api.haau3.com/scheduling/"
                               }
                             ],
@@ -1825,7 +1830,7 @@
                               "extension": [
                                 {
                                   "url": "http://hl7.org/fhir/StructureDefinition/lastSourceSync",
-                                  "valueDateTime": "2026-11-23T06:05:51.036Z"
+                                  "valueDateTime": "2026-11-24T00:01:47.571Z"
                                 }
                               ],
                               "lastUpdated": "2026-11-23T03:58:55.936Z"
@@ -1900,7 +1905,7 @@
                               "extension": [
                                 {
                                   "url": "http://hl7.org/fhir/StructureDefinition/lastSourceSync",
-                                  "valueDateTime": "2026-11-23T06:05:51.036Z"
+                                  "valueDateTime": "2026-11-24T00:01:47.571Z"
                                 }
                               ],
                               "lastUpdated": "2026-11-23T03:58:55.936Z"
@@ -2027,7 +2032,7 @@
                               "extension": [
                                 {
                                   "url": "http://hl7.org/fhir/StructureDefinition/lastSourceSync",
-                                  "valueDateTime": "2026-11-23T06:05:51.036Z"
+                                  "valueDateTime": "2026-11-24T00:01:47.571Z"
                                 }
                               ],
                               "lastUpdated": "2026-11-23T03:58:55.936Z"
@@ -2082,7 +2087,7 @@
                               "extension": [
                                 {
                                   "url": "http://hl7.org/fhir/StructureDefinition/lastSourceSync",
-                                  "valueDateTime": "2026-11-23T06:05:51.036Z"
+                                  "valueDateTime": "2026-11-24T00:01:47.571Z"
                                 }
                               ],
                               "lastUpdated": "2026-11-23T03:58:55.936Z"
@@ -2517,7 +2522,10 @@
                 ]
               }
             },
-            "example": "PractitionerRole:practitioner"
+            "example": [
+              "PractitionerRole:practitioner",
+              "HealthcareService:location"
+            ]
           },
           {
             "name": "_count",
@@ -2562,7 +2570,7 @@
                       "link": [
                         {
                           "relation": "self",
-                          "url": "https://api.haau3.com/v1/fhir/r4/Schedule?provider-identifier=http%3A%2F%2Fhl7.org%2Ffhir%2Fsid%2Fus-npi%7C2900000227&_include=Schedule%3Aactor&_include:iterate=PractitionerRole%3Apractitioner&_count=25"
+                          "url": "https://api.haau3.com/v1/fhir/r4/Schedule?provider-identifier=http%3A%2F%2Fhl7.org%2Ffhir%2Fsid%2Fus-npi%7C2900000227&_include=Schedule%3Aactor&_include:iterate=PractitionerRole%3Apractitioner&_include:iterate=HealthcareService%3Alocation&_count=25"
                         }
                       ],
                       "entry": [
@@ -2582,7 +2590,7 @@
                               "extension": [
                                 {
                                   "url": "http://hl7.org/fhir/StructureDefinition/lastSourceSync",
-                                  "valueDateTime": "2026-11-23T21:31:20.131Z"
+                                  "valueDateTime": "2026-11-24T00:01:47.571Z"
                                 }
                               ],
                               "lastUpdated": "2026-11-23T03:58:55.936Z"
@@ -2635,7 +2643,7 @@
                               "extension": [
                                 {
                                   "url": "http://hl7.org/fhir/StructureDefinition/lastSourceSync",
-                                  "valueDateTime": "2026-11-23T21:31:20.131Z"
+                                  "valueDateTime": "2026-11-24T00:01:47.571Z"
                                 }
                               ],
                               "lastUpdated": "2026-11-23T03:58:55.936Z"
@@ -2710,7 +2718,7 @@
                               "extension": [
                                 {
                                   "url": "http://hl7.org/fhir/StructureDefinition/lastSourceSync",
-                                  "valueDateTime": "2026-11-23T21:31:20.131Z"
+                                  "valueDateTime": "2026-11-24T00:01:47.571Z"
                                 }
                               ],
                               "lastUpdated": "2026-11-23T03:58:55.936Z"
@@ -2837,7 +2845,7 @@
                               "extension": [
                                 {
                                   "url": "http://hl7.org/fhir/StructureDefinition/lastSourceSync",
-                                  "valueDateTime": "2026-11-23T21:31:20.131Z"
+                                  "valueDateTime": "2026-11-24T00:01:47.571Z"
                                 }
                               ],
                               "lastUpdated": "2026-11-23T03:58:55.936Z"
