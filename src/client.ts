@@ -15,7 +15,19 @@ import {
 } from "./terminology.js";
 import { BatchBuilder } from "./generated/batch.js";
 import { Operations } from "./generated/methods.js";
+import type { QueryOf, ResponseOf } from "./operations.js";
 import type { ClientOptions, RequestOptions } from "./transport.js";
+import {
+  SCHEDULE_INCLUDES,
+  scheduleViews as scheduleViewsOf,
+  SLOT_INCLUDES,
+  slotViews as slotViewsOf,
+  withIncludes,
+  type ScheduleView,
+  type SearchScheduleWithIncludesParams,
+  type SearchSlotWithIncludesParams,
+  type SlotView,
+} from "./views.js";
 
 /** The builder every batch is handed. It holds nothing, so one serves every call. */
 const builder = new BatchBuilder();
@@ -139,6 +151,98 @@ export class Haau3 extends Operations {
     options: ResolveOptions<K> = {},
   ): ResourceOf<K> | undefined {
     return resolveIn(bundle, reference, options);
+  }
+
+  /**
+   * The Slot search, with every include it serves sent for you, so each Slot's Schedule, the
+   * Locations and provider the Schedule names, the Practitioner behind a role and the Location
+   * behind a HealthcareService come in the same Bundle: `_include=Slot:schedule`, then
+   * `_include:iterate` of `Schedule:actor`, `PractitionerRole:practitioner` and
+   * `HealthcareService:location`. Takes every other parameter of {@link searchSlot} and sends
+   * nothing else, so the API's own defaults hold: free Slots, from now. {@link slotViews} reads the
+   * page; {@link pages} follows its `next` link.
+   *
+   * ```ts
+   * const page = await haau3.searchSlotWithIncludes({ "location-address-state": "MA" });
+   * for (const view of haau3.slotViews(page)) {
+   *   console.log(view.slot.start, view.practitioners[0]?.name?.[0]?.text, view.locations[0]?.name, view.bookingLink);
+   * }
+   * ```
+   *
+   * An `_include` passed anyway is refused with a {@link Haau3Error}: to send your own, call
+   * {@link searchSlot}.
+   */
+  searchSlotWithIncludes(params?: SearchSlotWithIncludesParams, options?: RequestOptions): APIPromise<ResponseOf<"searchSlot">> {
+    let query: QueryOf<"searchSlot">;
+    try {
+      query = withIncludes("searchSlotWithIncludes", "searchSlot", params, SLOT_INCLUDES);
+    } catch (error) {
+      return new APIPromise<ResponseOf<"searchSlot">>(Promise.reject(error));
+    }
+    return this.searchSlot(query, options);
+  }
+
+  /**
+   * The Schedule search, with every include it serves sent for you, so each Schedule's Locations
+   * and provider, the Practitioner behind a role and the Location behind a HealthcareService come in
+   * the same Bundle: `_include=Schedule:actor`, then `_include:iterate` of
+   * `PractitionerRole:practitioner` and `HealthcareService:location`. Takes every other parameter of
+   * {@link searchSchedule} and sends nothing else. {@link scheduleViews} reads the page.
+   *
+   * ```ts
+   * const page = await haau3.searchScheduleWithIncludes({ "location-address-city": "Boston" });
+   * for (const view of haau3.scheduleViews(page)) console.log(view.practitioners[0]?.name?.[0]?.text, view.locations[0]?.name);
+   * ```
+   *
+   * An `_include` passed anyway is refused with a {@link Haau3Error}: to send your own, call
+   * {@link searchSchedule}.
+   */
+  searchScheduleWithIncludes(params?: SearchScheduleWithIncludesParams, options?: RequestOptions): APIPromise<ResponseOf<"searchSchedule">> {
+    let query: QueryOf<"searchSchedule">;
+    try {
+      query = withIncludes("searchScheduleWithIncludes", "searchSchedule", params, SCHEDULE_INCLUDES);
+    } catch (error) {
+      return new APIPromise<ResponseOf<"searchSchedule">>(Promise.reject(error));
+    }
+    return this.searchSchedule(query, options);
+  }
+
+  /**
+   * Each Slot a search page matched, with no request, as a {@link SlotView}: the Slot, its Schedule,
+   * the Locations the Schedule reaches, its PractitionerRoles, Practitioners and HealthcareServices,
+   * each the FHIR resource the page holds, and the Slot's booking link, booking phone and patient
+   * type, read from its SMART Scheduling Links 1.0.0 extensions. Nothing is replaced in place: each
+   * resource stays as the API served it. The plain function `slotViews()` does the same with no
+   * client.
+   *
+   * ```ts
+   * const page = await haau3.searchSlotWithIncludes({ "location-address-city": "Cambridge" });
+   * const [first] = haau3.slotViews(page);
+   * if (first) console.log(first.slot.start, first.locations[0]?.name, first.virtual, first.bookingLink ?? first.bookingPhone);
+   * ```
+   *
+   * Every Slot names its Schedule, so a page that does not hold one was searched without its
+   * includes, and that throws a {@link Haau3Error} naming the fix. A Location or provider the page
+   * does not hold is left out, and nothing is fetched for it. Paging: call it on each page
+   * {@link pages} gives.
+   */
+  slotViews(page: Bundle): SlotView[] {
+    return slotViewsOf(page);
+  }
+
+  /**
+   * Each Schedule a search page matched, with no request, as a {@link ScheduleView}: the Schedule,
+   * the Locations it reaches, its PractitionerRoles, Practitioners and HealthcareServices, each the
+   * FHIR resource the page holds, and whether the place is virtual. The plain function
+   * `scheduleViews()` does the same with no client.
+   *
+   * ```ts
+   * const page = await haau3.searchScheduleWithIncludes({ "provider-identifier": "http://hl7.org/fhir/sid/us-npi|2900000227" });
+   * for (const view of haau3.scheduleViews(page)) console.log(view.locations.map((location) => location.name));
+   * ```
+   */
+  scheduleViews(page: Bundle): ScheduleView[] {
+    return scheduleViewsOf(page);
   }
 
   /**
