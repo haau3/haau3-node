@@ -2,7 +2,8 @@
 
 The TypeScript SDK for the [haau3 platform API](https://docs.haau3.com), as typed calls:
 
-- **Scheduling:** open appointment slots from many SMART Scheduling Links publishers, in one search.
+- **Scheduling:** open appointment slots from many SMART Scheduling Links publishers, in one FHIR
+  search, each `Slot` with its `Schedule`, `Location` and provider.
 - **Medical Benefits:** Medicare Advantage and ACA Marketplace plans as FHIR `InsurancePlan`,
   searchable by state or county, and which providers are in a plan's network.
 - **MedList:** one reconciled medication list from one patient's FHIR medication records.
@@ -46,9 +47,14 @@ const haau3 = new Haau3(); // reads HAAU3_API_KEY
 ## A first call
 
 ```ts
-// Open appointment slots, here in Cambridge.
-const { slots } = await haau3.searchSlots({ city: "Cambridge", state: "MA", limit: 1 });
-console.log(slots[0] ?? "No open slots matched.");
+// Open appointment slots of one provider, found by NPI.
+const bundle = await haau3.searchSlot({
+  "provider-identifier": "http://hl7.org/fhir/sid/us-npi|2900000227",
+  _include: "Slot:schedule",
+  "_include:iterate": ["Schedule:actor", "PractitionerRole:practitioner"],
+  _count: 1,
+});
+console.log(haau3.matches(bundle, "Slot")[0] ?? "No open slots matched.");
 ```
 
 FHIR answers are [@types/fhir](https://www.npmjs.com/package/@types/fhir)'s R4 types, also
@@ -59,8 +65,8 @@ exported as `fhir4` (`import type { fhir4 } from "@haau3/sdk"`).
 ```ts
 import { structureDosageRequest } from "@haau3/sdk";
 
-// Scheduling: open appointment slots, here in Boston.
-const { slots, total } = await haau3.searchSlots({ city: "Boston", state: "MA", limit: 10 });
+// Scheduling: open appointment slots in a state, as a FHIR Bundle of Slots.
+const slots = await haau3.searchSlot({ "location-address-state": "MA", _count: 10 });
 
 // Provider directory: a practitioner by NPI, from CMS's National Provider Directory.
 const practitioners = await haau3.searchPractitioner({ identifier: "1093209884" });
@@ -176,7 +182,7 @@ Each call takes `{ timeout, maxRetries, signal, correlationId, headers, fetchOpt
 argument, for that call only:
 
 ```ts
-await haau3.searchSlots({ state: "MA" }, { timeout: 10_000, maxRetries: 0 });
+await haau3.searchSlot({ "location-address-state": "MA" }, { timeout: 10_000, maxRetries: 0 });
 ```
 
 An operation that declares a header of its own takes it as one more option, named from the header
@@ -236,7 +242,7 @@ try {
   if (error instanceof RefusedError) {
     error.status; // 400, 404, 410 and so on
     error.code; // why, when the API names it: "not-the-example" from the Sandbox
-    error.outcome; // the OperationOutcome; Scheduling's errors carry `problem`
+    error.outcome; // the OperationOutcome the API answered with
   } else if (error instanceof NoAnswerError) {
     error.reason; // "timeout", "network", "rate-limited", "unavailable", "server-error" or "unreadable"
     error.retryAfter; // seconds, when the API said
@@ -291,7 +297,7 @@ When `HAAU3_API_KEY` has no value but `.env.local` or `.env` in the current fold
 key from `HAAU3_API_KEY`, opens only a regular file, and never keeps or shows the value.
 
 No answer is never reported as an empty result, and an empty result is never an error. An error's
-message never includes the body the API answered with, and the body (`outcome` or `problem`) is
+message never includes the body the API answered with, and the body (`outcome`) is
 never printed when the error is logged. Every error the API answered carries `attempts`,
 `durationMs` and `statusText` too.
 
@@ -349,7 +355,7 @@ for await (const resource of haau3.resources(first)) {
 
 It yields each entry whose search mode is `match`, or says none. A resource an `_include` or
 `_revinclude` brought, and a search's own `OperationOutcome`, are not among them; `pages()` gives
-every entry. Scheduling's searches page with `limit` and `offset`, and answer with a `total`.
+every entry.
 
 `matches()` gives one page's matches of a type, typed, with no request, and `resolve()` finds the
 resource a reference names in that page, such as one an `_include` brought:
@@ -527,7 +533,7 @@ value. A `{name}` with no value, or a value with no `{name}`, is refused before 
 status, with its status text, headers, request id, attempts and duration:
 
 ```ts
-const { status, statusText, body, requestId } = await haau3.request({ method: "GET", path: "/v1/scheduling/publishers" });
+const { status, statusText, body, requestId } = await haau3.request({ method: "GET", path: "/v1/fhir/r4/metadata" });
 ```
 
 ## Versions

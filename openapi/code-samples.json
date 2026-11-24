@@ -37,7 +37,7 @@
           {
             "lang": "typescript",
             "label": "TypeScript",
-            "source": "import { Haau3 } from \"@haau3/sdk\";\n\nconst haau3 = new Haau3(); // reads HAAU3_API_KEY\nconst bundle = await haau3.searchSlot({\n  \"provider-identifier\": \"http://hl7.org/fhir/sid/us-npi|2900000227\",\n  _include: \"Slot:schedule\",\n  \"_include:iterate\": [\"Schedule:actor\", \"PractitionerRole:practitioner\"],\n  _count: 1,\n});\nconsole.log(bundle.entry?.length ?? 0);\n"
+            "source": "import { Haau3 } from \"@haau3/sdk\";\n\nconst haau3 = new Haau3(); // reads HAAU3_API_KEY\n// Open appointment slots of one provider, found by NPI.\nconst bundle = await haau3.searchSlot({\n  \"provider-identifier\": \"http://hl7.org/fhir/sid/us-npi|2900000227\",\n  _include: \"Slot:schedule\",\n  \"_include:iterate\": [\"Schedule:actor\", \"PractitionerRole:practitioner\"],\n  _count: 1,\n});\nconsole.log(haau3.matches(bundle, \"Slot\")[0] ?? \"No open slots matched.\");\n"
           }
         ]
       }

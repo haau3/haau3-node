@@ -9,8 +9,7 @@
 // - batch.ts: the builder `batch()` hands its caller, one method per operation a batch can carry,
 //   named and called as on the client, each returning an entry instead of sending.
 // - types.ts: the public names. Each operation's query parameters as `<OperationId>Params`, and every
-//   component that is not a FHIR resource (Scheduling's records and answers, Problem) by its own
-//   name. A caller never writes `components["schemas"][...]`, so the generator can change without a
+//   component that is not a FHIR resource, when the spec declares one, by its own name. A caller never writes `components["schemas"][...]`, so the generator can change without a
 //   breaking change. An operation that declares a header parameter gets `<OperationId>Options`:
 //   every call's options and one more per header, named from it (`Payer-Authorization` is
 //   `payerAuthorization`), which the client checks against the parameter's schema before sending.
@@ -107,8 +106,8 @@ interface Operation {
 
 /**
  * The resource types an operation's 200 answers with: one FHIR component, or a choice of them
- * (`metadata` answers a CapabilityStatement or a TerminologyCapabilities). Anything else, such as a
- * Scheduling answer, gives none, and the client then checks no type.
+ * (`metadata` answers a CapabilityStatement or a TerminologyCapabilities). Anything else gives
+ * none, and the client then checks no type.
  */
 function expectedTypes(op: Json): string[] {
   const content = Object.values((op.responses?.["200"]?.content ?? {}) as Record<string, Json>);
@@ -389,13 +388,15 @@ function optionComment(header: HeaderParam): string {
 
 const withHeaders = operations.filter((op) => op.headers.length);
 
+// A spec whose every component is a FHIR resource names none here, and imports nothing for them.
+const ownComponentTypes = ownComponents.length
+  ? `${ownComponents.map((name) => `export type ${name} = components["schemas"]["${name}"];`).join("\n")}\n\n`
+  : "";
+
 const types = `${HEADER("The public type names.")}import type { HeaderOf, QueryOf } from "../operations.js";
 import type { RequestOptions } from "../transport.js";
-import type { components } from "./openapi.js";
-
-${ownComponents.map((name) => `export type ${name} = components["schemas"]["${name}"];`).join("\n")}
-
-${operations
+${ownComponents.length ? 'import type { components } from "./openapi.js";\n' : ""}
+${ownComponentTypes}${operations
   .filter((op) => op.hasQuery)
   .map((op) => `/** The query parameters of \`${op.id}\`. */\nexport type ${pascal(op.id)}Params = QueryOf<"${op.id}">;`)
   .join("\n")}
@@ -415,7 +416,7 @@ await writeFile(new URL("types.ts", OUT), types);
 
 // --- api.md -------------------------------------------------------------------------------------
 
-/** How a method is called, as a reader writes it: `readInsurancePlan(id)`, `searchSlots(params?)`. */
+/** How a method is called, as a reader writes it: `readInsurancePlan(id)`, `searchSlot(params?)`. */
 function signature(op: Operation): string {
   const args = [...op.pathParams];
   if (op.hasQuery) args.push(op.queryRequired ? "params" : "params?");
@@ -619,23 +620,21 @@ function batchCall(request: Json): string {
 }
 
 /** The operation a quickstart makes its first call with. */
-const FIRST_CALL = "searchSlots";
+const FIRST_CALL = "searchSlot";
 
 /**
- * The first call: the slot search's example, which names a city, with the first slot it found
- * printed whole, since one field says nothing of what a slot is. A search that finds nothing says
- * so, rather than printing `undefined`.
+ * The first call: the slot search's example, which finds a provider's open slots by NPI, with the
+ * first slot it found printed whole, since one field says nothing of what a slot is. A search that
+ * finds nothing says so, rather than printing `undefined`.
  */
 function firstCallSample(op: Operation): string {
-  const city = ((op.raw.parameters ?? []) as Json[]).find((p) => p.in === "query" && p.name === "city")?.example;
-  if (typeof city !== "string") throw new Error(`${op.id}: the first call's example names no city.`);
   return program(
     op,
     [IMPORT],
     [
-      `// Open appointment slots, here in ${city}.`,
-      callLine("", `const { slots } = await haau3.${op.id}`, exampleArgs(op), ";"),
-      'console.log(slots[0] ?? "No open slots matched.");',
+      "// Open appointment slots of one provider, found by NPI.",
+      callLine("", `const bundle = await haau3.${op.id}`, exampleArgs(op), ";"),
+      'console.log(haau3.matches(bundle, "Slot")[0] ?? "No open slots matched.");',
     ],
   );
 }

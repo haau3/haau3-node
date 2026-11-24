@@ -3,9 +3,6 @@
 
 import type { HeaderOf, QueryOf } from "../operations.js";
 import type { RequestOptions } from "../transport.js";
-import type { components } from "./openapi.js";
-
-
 
 /** The query parameters of `checkInsurancePlanNetwork`. */
 export type CheckInsurancePlanNetworkParams = QueryOf<"checkInsurancePlanNetwork">;
