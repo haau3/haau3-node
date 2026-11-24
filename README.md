@@ -425,6 +425,7 @@ take a `\` before them), so the API reads what a person typed as the one value i
 ```ts
 import { escapeSearchValue } from "@haau3/sdk";
 
+const typedCity = "Austin, TX"; // what a person typed
 const page = await haau3.searchSlotWithIncludes({ "location-address-city": escapeSearchValue(typedCity) });
 ```
 
