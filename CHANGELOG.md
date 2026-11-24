@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.1](https://github.com/haau3/haau3-node/compare/v0.5.0...v0.5.1) (2026-11-24)
+
+
+### Features
+
+* nextCursor() reads a search page's next cursor ([#100](https://github.com/haau3/haau3-node/issues/100)) ([47fbc58](https://github.com/haau3/haau3-node/commit/47fbc5873066e2d70984390d96567956919cc38a))
+
 ## [0.5.0](https://github.com/haau3/haau3-node/compare/v0.4.5...v0.5.0) (2026-11-24)
 
 
