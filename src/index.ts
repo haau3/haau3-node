@@ -11,7 +11,7 @@ export {
   type NoAnswerReason,
 } from "./errors.js";
 export { markAsTestData } from "./testData.js";
-export { escapeSearchValue } from "./search.js";
+export { escapeSearchValue, searchToken } from "./search.js";
 export type {
   AppInfo,
   CallOptions,

@@ -431,7 +431,30 @@ const page = await haau3.searchSlotWithIncludes({ "location-address-city": escap
 
 Unescaped, a comma separates values the API reads as "or", so `Austin, TX` asks for two cities, and a
 trailing comma is refused with a `400`. Never escape a value you built with `,` or `|` on purpose, such
-as a list of codes or a `system|code` token.
+as a list of codes or a `system|code` token: build a token with `searchToken()`.
+
+## A code to search for
+
+`searchToken()` turns a coding into the value a token search parameter takes, `system|code`, each part
+escaped. It takes a `Coding`, an entry of a value set's expansion, or anything with a `system` and a
+`code`, so a code picked from a list goes straight into a search:
+
+```ts
+import { searchToken } from "@haau3/sdk";
+
+const serviceTypes = await haau3.valueSetExpand({
+  url: "https://fhir.haau3.com/platform/ValueSet/scheduling-service-types",
+  filter: "general",
+});
+const [chosen] = serviceTypes.expansion?.contains ?? [];
+if (chosen) {
+  const page = await haau3.searchSlotWithIncludes({ "schedule.service-type": searchToken(chosen) });
+}
+```
+
+Given several codings, `searchToken(a, b)` is any of them: their tokens joined by commas. Each needs
+both a system and a code, or it throws a `Haau3Error`, since a token without its system matches the
+code in every system. For a code in any system, send `escapeSearchValue(code)`.
 
 ## Slots and schedules
 
