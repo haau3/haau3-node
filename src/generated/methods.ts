@@ -472,7 +472,7 @@ export abstract class Operations extends Transport {
   /**
    * Expand a value set
    *
-   * FHIR `ValueSet/$expand`. Expands a value set canonical to its member codes, with a text filter and paging (`count=0` returns the total only). On the value sets of the code systems this service holds (RxNorm and ICD-10-CM), the filter searches by name, and on ICD-10-CM by code too, and is required, and the matches come ranked, best first, with `expansion.total` the number of matches.
+   * FHIR `ValueSet/$expand`. Expands a value set canonical to its member codes, with a text filter and paging (`count=0` returns the total only). On the value sets of the code systems this service holds (RxNorm and ICD-10-CM), the filter searches by name, and on ICD-10-CM by code too, and is required, and the matches come ranked, best first, with `expansion.total` the number of matches. The scheduling value sets list the service types and specialties a Slot or Schedule search can be sent, alphabetically by display, every one when `count` is not sent; their version changes only when the list does, and a GET's answer carries a weak `ETag` with `Cache-Control: private, max-age=300`.
    *
    * `GET /v1/fhir/r4/ValueSet/$expand`
    */
@@ -483,7 +483,7 @@ export abstract class Operations extends Transport {
   /**
    * Expand a value set
    *
-   * FHIR `ValueSet/$expand`. Expands a value set canonical to its member codes, with a text filter and paging (`count=0` returns the total only). On the value sets of the code systems this service holds (RxNorm and ICD-10-CM), the filter searches by name, and on ICD-10-CM by code too, and is required, and the matches come ranked, best first, with `expansion.total` the number of matches.
+   * FHIR `ValueSet/$expand`. Expands a value set canonical to its member codes, with a text filter and paging (`count=0` returns the total only). On the value sets of the code systems this service holds (RxNorm and ICD-10-CM), the filter searches by name, and on ICD-10-CM by code too, and is required, and the matches come ranked, best first, with `expansion.total` the number of matches. The scheduling value sets list the service types and specialties a Slot or Schedule search can be sent, alphabetically by display, every one when `count` is not sent; their version changes only when the list does, and a GET's answer carries a weak `ETag` with `Cache-Control: private, max-age=300`.
    *
    * `POST /v1/fhir/r4/ValueSet/$expand`
    */
@@ -494,7 +494,7 @@ export abstract class Operations extends Transport {
   /**
    * Validate a code against a value set
    *
-   * FHIR `ValueSet/$validate-code`. A code that is not in the set is a successful `200` with `result: false`, not an error. On POST, a `coding` or `codeableConcept` parameter may stand in for `system` + `code`; a codeableConcept validates if any of its codings is in the set, which helps when an element carries a vendor-local coding alongside a standard one.
+   * FHIR `ValueSet/$validate-code`. A code that is not in the set is a successful `200` with `result: false`, not an error. On POST, a `coding` or `codeableConcept` parameter may stand in for `system` + `code`; a codeableConcept validates if any of its codings is in the set, which helps when an element carries a vendor-local coding alongside a standard one. On the scheduling value sets `system` is required, any display a feed sent for the code is accepted, and a GET's answer carries a weak `ETag` with `Cache-Control: private, max-age=300`.
    *
    * `GET /v1/fhir/r4/ValueSet/$validate-code`
    */
@@ -505,7 +505,7 @@ export abstract class Operations extends Transport {
   /**
    * Validate a code against a value set
    *
-   * FHIR `ValueSet/$validate-code`. A code that is not in the set is a successful `200` with `result: false`, not an error. On POST, a `coding` or `codeableConcept` parameter may stand in for `system` + `code`; a codeableConcept validates if any of its codings is in the set, which helps when an element carries a vendor-local coding alongside a standard one.
+   * FHIR `ValueSet/$validate-code`. A code that is not in the set is a successful `200` with `result: false`, not an error. On POST, a `coding` or `codeableConcept` parameter may stand in for `system` + `code`; a codeableConcept validates if any of its codings is in the set, which helps when an element carries a vendor-local coding alongside a standard one. On the scheduling value sets `system` is required, any display a feed sent for the code is accepted, and a GET's answer carries a weak `ETag` with `Cache-Control: private, max-age=300`.
    *
    * `POST /v1/fhir/r4/ValueSet/$validate-code`
    */

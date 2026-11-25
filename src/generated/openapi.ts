@@ -188,13 +188,13 @@ export interface paths {
         };
         /**
          * Expand a value set
-         * @description FHIR `ValueSet/$expand`. Expands a value set canonical to its member codes, with a text filter and paging (`count=0` returns the total only). On the value sets of the code systems this service holds (RxNorm and ICD-10-CM), the filter searches by name, and on ICD-10-CM by code too, and is required, and the matches come ranked, best first, with `expansion.total` the number of matches.
+         * @description FHIR `ValueSet/$expand`. Expands a value set canonical to its member codes, with a text filter and paging (`count=0` returns the total only). On the value sets of the code systems this service holds (RxNorm and ICD-10-CM), the filter searches by name, and on ICD-10-CM by code too, and is required, and the matches come ranked, best first, with `expansion.total` the number of matches. The scheduling value sets list the service types and specialties a Slot or Schedule search can be sent, alphabetically by display, every one when `count` is not sent; their version changes only when the list does, and a GET's answer carries a weak `ETag` with `Cache-Control: private, max-age=300`.
          */
         get: operations["valueSetExpand"];
         put?: never;
         /**
          * Expand a value set
-         * @description FHIR `ValueSet/$expand`. Expands a value set canonical to its member codes, with a text filter and paging (`count=0` returns the total only). On the value sets of the code systems this service holds (RxNorm and ICD-10-CM), the filter searches by name, and on ICD-10-CM by code too, and is required, and the matches come ranked, best first, with `expansion.total` the number of matches.
+         * @description FHIR `ValueSet/$expand`. Expands a value set canonical to its member codes, with a text filter and paging (`count=0` returns the total only). On the value sets of the code systems this service holds (RxNorm and ICD-10-CM), the filter searches by name, and on ICD-10-CM by code too, and is required, and the matches come ranked, best first, with `expansion.total` the number of matches. The scheduling value sets list the service types and specialties a Slot or Schedule search can be sent, alphabetically by display, every one when `count` is not sent; their version changes only when the list does, and a GET's answer carries a weak `ETag` with `Cache-Control: private, max-age=300`.
          */
         post: operations["valueSetExpandPost"];
         delete?: never;
@@ -212,13 +212,13 @@ export interface paths {
         };
         /**
          * Validate a code against a value set
-         * @description FHIR `ValueSet/$validate-code`. A code that is not in the set is a successful `200` with `result: false`, not an error. On POST, a `coding` or `codeableConcept` parameter may stand in for `system` + `code`; a codeableConcept validates if any of its codings is in the set, which helps when an element carries a vendor-local coding alongside a standard one.
+         * @description FHIR `ValueSet/$validate-code`. A code that is not in the set is a successful `200` with `result: false`, not an error. On POST, a `coding` or `codeableConcept` parameter may stand in for `system` + `code`; a codeableConcept validates if any of its codings is in the set, which helps when an element carries a vendor-local coding alongside a standard one. On the scheduling value sets `system` is required, any display a feed sent for the code is accepted, and a GET's answer carries a weak `ETag` with `Cache-Control: private, max-age=300`.
          */
         get: operations["valueSetValidateCode"];
         put?: never;
         /**
          * Validate a code against a value set
-         * @description FHIR `ValueSet/$validate-code`. A code that is not in the set is a successful `200` with `result: false`, not an error. On POST, a `coding` or `codeableConcept` parameter may stand in for `system` + `code`; a codeableConcept validates if any of its codings is in the set, which helps when an element carries a vendor-local coding alongside a standard one.
+         * @description FHIR `ValueSet/$validate-code`. A code that is not in the set is a successful `200` with `result: false`, not an error. On POST, a `coding` or `codeableConcept` parameter may stand in for `system` + `code`; a codeableConcept validates if any of its codings is in the set, which helps when an element carries a vendor-local coding alongside a standard one. On the scheduling value sets `system` is required, any display a feed sent for the code is accepted, and a GET's answer carries a weak `ETag` with `Cache-Control: private, max-age=300`.
          */
         post: operations["valueSetValidateCodePost"];
         delete?: never;
@@ -1505,7 +1505,7 @@ export interface operations {
                     "application/fhir+json": components["schemas"]["OperationOutcome"];
                 };
             };
-            /** @description No source is configured for this code system on this deployment, no release has been published to it, or its source is rate limiting requests (with `Retry-After`). The service returns no answer rather than guessing one. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
+            /** @description No source is configured for this code system on this deployment, no release has been published to it, or its source is rate limiting requests (with `Retry-After`). For the scheduling value sets, the scheduling store could not answer just now (with `Retry-After`). The service returns no answer rather than guessing one. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
             503: {
                 headers: {
                     /** @description Sent when waiting will help: the API key could not be checked just now, or the source behind this service is rate limiting requests or did not answer. How many seconds to wait before sending the request again. */
@@ -1619,7 +1619,7 @@ export interface operations {
                     "application/fhir+json": components["schemas"]["OperationOutcome"];
                 };
             };
-            /** @description No source is configured for this code system on this deployment, no release has been published to it, or its source is rate limiting requests (with `Retry-After`). The service returns no answer rather than guessing one. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
+            /** @description No source is configured for this code system on this deployment, no release has been published to it, or its source is rate limiting requests (with `Retry-After`). For the scheduling value sets, the scheduling store could not answer just now (with `Retry-After`). The service returns no answer rather than guessing one. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
             503: {
                 headers: {
                     /** @description Sent when waiting will help: the API key could not be checked just now, or the source behind this service is rate limiting requests or did not answer. How many seconds to wait before sending the request again. */
@@ -1736,7 +1736,7 @@ export interface operations {
                     "application/fhir+json": components["schemas"]["OperationOutcome"];
                 };
             };
-            /** @description No source is configured for this code system on this deployment, no release has been published to it, or its source is rate limiting requests (with `Retry-After`). The service returns no answer rather than guessing one. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
+            /** @description No source is configured for this code system on this deployment, no release has been published to it, or its source is rate limiting requests (with `Retry-After`). For the scheduling value sets, the scheduling store could not answer just now (with `Retry-After`). The service returns no answer rather than guessing one. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
             503: {
                 headers: {
                     /** @description Sent when waiting will help: the API key could not be checked just now, or the source behind this service is rate limiting requests or did not answer. How many seconds to wait before sending the request again. */
@@ -1850,7 +1850,7 @@ export interface operations {
                     "application/fhir+json": components["schemas"]["OperationOutcome"];
                 };
             };
-            /** @description No source is configured for this code system on this deployment, no release has been published to it, or its source is rate limiting requests (with `Retry-After`). The service returns no answer rather than guessing one. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
+            /** @description No source is configured for this code system on this deployment, no release has been published to it, or its source is rate limiting requests (with `Retry-After`). For the scheduling value sets, the scheduling store could not answer just now (with `Retry-After`). The service returns no answer rather than guessing one. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
             503: {
                 headers: {
                     /** @description Sent when waiting will help: the API key could not be checked just now, or the source behind this service is rate limiting requests or did not answer. How many seconds to wait before sending the request again. */
@@ -1880,7 +1880,7 @@ export interface operations {
         parameters: {
             query?: {
                 /**
-                 * @description Canonical URL of the value set to expand. Defaults to the implicit all-LOINC value set (`http://loinc.org?fhir_vs`), which is every LOINC code. That expansion is not served and answers `422`: expand a LOINC group or answer list instead, or ask `$validate-code` whether a code is in LOINC. The RxNorm value sets this service holds are `https://haau3.com/fhir/ValueSet/rxnorm-current-prescribable-content` (every concept of the release it serves) and `https://haau3.com/fhir/ValueSet/rxnorm-current-prescribable-products` (its drug products: clinical and branded drugs and packs). The ICD-10-CM value sets are `https://haau3.com/fhir/ValueSet/icd-10-cm` (every code of the release it serves, headers included) and `https://haau3.com/fhir/ValueSet/icd-10-cm-valid-for-submission` (the codes valid for submission for HIPAA-covered transactions, so no header).
+                 * @description Canonical URL of the value set to expand. Defaults to the implicit all-LOINC value set (`http://loinc.org?fhir_vs`), which is every LOINC code. That expansion is not served and answers `422`: expand a LOINC group or answer list instead, or ask `$validate-code` whether a code is in LOINC. The RxNorm value sets this service holds are `https://haau3.com/fhir/ValueSet/rxnorm-current-prescribable-content` (every concept of the release it serves) and `https://haau3.com/fhir/ValueSet/rxnorm-current-prescribable-products` (its drug products: clinical and branded drugs and packs). The ICD-10-CM value sets are `https://haau3.com/fhir/ValueSet/icd-10-cm` (every code of the release it serves, headers included) and `https://haau3.com/fhir/ValueSet/icd-10-cm-valid-for-submission` (the codes valid for submission for HIPAA-covered transactions, so no header). The scheduling value sets are `https://fhir.haau3.com/platform/ValueSet/scheduling-service-types` (every service type on the Slots and Schedules the scheduling service serves now) and `https://fhir.haau3.com/platform/ValueSet/scheduling-specialties` (every specialty on them and on the practitioner roles and services that provide them), each code in its publisher's own code system, as sent.
                  * @example http://loinc.org/vs/LL360-9
                  */
                 url?: string;
@@ -1909,6 +1909,10 @@ export interface operations {
             /** @description A FHIR `ValueSet` carrying an `expansion`. */
             200: {
                 headers: {
+                    /** @description On the scheduling value sets, a GET's answer: `private, max-age=300`, keep it up to five minutes. Not sent for other value sets. */
+                    "Cache-Control"?: string;
+                    /** @description On the scheduling value sets, a GET's answer: a weak tag naming the list's version and the answer's form. Send it back in `If-None-Match` to get a `304` when nothing has changed. Not sent for other value sets. */
+                    ETag?: string;
                     "X-Request-Id": components["headers"]["XRequestId"];
                     "X-Correlation-Id": components["headers"]["XCorrelationId"];
                     [name: string]: unknown;
@@ -1916,6 +1920,19 @@ export interface operations {
                 content: {
                     "application/fhir+json": components["schemas"]["ValueSet"];
                 };
+            };
+            /** @description Not modified, on the scheduling value sets: the `ETag` sent in `If-None-Match` still matches, so the answer you hold is current. No body. */
+            304: {
+                headers: {
+                    /** @description On the scheduling value sets, a GET's answer: `private, max-age=300`, keep it up to five minutes. Not sent for other value sets. */
+                    "Cache-Control"?: string;
+                    /** @description On the scheduling value sets, a GET's answer: a weak tag naming the list's version and the answer's form. Send it back in `If-None-Match` to get a `304` when nothing has changed. Not sent for other value sets. */
+                    ETag?: string;
+                    "X-Request-Id": components["headers"]["XRequestId"];
+                    "X-Correlation-Id": components["headers"]["XCorrelationId"];
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Invalid request: a parameter is not valid, is not one this operation takes, or was sent more than once (only `property` on `$lookup` repeats). The `OperationOutcome` names each one. */
             400: {
@@ -1966,7 +1983,7 @@ export interface operations {
                     "application/fhir+json": components["schemas"]["OperationOutcome"];
                 };
             };
-            /** @description No source is configured for this code system on this deployment, no release has been published to it, or its source is rate limiting requests (with `Retry-After`). The service returns no answer rather than guessing one. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
+            /** @description No source is configured for this code system on this deployment, no release has been published to it, or its source is rate limiting requests (with `Retry-After`). For the scheduling value sets, the scheduling store could not answer just now (with `Retry-After`). The service returns no answer rather than guessing one. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
             503: {
                 headers: {
                     /** @description Sent when waiting will help: the API key could not be checked just now, or the source behind this service is rate limiting requests or did not answer. How many seconds to wait before sending the request again. */
@@ -2080,7 +2097,7 @@ export interface operations {
                     "application/fhir+json": components["schemas"]["OperationOutcome"];
                 };
             };
-            /** @description No source is configured for this code system on this deployment, no release has been published to it, or its source is rate limiting requests (with `Retry-After`). The service returns no answer rather than guessing one. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
+            /** @description No source is configured for this code system on this deployment, no release has been published to it, or its source is rate limiting requests (with `Retry-After`). For the scheduling value sets, the scheduling store could not answer just now (with `Retry-After`). The service returns no answer rather than guessing one. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
             503: {
                 headers: {
                     /** @description Sent when waiting will help: the API key could not be checked just now, or the source behind this service is rate limiting requests or did not answer. How many seconds to wait before sending the request again. */
@@ -2110,7 +2127,7 @@ export interface operations {
         parameters: {
             query: {
                 /**
-                 * @description Canonical URL of the value set to validate against. Defaults to the implicit all-LOINC value set (`http://loinc.org?fhir_vs`), which is every LOINC code.
+                 * @description Canonical URL of the value set to validate against. Defaults to the implicit all-LOINC value set (`http://loinc.org?fhir_vs`), which is every LOINC code. The scheduling value sets are `https://fhir.haau3.com/platform/ValueSet/scheduling-service-types` (every service type on the Slots and Schedules the scheduling service serves now) and `https://fhir.haau3.com/platform/ValueSet/scheduling-specialties` (every specialty on them and on the practitioner roles and services that provide them), each code in its publisher's own code system, as sent.
                  * @example http://hl7.org/fhir/ValueSet/observation-vitalsignresult
                  */
                 url?: string;
@@ -2120,7 +2137,7 @@ export interface operations {
                  */
                 code: string;
                 /**
-                 * @description Code system URI of the code. Defaults to LOINC (`http://loinc.org`).
+                 * @description Code system URI of the code. Defaults to LOINC (`http://loinc.org`), except on the scheduling value sets, whose codes come from several code systems: there it is required, and a request without it is refused with a `400` naming it.
                  * @example http://loinc.org
                  */
                 system?: string;
@@ -2143,6 +2160,10 @@ export interface operations {
             /** @description A FHIR `Parameters` resource carrying `result`. */
             200: {
                 headers: {
+                    /** @description On the scheduling value sets, a GET's answer: `private, max-age=300`, keep it up to five minutes. Not sent for other value sets. */
+                    "Cache-Control"?: string;
+                    /** @description On the scheduling value sets, a GET's answer: a weak tag naming the list's version and the answer's form. Send it back in `If-None-Match` to get a `304` when nothing has changed. Not sent for other value sets. */
+                    ETag?: string;
                     "X-Request-Id": components["headers"]["XRequestId"];
                     "X-Correlation-Id": components["headers"]["XCorrelationId"];
                     [name: string]: unknown;
@@ -2150,6 +2171,19 @@ export interface operations {
                 content: {
                     "application/fhir+json": components["schemas"]["Parameters"];
                 };
+            };
+            /** @description Not modified, on the scheduling value sets: the `ETag` sent in `If-None-Match` still matches, so the answer you hold is current. No body. */
+            304: {
+                headers: {
+                    /** @description On the scheduling value sets, a GET's answer: `private, max-age=300`, keep it up to five minutes. Not sent for other value sets. */
+                    "Cache-Control"?: string;
+                    /** @description On the scheduling value sets, a GET's answer: a weak tag naming the list's version and the answer's form. Send it back in `If-None-Match` to get a `304` when nothing has changed. Not sent for other value sets. */
+                    ETag?: string;
+                    "X-Request-Id": components["headers"]["XRequestId"];
+                    "X-Correlation-Id": components["headers"]["XCorrelationId"];
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Invalid request: a parameter is not valid, is not one this operation takes, or was sent more than once (only `property` on `$lookup` repeats). The `OperationOutcome` names each one. */
             400: {
@@ -2200,7 +2234,7 @@ export interface operations {
                     "application/fhir+json": components["schemas"]["OperationOutcome"];
                 };
             };
-            /** @description No source is configured for this code system on this deployment, no release has been published to it, or its source is rate limiting requests (with `Retry-After`). The service returns no answer rather than guessing one. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
+            /** @description No source is configured for this code system on this deployment, no release has been published to it, or its source is rate limiting requests (with `Retry-After`). For the scheduling value sets, the scheduling store could not answer just now (with `Retry-After`). The service returns no answer rather than guessing one. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
             503: {
                 headers: {
                     /** @description Sent when waiting will help: the API key could not be checked just now, or the source behind this service is rate limiting requests or did not answer. How many seconds to wait before sending the request again. */
@@ -2314,7 +2348,7 @@ export interface operations {
                     "application/fhir+json": components["schemas"]["OperationOutcome"];
                 };
             };
-            /** @description No source is configured for this code system on this deployment, no release has been published to it, or its source is rate limiting requests (with `Retry-After`). The service returns no answer rather than guessing one. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
+            /** @description No source is configured for this code system on this deployment, no release has been published to it, or its source is rate limiting requests (with `Retry-After`). For the scheduling value sets, the scheduling store could not answer just now (with `Retry-After`). The service returns no answer rather than guessing one. It is also the answer when the API key could not be checked just now, with `Retry-After`. */
             503: {
                 headers: {
                     /** @description Sent when waiting will help: the API key could not be checked just now, or the source behind this service is rate limiting requests or did not answer. How many seconds to wait before sending the request again. */
