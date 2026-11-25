@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.5.3](https://github.com/haau3/haau3-node/compare/v0.5.2...v0.5.3) (2026-11-25)
+
+
+### Features
+
+* searchToken() writes a coding as the value a token search takes ([#105](https://github.com/haau3/haau3-node/issues/105)) ([66a98a4](https://github.com/haau3/haau3-node/commit/66a98a4345c8eb0a7e97d0ea2df82aaa67c42838))
+* the API's spec at 1.0.0-preview.41 ([#104](https://github.com/haau3/haau3-node/issues/104)) ([e4b425f](https://github.com/haau3/haau3-node/commit/e4b425f1d1203f063799c0a74ddac97d5030f99b))
+
 ## [0.5.2](https://github.com/haau3/haau3-node/compare/v0.5.1...v0.5.2) (2026-11-24)
 
 
