@@ -19,6 +19,7 @@ import {
   RefusedError,
   reviewFlags,
   RXNORM_SYSTEM,
+  searchToken,
   structureDosageRequest,
   SYNONYM_USE,
 } from "../src/index.js";
@@ -162,6 +163,16 @@ describe.skipIf(!live || testKey)("the production API", () => {
     const unescaped = await haau3.searchSlot({ "location-address-city": "Austin,", _count: 1 }).catch((error: unknown) => error);
     expect(unescaped).toBeInstanceOf(RefusedError);
     expect((unescaped as RefusedError).status).toBe(400);
+  });
+
+  it("searches slots by a service type picked from its value set, with searchToken", async () => {
+    const serviceTypes = await haau3.valueSetExpand({ url: "https://fhir.haau3.com/platform/ValueSet/scheduling-service-types" });
+    const listed = serviceTypes.expansion?.contains ?? [];
+    expect(listed.length).toBeGreaterThan(0);
+    const hl7 = listed.find((entry) => entry.system === "http://terminology.hl7.org/CodeSystem/service-type") ?? listed[0]!;
+    const page = await haau3.searchSlot({ "schedule.service-type": searchToken(hl7), _count: 1 });
+    expect(page.resourceType).toBe("Bundle");
+    expect(page.total).toBeGreaterThan(0);
   });
 
   it("sends a batch, each entry with its own answer or error", async () => {
