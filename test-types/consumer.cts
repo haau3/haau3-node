@@ -30,6 +30,7 @@ export async function tour(): Promise<void> {
     "service-category": "pharm",
     "location.address-state": "FL",
     "location.address-postalcode": "33131",
+    active: "true",
     _include: ["HealthcareService:organization", "HealthcareService:location"],
   });
   for (const pharmacy of haau3.matches(pharmacies, "HealthcareService")) {

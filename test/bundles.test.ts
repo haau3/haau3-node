@@ -11,10 +11,10 @@ const service = {
   resourceType: "HealthcareService",
   id: "HealthcareService-pharmacy-1234567893",
   name: "EXAMPLE PHARMACY",
-  providedBy: { reference: "Organization/Organization-1234567893" },
+  providedBy: { reference: "Organization/Organization-pharmacy-1234567893" },
   location: [{ reference: "Location/Location-pharmacy-1234567893" }],
 };
-const organization = { resourceType: "Organization", id: "Organization-1234567893", name: "EXAMPLE PHARMACY" };
+const organization = { resourceType: "Organization", id: "Organization-pharmacy-1234567893", name: "EXAMPLE PHARMACY" };
 const store = { resourceType: "Location", id: "Location-pharmacy-1234567893", address: { city: "MIAMI" } };
 const page = {
   resourceType: "Bundle",
@@ -63,7 +63,7 @@ describe("resolve()", () => {
 
   it("finds it without from, as the one entry whose address ends in that type and id", () => {
     const { haau3 } = client();
-    expect(haau3.resolve(page as never, "Organization/Organization-1234567893")).toBe(organization);
+    expect(haau3.resolve(page as never, "Organization/Organization-pharmacy-1234567893")).toBe(organization);
     // The control: an id the page does not hold.
     expect(haau3.resolve(page as never, "Organization/Organization-not-on-this-page")).toBeUndefined();
   });
@@ -96,7 +96,7 @@ describe("resolve()", () => {
 
   it("gives a relative reference no meaning from an entry at a urn:uuid, as FHIR says", () => {
     const { haau3 } = client();
-    const holder = { resourceType: "Claim", provider: { reference: "Organization/Organization-1234567893" } };
+    const holder = { resourceType: "Claim", provider: { reference: "Organization/Organization-pharmacy-1234567893" } };
     const bundle = { ...page, entry: [...page.entry, { fullUrl: "urn:uuid:1a2b3c4d-0000-4000-8000-000000000002", resource: holder }] };
     expect(haau3.resolve(bundle as never, holder.provider, { from: holder })).toBeUndefined();
     // The control: the same reference without from finds the one RESTful entry.

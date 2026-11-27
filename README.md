@@ -401,6 +401,7 @@ const page = await haau3.searchHealthcareService({
   "service-category": "pharm",
   "location.address-state": "FL",
   "location.address-postalcode": "33131",
+  active: "true",
   _include: ["HealthcareService:organization", "HealthcareService:location"],
 });
 

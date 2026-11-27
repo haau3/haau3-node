@@ -136,7 +136,7 @@ export class Haau3 extends Operations {
    * of every page.
    *
    * ```ts
-   * const page = await haau3.searchHealthcareService({ "service-category": "pharm", "location.address-state": "FL", "location.address-postalcode": "33131" });
+   * const page = await haau3.searchHealthcareService({ "service-category": "pharm", "location.address-state": "FL", "location.address-postalcode": "33131", active: "true" });
    * for (const service of haau3.matches(page, "HealthcareService")) console.log(service.name);
    * ```
    */
@@ -154,6 +154,7 @@ export class Haau3 extends Operations {
    *   "service-category": "pharm",
    *   "location.address-state": "FL",
    *   "location.address-postalcode": "33131",
+   *   active: "true",
    *   _include: ["HealthcareService:organization", "HealthcareService:location"],
    * });
    * for (const service of haau3.matches(page, "HealthcareService")) {
