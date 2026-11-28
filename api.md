@@ -2,7 +2,7 @@
 
 # API reference
 
-Every operation of the haau3 platform API (`1.0.0-preview.41`) is a method on `Haau3`, named by its
+Every operation of the haau3 platform API (`1.0.0-preview.44`) is a method on `Haau3`, named by its
 operationId. Each links to its page on docs.haau3.com, which shows its parameters and an example
 exchange. `params` is the query parameters as one object, `body` the request body, and every method
 takes the per-call options (`{ timeout, maxRetries, signal, correlationId, headers, fetchOptions }`) as its last
@@ -89,7 +89,7 @@ FHIR InsurancePlan: what a Medicare Advantage or ACA Marketplace plan covers and
 |---|---|---|
 | [`searchInsurancePlan(params?)`](https://docs.haau3.com/api-reference/medical-benefits/find-a-plan) | `GET /v1/fhir/r4/InsurancePlan` | Find a plan |
 | [`readInsurancePlan(id)`](https://docs.haau3.com/api-reference/medical-benefits/read-a-plan) | `GET /v1/fhir/r4/InsurancePlan/{id}` | Read a plan |
-| [`checkInsurancePlanNetwork(id, params)`](https://docs.haau3.com/api-reference/medical-benefits/check-providers-against-a-plans-network) | `GET /v1/fhir/r4/InsurancePlan/{id}/$in-network` | Check providers against a plan's network |
+| [`checkInsurancePlanNetwork(id, params?)`](https://docs.haau3.com/api-reference/medical-benefits/check-providers-against-a-plans-network) | `GET /v1/fhir/r4/InsurancePlan/{id}/$in-network` | Check providers against a plan's network |
 | [`listInsurancePlanCounties(params)`](https://docs.haau3.com/api-reference/medical-benefits/list-a-states-counties) | `GET /v1/fhir/r4/InsurancePlan/$counties` | List a state's counties |
 
 ## Pharmacy Benefits

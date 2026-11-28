@@ -35,7 +35,7 @@ export class BatchBuilder {
    *
    * `GET /v1/fhir/r4/InsurancePlan/{id}/$in-network`
    */
-  checkInsurancePlanNetwork(id: string, params: CheckInsurancePlanNetworkParams): BatchEntry<ResponseOf<"checkInsurancePlanNetwork">> {
+  checkInsurancePlanNetwork(id: string, params?: CheckInsurancePlanNetworkParams): BatchEntry<ResponseOf<"checkInsurancePlanNetwork">> {
     return entry<ResponseOf<"checkInsurancePlanNetwork">>({ method: "GET", path: "/v1/fhir/r4/InsurancePlan/{id}/$in-network", pathParams: { id }, query: params, expects: ["Parameters"] });
   }
 
