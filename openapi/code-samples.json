@@ -2,7 +2,7 @@
   "overlay": "1.2.0",
   "info": {
     "title": "TypeScript samples for every operation of the haau3 platform API",
-    "version": "1.0.0-preview.41"
+    "version": "1.0.0-preview.44"
   },
   "extends": "https://api.haau3.com/openapi.json",
   "actions": [
@@ -277,7 +277,7 @@
           {
             "lang": "typescript",
             "label": "TypeScript",
-            "source": "import { Haau3 } from \"@haau3/sdk\";\n\nconst haau3 = new Haau3(); // reads HAAU3_API_KEY\nconst bundle = await haau3.searchHealthcareService({\n  \"service-category\": \"pharm\",\n  \"location.address-state\": \"FL\",\n  \"location.address-postalcode\": \"33131\",\n  _count: 2,\n});\nconsole.log(bundle.entry?.length ?? 0);\n"
+            "source": "import { Haau3 } from \"@haau3/sdk\";\n\nconst haau3 = new Haau3(); // reads HAAU3_API_KEY\nconst bundle = await haau3.searchHealthcareService({\n  \"service-category\": \"pharm\",\n  \"location.address-state\": \"FL\",\n  \"location.address-postalcode\": \"33131\",\n  active: \"true\",\n  _include: [\"HealthcareService:organization\", \"HealthcareService:location\"],\n});\nconsole.log(bundle.entry?.length ?? 0);\n"
           }
         ]
       }
@@ -409,7 +409,7 @@
           {
             "lang": "typescript",
             "label": "TypeScript",
-            "source": "import { Haau3 } from \"@haau3/sdk\";\n\nconst haau3 = new Haau3(); // reads HAAU3_API_KEY\nconst parameters = await haau3.checkInsurancePlanNetwork(\"H3359-038-000\", {\n  npi: [\"1518929058\", \"1992700001\"],\n});\nfor (const parameter of parameters.parameter ?? []) console.log(parameter.name);\n"
+            "source": "import { Haau3 } from \"@haau3/sdk\";\n\nconst haau3 = new Haau3(); // reads HAAU3_API_KEY\nconst parameters = await haau3.checkInsurancePlanNetwork(\"H3359-038-000\", {\n  npi: [\"1518929058\", \"1992700001\"],\n  pharmacy: [\"1922102680\"],\n});\nfor (const parameter of parameters.parameter ?? []) console.log(parameter.name);\n"
           }
         ]
       }
